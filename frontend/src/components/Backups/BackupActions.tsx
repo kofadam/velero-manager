@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
 import { Backup } from '../../services/types.ts';
+import { apiService } from '../../services/api.ts';
+import LogsModal from './LogsModal.tsx';
+import DescribeModal from './DescribeModal.tsx';
+import RestoreModal from './RestoreModal.tsx';
 
 interface BackupActionsProps {
   backup: Backup;
@@ -8,7 +12,10 @@ interface BackupActionsProps {
 }
 
 const BackupActions: React.FC<BackupActionsProps> = ({ backup, onDelete, onRefresh }) => {
-  const [isDeleting, setIsDeleting] = useState(false);
+const [isDeleting, setIsDeleting] = useState(false);
+const [showLogs, setShowLogs] = useState(false);
+const [showDescribe, setShowDescribe] = useState(false);
+const [showRestore, setShowRestore] = useState(false);
 
   const handleDelete = async () => {
     if (window.confirm(`Are you sure you want to delete backup "${backup.name}"?`)) {
@@ -26,18 +33,27 @@ const BackupActions: React.FC<BackupActionsProps> = ({ backup, onDelete, onRefre
   };
 
   const handleLogs = () => {
-    // TODO: Implement logs modal
-    alert(`Logs for ${backup.name} - Coming soon!`);
+    setShowLogs(true);
   };
 
   const handleDescribe = () => {
-    // TODO: Implement describe modal
-    alert(`Describe ${backup.name} - Coming soon!`);
+    setShowDescribe(true);
   };
 
   const handleRestore = () => {
-    // TODO: Implement restore modal
-    alert(`Restore from ${backup.name} - Coming soon!`);
+    setShowRestore(true);
+  };
+
+  const handleRestoreSubmit = async (restoreConfig: any) => {
+    try {
+      const result = await apiService.createRestore(restoreConfig);
+      alert(`✅ Restore "${restoreConfig.name}" created successfully!\n\n🔄 Velero is now restoring from backup "${backup.name}"\n\nCheck the Velero logs to monitor progress.`);
+      onRefresh(); // Refresh the backup list
+    } catch (error: any) {
+      console.error('Restore failed:', error);
+      const errorMessage = error.response?.data?.details || error.message || 'Unknown error';
+      alert(`❌ Failed to create restore:\n\n${errorMessage}`);
+    }
   };
 
   return (
@@ -71,6 +87,26 @@ const BackupActions: React.FC<BackupActionsProps> = ({ backup, onDelete, onRefre
       >
         Restore
       </button>
+            
+      {showLogs && (
+        <LogsModal
+          backup={backup}
+          onClose={() => setShowLogs(false)}
+        />
+      )}
+      {showDescribe && (
+        <DescribeModal
+          backup={backup}
+          onClose={() => setShowDescribe(false)}
+        />
+      )}
+      {showRestore && (
+        <RestoreModal
+          backup={backup}
+          onClose={() => setShowRestore(false)}
+          onRestore={handleRestoreSubmit}
+        />
+      )}
     </div>
   );
 };

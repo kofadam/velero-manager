@@ -24,6 +24,11 @@ export const apiService = {
     await api.delete(`/backups/${name}`);
   },
 
+  async createRestore(restoreConfig: any): Promise<any> {
+    const response = await api.post('/restores', restoreConfig);
+    return response.data;
+  },
+
   async getHealth(): Promise<{ status: string }> {
     const response = await api.get('/health');
     return response.data;

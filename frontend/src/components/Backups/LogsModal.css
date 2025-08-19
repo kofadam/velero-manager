@@ -1,0 +1,120 @@
+.logs-modal {
+  display: flex;
+  flex-direction: column;
+  height: 500px;
+}
+
+.logs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 16px;
+}
+
+.backup-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.backup-name {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.backup-status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.refresh-btn {
+  padding: 6px 12px;
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background-color: #e5e7eb;
+}
+
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.logs-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.logs-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  color: #6b7280;
+}
+
+.logs-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  color: #dc2626;
+}
+
+.logs-error button {
+  padding: 4px 8px;
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.logs-text {
+  flex: 1;
+  background-color: #1f2937;
+  color: #f9fafb;
+  padding: 16px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.logs-text::-webkit-scrollbar {
+  width: 8px;
+}
+
+.logs-text::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.logs-text::-webkit-scrollbar-thumb {
+  background: #6b7280;
+  border-radius: 4px;
+}
+
+.logs-text::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}

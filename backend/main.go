@@ -4,10 +4,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
 	"velero-manager/pkg/handlers"
 	"velero-manager/pkg/k8s"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -33,6 +34,9 @@ func main() {
 	api := router.Group("/api/v1")
 	{
 		api.GET("/backups", veleroHandler.ListBackups)
+		api.POST("/backups", veleroHandler.CreateBackup)
+		api.DELETE("/backups/:name", veleroHandler.DeleteBackup)
+		api.POST("/restores", veleroHandler.CreateRestore)
 		api.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 		})
