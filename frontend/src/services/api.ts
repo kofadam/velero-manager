@@ -29,6 +29,35 @@ export const apiService = {
     return response.data;
   },
 
+  async getRestores(): Promise<any> {
+    const response = await api.get('/restores');
+    return response.data;
+  },
+
+  async getSchedules(): Promise<any> {
+    const response = await api.get('/schedules');
+    return response.data;
+  },
+
+  async createSchedule(scheduleConfig: any): Promise<any> {
+    const response = await api.post('/schedules', scheduleConfig);
+    return response.data;
+  },
+
+  async deleteSchedule(name: string): Promise<void> {
+    await api.delete(`/schedules/${name}`);
+  },
+
+  async updateSchedule(name: string, updates: any): Promise<any> {
+    const response = await api.put(`/schedules/${name}`, updates);
+    return response.data;
+  },
+
+  async createBackupFromSchedule(scheduleName: string): Promise<any> {
+    const response = await api.post(`/schedules/${scheduleName}/backup`);
+    return response.data;
+  },
+
   async getHealth(): Promise<{ status: string }> {
     const response = await api.get('/health');
     return response.data;

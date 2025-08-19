@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Layout/Sidebar.tsx';
 import Header from './components/Layout/Header.tsx';
 import BackupList from './components/Backups/BackupList.tsx';
+import Dashboard from './components/Dashboard/Dashboard.tsx';
+import ScheduleList from './components/Schedules/ScheduleList.tsx';
 import Login from './components/Auth/Login.tsx';
 import { authService } from './services/auth.ts';
 import { User } from './services/types.ts';
@@ -30,11 +32,11 @@ function App() {
       case 'backups':
         return <BackupList />;
       case 'dashboard':
-        return <div>Dashboard Coming Soon...</div>;
+        return <Dashboard />;
       case 'restore':
         return <div>Restore Coming Soon...</div>;
       case 'schedules':
-        return <div>Schedules Coming Soon...</div>;
+        return <ScheduleList />;
       case 'settings':
         return <div>Settings Coming Soon...</div>;
       default:
