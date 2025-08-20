@@ -4,6 +4,7 @@ import Header from './components/Layout/Header.tsx';
 import BackupList from './components/Backups/BackupList.tsx';
 import Dashboard from './components/Dashboard/Dashboard.tsx';
 import ScheduleList from './components/Schedules/ScheduleList.tsx';
+import RestoreList from './components/Restores/RestoreList.tsx';
 import Login from './components/Auth/Login.tsx';
 import { authService } from './services/auth.ts';
 import { User } from './services/types.ts';
@@ -34,7 +35,7 @@ function App() {
       case 'dashboard':
         return <Dashboard />;
       case 'restore':
-        return <div>Restore Coming Soon...</div>;
+        return <RestoreList />;
       case 'schedules':
         return <ScheduleList />;
       case 'settings':

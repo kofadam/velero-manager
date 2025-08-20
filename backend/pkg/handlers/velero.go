@@ -170,10 +170,73 @@ func (h *VeleroHandler) CreateBackup(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Backup created successfully",
-		"backup":  result.GetName(),
-		"status":  "created",
-	})
+                "message": "Backup created successfully",
+                "backup":  result.GetName(),
+                "status":  "created",
+        })
+}
+
+// DeleteRestore deletes a restore
+func (h *VeleroHandler) DeleteRestore(c *gin.Context) {
+        name := c.Param("name")
+        
+        err := h.k8sClient.DynamicClient.
+                Resource(k8s.RestoreGVR).
+                Namespace("velero").
+                Delete(h.k8sClient.Context, name, metav1.DeleteOptions{})
+        
+        if err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{
+                        "error":   "Failed to delete restore",
+                        "details": err.Error(),
+                        "restore": name,
+                })
+                return
+        }
+
+        c.JSON(http.StatusOK, gin.H{
+                "message": "Restore deleted successfully",
+                "restore": name,
+        })
+}
+
+// GetRestoreLogs returns logs for a restore
+func (h *VeleroHandler) GetRestoreLogs(c *gin.Context) {
+        name := c.Param("name")
+        
+        // For now, return a placeholder response
+        // In a full implementation, this would fetch actual Velero restore logs
+        c.JSON(http.StatusOK, gin.H{
+                "logs": fmt.Sprintf("Restore logs for '%s' would be retrieved from Velero here.\\n\\nThis is a placeholder implementation. In production, this would:\\n1. Connect to the Velero pod\\n2. Fetch restore logs using 'velero restore logs %s'\\n3. Return the actual log content", name, name),
+                "restore": name,
+        })
+}
+
+// DescribeRestore returns detailed information about a restore
+func (h *VeleroHandler) DescribeRestore(c *gin.Context) {
+        name := c.Param("name")
+        
+        restore, err := h.k8sClient.DynamicClient.
+                Resource(k8s.RestoreGVR).
+                Namespace("velero").
+                Get(h.k8sClient.Context, name, metav1.GetOptions{})
+        
+        if err != nil {
+                c.JSON(http.StatusNotFound, gin.H{
+                        "error":   "Restore not found",
+                        "details": err.Error(),
+                        "restore": name,
+                })
+                return
+        }
+
+        c.JSON(http.StatusOK, gin.H{
+                "name":      restore.GetName(),
+                "namespace": restore.GetNamespace(),
+                "metadata":  restore.Object["metadata"],
+                "spec":      restore.Object["spec"],
+                "status":    restore.Object["status"],
+        })
 }
 func (h *VeleroHandler) CreateRestore(c *gin.Context) {
 	var request struct {

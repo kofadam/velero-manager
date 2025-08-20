@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { BackupsResponse, Backup } from './types.ts';
+import { BackupsResponse, Backup, RestoresResponse, Restore } from './types.ts';
 import { API_BASE_URL } from '../utils/constants.ts';
 
 const api = axios.create({
@@ -29,8 +29,22 @@ export const apiService = {
     return response.data;
   },
 
-  async getRestores(): Promise<any> {
-    const response = await api.get('/restores');
+  async getRestores(): Promise<RestoresResponse> {
+    const response = await api.get<RestoresResponse>('/restores');
+    return response.data;
+  },
+
+  async deleteRestore(name: string): Promise<void> {
+    await api.delete(`/restores/${name}`);
+  },
+
+  async getRestoreLogs(name: string): Promise<{ logs: string }> {
+    const response = await api.get(`/restores/${name}/logs`);
+    return response.data;
+  },
+
+  async describeRestore(name: string): Promise<any> {
+    const response = await api.get(`/restores/${name}/describe`);
     return response.data;
   },
 

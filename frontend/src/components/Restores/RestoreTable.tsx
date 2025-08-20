@@ -1,0 +1,152 @@
+import React, { useState } from 'react';
+import { Restore } from '../../services/types.ts';
+import RestoreActions from './RestoreActions.tsx';
+import './RestoreTable.css';
+
+interface RestoreTableProps {
+  restores: Restore[];
+  selectedRestores: string[];
+  onSelectRestore: (restoreName: string, selected: boolean) => void;
+  onSelectAll: (selected: boolean) => void;
+  onDeleteRestore: (name: string) => Promise<void>;
+  onRefresh: () => void;
+}
+
+const RestoreTable: React.FC<RestoreTableProps> = ({
+  restores,
+  selectedRestores,
+  onSelectRestore,
+  onSelectAll,
+  onDeleteRestore,
+  onRefresh,
+}) => {
+  const [sortField, setSortField] = useState<keyof Restore>('creationTimestamp');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const formatTimestamp = (timestamp: string) => {
+    return new Date(timestamp).toLocaleString();
+  };
+
+  const getStatusColor = (phase: string) => {
+    switch (phase.toLowerCase()) {
+      case 'completed':
+        return 'status-completed';
+      case 'inprogress':
+        return 'status-inprogress';
+      case 'failed':
+        return 'status-failed';
+      case 'partiallyfailed':
+        return 'status-partiallyfailed';
+      default:
+        return 'status-unknown';
+    }
+  };
+
+  const sortedRestores = [...restores].sort((a, b) => {
+    let aValue: any = a[sortField];
+    let bValue: any = b[sortField];
+
+    if (sortField === 'creationTimestamp') {
+      aValue = new Date(aValue).getTime();
+      bValue = new Date(bValue).getTime();
+    }
+
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const handleSort = (field: keyof Restore) => {
+    if (field === sortField) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const allSelected = restores.length > 0 && selectedRestores.length === restores.length;
+  const someSelected = selectedRestores.length > 0 && selectedRestores.length < restores.length;
+
+  return (
+    <div className="restore-table-container">
+      <table className="restore-table">
+        <thead>
+          <tr>
+            <th className="checkbox-col">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={input => {
+                  if (input) input.indeterminate = someSelected;
+                }}
+                onChange={(e) => onSelectAll(e.target.checked)}
+              />
+            </th>
+            <th 
+              className="sortable"
+              onClick={() => handleSort('name')}
+            >
+              Name {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+            </th>
+            <th>Backup</th>
+            <th 
+              className="sortable"
+              onClick={() => handleSort('creationTimestamp')}
+            >
+              Created {sortField === 'creationTimestamp' && (sortDirection === 'asc' ? '↑' : '↓')}
+            </th>
+            <th>Status</th>
+            <th>Errors</th>
+            <th>Warnings</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedRestores.map((restore) => (
+            <tr key={restore.name}>
+              <td>
+                <input
+                  type="checkbox"
+                  checked={selectedRestores.includes(restore.name)}
+                  onChange={(e) => onSelectRestore(restore.name, e.target.checked)}
+                />
+              </td>
+              <td className="restore-name">{restore.name}</td>
+              <td className="backup-name">{restore.spec.backupName}</td>
+              <td className="timestamp">
+                {formatTimestamp(restore.creationTimestamp)}
+              </td>
+              <td>
+                <span className={`status ${getStatusColor(restore.status.phase)}`}>
+                  {restore.status.phase}
+                </span>
+              </td>
+              <td className="errors">
+                {restore.status.errors || 0}
+              </td>
+              <td className="warnings">
+                {restore.status.warnings || 0}
+              </td>
+              <td>
+                <RestoreActions 
+                  restore={restore}
+                  onDelete={onDeleteRestore}
+                  onRefresh={onRefresh}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      
+      {restores.length === 0 && (
+        <div className="empty-state">
+          <p>No restores found. Create your first restore to get started.</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default RestoreTable;

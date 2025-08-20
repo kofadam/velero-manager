@@ -45,3 +45,39 @@ export interface AuthConfig {
   realm?: string;
   clientId?: string;
 }
+
+export interface RestoreStatus {
+  phase: string;
+  startTimestamp?: string;
+  completionTimestamp?: string;
+  progress?: {
+    itemsRestored: number;
+    totalItems: number;
+  };
+  errors?: number;
+  warnings?: number;
+  validationErrors?: string[];
+}
+
+export interface RestoreSpec {
+  backupName: string;
+  includedNamespaces?: string[];
+  excludedNamespaces?: string[];
+  namespaceMapping?: Record<string, string>;
+  restorePVs?: boolean;
+  includeClusterResources?: boolean;
+}
+
+export interface Restore {
+  name: string;
+  namespace: string;
+  creationTimestamp: string;
+  labels: Record<string, string>;
+  status: RestoreStatus;
+  spec: RestoreSpec;
+}
+
+export interface RestoresResponse {
+  restores: Restore[];
+  count: number;
+}
