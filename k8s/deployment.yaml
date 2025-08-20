@@ -18,7 +18,7 @@ spec:
       serviceAccountName: velero-manager
       containers:
       - name: velero-manager
-        image: velero-manager:latest
+        image: kofadam/velero-manager:v1.2
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080

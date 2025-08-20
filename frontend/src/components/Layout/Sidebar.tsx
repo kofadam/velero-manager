@@ -1,4 +1,5 @@
 import React from 'react';
+import { APP_VERSION } from '../../utils/constants.ts';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -39,7 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeRoute, onRouteChange, onLogout 
         <button className="logout-btn" onClick={onLogout}>
           Logout
         </button>
-        <div className="version">Version: v0.0.1</div>
+        <div className="version">Version: {APP_VERSION}</div>
       </div>
     </div>
   );

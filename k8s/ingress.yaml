@@ -4,18 +4,12 @@ metadata:
   name: velero-manager
   namespace: velero-manager
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"  # Change to your cluster issuer
-    ingress.kubernetes.io/force-ssl-redirect: "true"
     kubernetes.io/ingress.class: "contour"
   labels:
     app: velero-manager
 spec:
-  tls:
-  - hosts:
-    - velero.yourdomain.com  # Change to your domain
-    secretName: velero-manager-tls
   rules:
-  - host: velero.yourdomain.com  # Change to your domain
+  - host: velero.homelab.local
     http:
       paths:
       - path: /
