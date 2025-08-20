@@ -7,6 +7,8 @@
 backend/velero-manager
 *.test
 *.out
+*.gz
+*.tar
 go.work
 
 # Node.js
