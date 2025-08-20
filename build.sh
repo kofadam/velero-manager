@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-# Get version
-VERSION=$(./version.sh)
+# Get version (trim whitespace)
+VERSION=$(./version.sh | tr -d '\n\r')
 echo "🏗️  Building Velero Manager version: $VERSION"
 
 # Build frontend with version
