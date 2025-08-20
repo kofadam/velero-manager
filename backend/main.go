@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
-
+	"strings"
 	"velero-manager/pkg/handlers"
 	"velero-manager/pkg/k8s"
 
@@ -48,8 +48,22 @@ func main() {
 		})
 	}
 
-	// Static files will be added later when frontend is ready
+	// Serve static files from frontend build
+	router.Static("/static", "./frontend/build/static")
+	router.StaticFile("/favicon.ico", "./frontend/build/favicon.ico")
+	router.StaticFile("/manifest.json", "./frontend/build/manifest.json")
+
+	// Serve React app for all non-API routes
+	router.NoRoute(func(c *gin.Context) {
+		// Don't serve index.html for API routes
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
+			return
+		}
+		c.File("./frontend/build/index.html")
+	})
 
 	log.Println("🚀 Velero Manager starting on :8080")
+	log.Println("📁 Serving frontend from ./frontend/build/")
 	log.Fatal(router.Run(":8080"))
 }
