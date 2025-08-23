@@ -4,11 +4,14 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 	"velero-manager/pkg/handlers"
 	"velero-manager/pkg/k8s"
+	"velero-manager/pkg/metrics"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -18,6 +21,13 @@ func main() {
 		log.Fatalf("Failed to create Kubernetes client: %v", err)
 	}
 
+	// Initialize metrics
+	veleroMetrics := metrics.NewVeleroMetrics(k8sClient)
+	
+	// Start metrics collector (collect every 30 seconds)
+	metricsCollector := metrics.NewMetricsCollector(veleroMetrics, 30*time.Second)
+	go metricsCollector.Start()
+
 	// Initialize Gin router
 	router := gin.Default()
 
@@ -26,6 +36,9 @@ func main() {
 	config.AllowAllOrigins = true
 	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
 	router.Use(cors.New(config))
+
+	// Add Prometheus metrics middleware
+	router.Use(veleroMetrics.PrometheusMiddleware())
 
 	// Initialize handlers
 	veleroHandler := handlers.NewVeleroHandler(k8sClient)
@@ -50,6 +63,9 @@ func main() {
 			c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 		})
 	}
+
+	// Prometheus metrics endpoint
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Serve static files from frontend build
 	router.Static("/static", "./frontend/build/static")

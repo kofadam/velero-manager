@@ -1,0 +1,403 @@
+// Grafana Alloy configuration for Velero Manager observability
+// This configuration scrapes metrics and collects logs for comprehensive monitoring
+
+//
+// Prometheus Metrics Collection
+//
+
+// Scrape Velero Manager application metrics
+prometheus.scrape "velero_manager" {
+  targets = [
+    {
+      "__address__" = "velero-manager.velero-manager.svc.cluster.local:80",
+      "__metrics_path__" = "/metrics",
+      "job" = "velero-manager",
+      "service" = "velero-manager",
+    },
+  ]
+
+  forward_to = [
+    prometheus.remote_write.mimir.receiver,
+  ]
+
+  scrape_interval = "30s"
+  scrape_timeout = "10s"
+
+  // Add custom labels
+  clustering {
+    enabled = true
+  }
+}
+
+// Scrape Velero pod metrics (if Velero exposes metrics)
+prometheus.scrape "velero" {
+  targets = [
+    {
+      "__address__" = "velero.velero.svc.cluster.local:8085",
+      "__metrics_path__" = "/metrics",
+      "job" = "velero",
+      "service" = "velero",
+    },
+  ]
+
+  forward_to = [
+    prometheus.remote_write.mimir.receiver,
+  ]
+
+  scrape_interval = "30s"
+  scrape_timeout = "10s"
+
+  clustering {
+    enabled = true
+  }
+}
+
+// Kubernetes API server metrics for CRD monitoring
+prometheus.scrape "kube_apiserver" {
+  targets = [
+    {
+      "__address__" = "kubernetes.default.svc.cluster.local:443",
+      "__metrics_path__" = "/metrics",
+      "job" = "kubernetes-apiserver",
+      "__scheme__" = "https",
+    },
+  ]
+
+  bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  tls_config {
+    ca_file = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    insecure_skip_verify = true
+  }
+
+  forward_to = [
+    prometheus.remote_write.mimir.receiver,
+  ]
+
+  scrape_interval = "30s"
+  scrape_timeout = "10s"
+
+  clustering {
+    enabled = true
+  }
+}
+
+// Kubernetes state metrics for cluster monitoring
+prometheus.scrape "kube_state_metrics" {
+  targets = [
+    {
+      "__address__" = "kube-state-metrics.kube-system.svc.cluster.local:8080",
+      "__metrics_path__" = "/metrics",
+      "job" = "kube-state-metrics",
+    },
+  ]
+
+  forward_to = [
+    prometheus.remote_write.mimir.receiver,
+  ]
+
+  scrape_interval = "30s"
+  scrape_timeout = "10s"
+
+  clustering {
+    enabled = true
+  }
+}
+
+// Node exporter for infrastructure metrics
+prometheus.scrape "node_exporter" {
+  targets = [
+    {
+      "__address__" = "node-exporter.monitoring.svc.cluster.local:9100",
+      "__metrics_path__" = "/metrics",
+      "job" = "node-exporter",
+    },
+  ]
+
+  forward_to = [
+    prometheus.remote_write.mimir.receiver,
+  ]
+
+  scrape_interval = "30s"
+  scrape_timeout = "10s"
+
+  clustering {
+    enabled = true
+  }
+}
+
+//
+// Log Collection
+//
+
+// Discover Kubernetes pods for log collection
+discovery.kubernetes "pods" {
+  role = "pod"
+  
+  namespaces {
+    names = ["velero", "velero-system", "default", "kube-system"]
+  }
+}
+
+// Filter and relabel discovered pods
+discovery.relabel "pods" {
+  targets = discovery.kubernetes.pods.targets
+
+  // Keep only pods with specific labels or annotations
+  rule {
+    source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_scrape"]
+    action = "keep"
+    regex = "true"
+  }
+
+  // Set the log path
+  rule {
+    source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_path"]
+    action = "replace"
+    target_label = "__path__"
+    regex = "(.+)"
+  }
+
+  // Default log path if not specified
+  rule {
+    source_labels = ["__path__"]
+    action = "replace"
+    target_label = "__path__"
+    regex = ""
+    replacement = "/var/log/pods/*/*/*.log"
+  }
+
+  // Add namespace label
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    action = "replace"
+    target_label = "namespace"
+  }
+
+  // Add pod name label
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    action = "replace"
+    target_label = "pod"
+  }
+
+  // Add container name label
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    action = "replace"
+    target_label = "container"
+  }
+
+  // Add node name label
+  rule {
+    source_labels = ["__meta_kubernetes_pod_node_name"]
+    action = "replace"
+    target_label = "node"
+  }
+
+  // Keep Velero and Velero Manager pods specifically
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+    action = "keep"
+    regex = "(velero|velero-manager)"
+  }
+}
+
+// Scrape logs from discovered pods
+loki.source.kubernetes "pods" {
+  targets    = discovery.relabel.pods.output
+  forward_to = [loki.write.default.receiver]
+
+  clustering {
+    enabled = true
+  }
+}
+
+// Specific log collection for Velero Manager
+loki.source.file "velero_manager" {
+  targets = [
+    {
+      "__path__" = "/var/log/containers/velero-manager-*.log",
+      "job" = "velero-manager-logs",
+      "namespace" = "velero-system",
+    },
+  ]
+
+  forward_to = [loki.process.velero_manager.receiver]
+
+  clustering {
+    enabled = true
+  }
+}
+
+// Process Velero Manager logs
+loki.process "velero_manager" {
+  forward_to = [loki.write.default.receiver]
+
+  stage.json {
+    expressions = {
+      timestamp = "time",
+      message = "log",
+      level = "level",
+      component = "component",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level = "",
+      component = "",
+    }
+  }
+
+  stage.timestamp {
+    source = "timestamp"
+    format = "RFC3339"
+  }
+}
+
+// Specific log collection for Velero
+loki.source.file "velero" {
+  targets = [
+    {
+      "__path__" = "/var/log/containers/velero-*.log",
+      "job" = "velero-logs",
+      "namespace" = "velero",
+    },
+  ]
+
+  forward_to = [loki.process.velero.receiver]
+
+  clustering {
+    enabled = true
+  }
+}
+
+// Process Velero logs
+loki.process "velero" {
+  forward_to = [loki.write.default.receiver]
+
+  stage.json {
+    expressions = {
+      timestamp = "time",
+      message = "log",
+      level = "level",
+      logger = "logger",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level = "",
+      logger = "",
+    }
+  }
+
+  stage.timestamp {
+    source = "timestamp"
+    format = "RFC3339"
+  }
+
+  // Parse Velero-specific log patterns
+  stage.regex {
+    expression = `level=(?P<velero_level>\w+) msg="(?P<velero_msg>[^"]+)"`
+  }
+
+  stage.labels {
+    values = {
+      velero_level = "",
+    }
+  }
+}
+
+//
+// Remote Write Configuration
+//
+
+// Remote write to Mimir/Prometheus for metrics
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = env("PROMETHEUS_REMOTE_WRITE_URL")
+    
+    // Basic auth if required
+    basic_auth {
+      username = env("PROMETHEUS_REMOTE_WRITE_USERNAME")
+      password = env("PROMETHEUS_REMOTE_WRITE_PASSWORD")
+    }
+
+    // Add global labels
+    write_relabel_config {
+      source_labels = ["__name__"]
+      target_label = "cluster"
+      replacement = env("CLUSTER_NAME")
+    }
+
+    write_relabel_config {
+      source_labels = ["__name__"]
+      target_label = "environment"
+      replacement = env("ENVIRONMENT")
+    }
+  }
+
+  // WAL configuration for reliability
+  wal {
+    truncate_frequency = "60m"
+    min_wal_time = "5m"
+    max_wal_time = "4h"
+  }
+}
+
+// Remote write to Loki for logs
+loki.write "default" {
+  endpoint {
+    url = env("LOKI_ENDPOINT")
+    
+    // Basic auth if required
+    basic_auth {
+      username = env("LOKI_USERNAME")
+      password = env("LOKI_PASSWORD")
+    }
+  }
+
+  // Add global labels to all log streams
+  external_labels = {
+    cluster = env("CLUSTER_NAME"),
+    environment = env("ENVIRONMENT"),
+  }
+}
+
+//
+// Health and Debugging
+//
+
+// Health check endpoint
+prometheus.scrape "alloy_self" {
+  targets = [
+    {
+      "__address__" = "localhost:12345",
+      "__metrics_path__" = "/metrics",
+      "job" = "alloy",
+    },
+  ]
+
+  forward_to = [
+    prometheus.remote_write.mimir.receiver,
+  ]
+
+  scrape_interval = "15s"
+
+  clustering {
+    enabled = true
+  }
+}
+
+// Export internal Alloy metrics
+prometheus.exporter.self "alloy" { }
+
+prometheus.scrape "alloy_exporter" {
+  targets    = prometheus.exporter.self.alloy.targets
+  forward_to = [prometheus.remote_write.mimir.receiver]
+
+  clustering {
+    enabled = true
+  }
+}

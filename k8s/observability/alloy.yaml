@@ -1,0 +1,162 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: observability
+data:
+  config.alloy: |
+    // Prometheus Metrics Collection
+    prometheus.scrape "velero_manager" {
+      targets = [
+        {
+          "__address__" = "velero-manager.velero-manager.svc.cluster.local:80",
+          "__metrics_path__" = "/metrics",
+          "job" = "velero-manager",
+          "service" = "velero-manager",
+        },
+      ]
+
+      forward_to = [
+        prometheus.remote_write.local.receiver,
+      ]
+
+      scrape_interval = "30s"
+      scrape_timeout = "10s"
+    }
+
+    // Remote write to local Prometheus
+    prometheus.remote_write "local" {
+      endpoint {
+        url = "http://prometheus:9090/api/v1/write"
+      }
+    }
+
+    // Self-monitoring
+    prometheus.exporter.self "alloy" { }
+
+    prometheus.scrape "alloy_self" {
+      targets    = prometheus.exporter.self.alloy.targets
+      forward_to = [prometheus.remote_write.local.receiver]
+      scrape_interval = "15s"
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alloy
+  namespace: observability
+  labels:
+    app: alloy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alloy
+  template:
+    metadata:
+      labels:
+        app: alloy
+    spec:
+      serviceAccountName: alloy
+      containers:
+        - name: alloy
+          image: grafana/alloy:v1.0.0
+          args:
+            - "run"
+            - "/etc/alloy/config.alloy"
+            - "--server.http.listen-addr=0.0.0.0:12345"
+            - "--cluster.enabled=true"
+            - "--cluster.node-name=alloy-$(HOSTNAME)"
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: PROMETHEUS_REMOTE_WRITE_URL
+              value: "http://prometheus:9090/api/v1/write"
+            - name: CLUSTER_NAME
+              value: "kind-cluster"
+            - name: ENVIRONMENT
+              value: "development"
+          ports:
+            - containerPort: 12345
+              name: http-metrics
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+      volumes:
+        - name: config
+          configMap:
+            name: alloy-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alloy
+  namespace: observability
+  labels:
+    app: alloy
+spec:
+  ports:
+    - port: 12345
+      targetPort: 12345
+      name: http-metrics
+  selector:
+    app: alloy
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy
+  namespace: observability
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: alloy
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - nodes/metrics
+      - services
+      - endpoints
+      - pods
+      - events
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+    verbs: ["get", "list", "watch"]
+  - nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: alloy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: alloy
+subjects:
+  - kind: ServiceAccount
+    name: alloy
+    namespace: observability
