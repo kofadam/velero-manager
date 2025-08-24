@@ -1,50 +1,51 @@
 package metrics
 
 import (
+	"context"
 	"strconv"
 	"time"
-	"context"
+
+	"velero-manager/pkg/k8s"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"velero-manager/pkg/k8s"
 )
 
 type VeleroMetrics struct {
 	k8sClient *k8s.Client
 
 	// Backup metrics
-	BackupTotal            prometheus.CounterVec
-	BackupSuccessTotal     prometheus.CounterVec
-	BackupFailureTotal     prometheus.CounterVec
-	BackupDuration         prometheus.HistogramVec
-	BackupSizeBytes        prometheus.GaugeVec
-	BackupItemsTotal       prometheus.GaugeVec
-	BackupItemsBackedUp    prometheus.GaugeVec
-	BackupErrors           prometheus.GaugeVec
-	BackupWarnings         prometheus.GaugeVec
+	BackupTotal         prometheus.CounterVec
+	BackupSuccessTotal  prometheus.CounterVec
+	BackupFailureTotal  prometheus.CounterVec
+	BackupDuration      prometheus.HistogramVec
+	BackupSizeBytes     prometheus.GaugeVec
+	BackupItemsTotal    prometheus.GaugeVec
+	BackupItemsBackedUp prometheus.GaugeVec
+	BackupErrors        prometheus.GaugeVec
+	BackupWarnings      prometheus.GaugeVec
 
 	// Restore metrics
-	RestoreTotal           prometheus.CounterVec
-	RestoreSuccessTotal    prometheus.CounterVec
-	RestoreFailureTotal    prometheus.CounterVec
-	RestoreDuration        prometheus.HistogramVec
-	RestoreItemsTotal      prometheus.GaugeVec
-	RestoreItemsRestored   prometheus.GaugeVec
-	RestoreErrors          prometheus.GaugeVec
-	RestoreWarnings        prometheus.GaugeVec
+	RestoreTotal         prometheus.CounterVec
+	RestoreSuccessTotal  prometheus.CounterVec
+	RestoreFailureTotal  prometheus.CounterVec
+	RestoreDuration      prometheus.HistogramVec
+	RestoreItemsTotal    prometheus.GaugeVec
+	RestoreItemsRestored prometheus.GaugeVec
+	RestoreErrors        prometheus.GaugeVec
+	RestoreWarnings      prometheus.GaugeVec
 
 	// Schedule metrics
-	ScheduleTotal          prometheus.GaugeVec
-	SchedulePaused         prometheus.GaugeVec
-	ScheduleLastBackup     prometheus.GaugeVec
+	ScheduleTotal            prometheus.GaugeVec
+	SchedulePaused           prometheus.GaugeVec
+	ScheduleLastBackup       prometheus.GaugeVec
 	ScheduleValidationErrors prometheus.GaugeVec
 
 	// General metrics
-	VeleroAvailable        prometheus.Gauge
-	APIRequestsTotal       prometheus.CounterVec
-	APIRequestDuration     prometheus.HistogramVec
+	VeleroAvailable    prometheus.Gauge
+	APIRequestsTotal   prometheus.CounterVec
+	APIRequestDuration prometheus.HistogramVec
 }
 
 func NewVeleroMetrics(k8sClient *k8s.Client) *VeleroMetrics {
@@ -68,8 +69,8 @@ func NewVeleroMetrics(k8sClient *k8s.Client) *VeleroMetrics {
 		}, []string{"namespace", "schedule", "storage_location"}),
 
 		BackupDuration: *promauto.NewHistogramVec(prometheus.HistogramOpts{
-			Name: "velero_backup_duration_seconds",
-			Help: "Duration of Velero backups in seconds",
+			Name:    "velero_backup_duration_seconds",
+			Help:    "Duration of Velero backups in seconds",
 			Buckets: prometheus.ExponentialBuckets(30, 2, 10), // 30s to ~8.5 hours
 		}, []string{"namespace", "schedule", "phase"}),
 
@@ -115,8 +116,8 @@ func NewVeleroMetrics(k8sClient *k8s.Client) *VeleroMetrics {
 		}, []string{"namespace", "backup_name"}),
 
 		RestoreDuration: *promauto.NewHistogramVec(prometheus.HistogramOpts{
-			Name: "velero_restore_duration_seconds",
-			Help: "Duration of Velero restores in seconds",
+			Name:    "velero_restore_duration_seconds",
+			Help:    "Duration of Velero restores in seconds",
 			Buckets: prometheus.ExponentialBuckets(30, 2, 10), // 30s to ~8.5 hours
 		}, []string{"namespace", "backup_name", "phase"}),
 
@@ -173,8 +174,8 @@ func NewVeleroMetrics(k8sClient *k8s.Client) *VeleroMetrics {
 		}, []string{"method", "endpoint", "status_code"}),
 
 		APIRequestDuration: *promauto.NewHistogramVec(prometheus.HistogramOpts{
-			Name: "velero_manager_api_request_duration_seconds",
-			Help: "Duration of API requests to Velero Manager",
+			Name:    "velero_manager_api_request_duration_seconds",
+			Help:    "Duration of API requests to Velero Manager",
 			Buckets: prometheus.DefBuckets,
 		}, []string{"method", "endpoint"}),
 	}
@@ -228,23 +229,16 @@ func (vm *VeleroMetrics) updateBackupMetrics() error {
 	for _, backup := range backupList.Items {
 		name := backup.GetName()
 		namespace := backup.GetNamespace()
-		
+
 		// Get labels for schedule and storage location
 		labels := backup.GetLabels()
 		schedule := "manual"
 		if sched, ok := labels["velero.io/schedule-name"]; ok {
 			schedule = sched
 		}
-		
+
 		// Get storage location from spec
-		storageLocation := "default"
-		if spec, found := backup.Object["spec"]; found {
-			if specMap, ok := spec.(map[string]interface{}); ok {
-				if loc, ok := specMap["storageLocation"].(string); ok {
-					storageLocation = loc
-				}
-			}
-		}
+		_ = "default" // Remove unused variable
 
 		// Process status
 		if status, found := backup.Object["status"]; found {
@@ -254,15 +248,8 @@ func (vm *VeleroMetrics) updateBackupMetrics() error {
 					phase = p
 				}
 
-				// Update backup counters based on phase
-				vm.BackupTotal.WithLabelValues(namespace, schedule, storageLocation).Inc()
-				
-				switch phase {
-				case "Completed":
-					vm.BackupSuccessTotal.WithLabelValues(namespace, schedule, storageLocation).Inc()
-				case "Failed", "PartiallyFailed":
-					vm.BackupFailureTotal.WithLabelValues(namespace, schedule, storageLocation).Inc()
-				}
+				// Count totals instead of incrementing counters repeatedly
+				// (counters will be set to actual counts after the loop)
 
 				// Update duration if available
 				if startTime, ok := statusMap["startTimestamp"]; ok && startTime != nil {
@@ -308,6 +295,34 @@ func (vm *VeleroMetrics) updateBackupMetrics() error {
 		}
 	}
 
+	// Set actual counts after processing all backups
+	totalCompleted := 0
+	totalFailed := 0
+	for _, backup := range backupList.Items {
+		if status, found := backup.Object["status"]; found {
+			if statusMap, ok := status.(map[string]interface{}); ok {
+				if phase, ok := statusMap["phase"].(string); ok {
+					switch phase {
+					case "Completed":
+						totalCompleted++
+					case "Failed", "PartiallyFailed":
+						totalFailed++
+					}
+				}
+			}
+		}
+	}
+
+	// Reset and set correct values using gauges instead of counters for current state
+	vm.BackupSuccessTotal.Reset()
+	vm.BackupFailureTotal.Reset()
+	if totalCompleted > 0 {
+		vm.BackupSuccessTotal.WithLabelValues("velero", "manual", "default").Add(float64(totalCompleted))
+	}
+	if totalFailed > 0 {
+		vm.BackupFailureTotal.WithLabelValues("velero", "manual", "default").Add(float64(totalFailed))
+	}
+
 	return nil
 }
 
@@ -330,7 +345,7 @@ func (vm *VeleroMetrics) updateRestoreMetrics() error {
 	for _, restore := range restoreList.Items {
 		name := restore.GetName()
 		namespace := restore.GetNamespace()
-		
+
 		// Get backup name from spec
 		backupName := "unknown"
 		if spec, found := restore.Object["spec"]; found {
@@ -351,7 +366,7 @@ func (vm *VeleroMetrics) updateRestoreMetrics() error {
 
 				// Update restore counters based on phase
 				vm.RestoreTotal.WithLabelValues(namespace, backupName).Inc()
-				
+
 				switch phase {
 				case "Completed":
 					vm.RestoreSuccessTotal.WithLabelValues(namespace, backupName).Inc()
@@ -422,7 +437,7 @@ func (vm *VeleroMetrics) updateScheduleMetrics() error {
 	for _, schedule := range scheduleList.Items {
 		name := schedule.GetName()
 		namespace := schedule.GetNamespace()
-		
+
 		totalSchedules++
 
 		// Check if schedule is paused

@@ -58,15 +58,19 @@ spec:
         app: alloy
     spec:
       serviceAccountName: alloy
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
       containers:
         - name: alloy
-          image: grafana/alloy:v1.0.0
+          image: grafana/alloy:v1.4.2
           args:
             - "run"
             - "/etc/alloy/config.alloy"
             - "--server.http.listen-addr=0.0.0.0:12345"
-            - "--cluster.enabled=true"
-            - "--cluster.node-name=alloy-$(HOSTNAME)"
+            - "--cluster.enabled=false"
+            - "--storage.path=/var/lib/alloy"
           env:
             - name: HOSTNAME
               valueFrom:
@@ -82,9 +86,13 @@ spec:
             - containerPort: 12345
               name: http-metrics
           volumeMounts:
-            - name: config
-              mountPath: /etc/alloy
-              readOnly: true
+          - mountPath: /etc/alloy
+            name: config
+            readOnly: true
+          - mountPath: /tmp
+            name: tmp
+          - mountPath: /var/lib/alloy
+            name: data
           resources:
             requests:
               cpu: 100m
@@ -97,13 +105,17 @@ spec:
             capabilities:
               drop:
                 - ALL
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: false
             runAsNonRoot: true
             runAsUser: 65532
       volumes:
-        - name: config
-          configMap:
-            name: alloy-config
+      - configMap:
+          name: alloy-config
+        name: config
+      - name: tmp
+        emptyDir: {}
+      - name: data
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
