@@ -3,6 +3,9 @@ import { Restore } from '../../services/types.ts';
 import RestoreActions from './RestoreActions.tsx';
 import './RestoreTable.css';
 
+type SortField = 'name' | 'creationTimestamp' | 'status';
+type SortDirection = 'asc' | 'desc';
+
 interface RestoreTableProps {
   restores: Restore[];
   selectedRestores: string[];
@@ -20,8 +23,8 @@ const RestoreTable: React.FC<RestoreTableProps> = ({
   onDeleteRestore,
   onRefresh,
 }) => {
-  const [sortField, setSortField] = useState<keyof Restore>('creationTimestamp');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [sortField, setSortField] = useState<SortField>('creationTimestamp');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleString();
@@ -43,20 +46,24 @@ const RestoreTable: React.FC<RestoreTableProps> = ({
   };
 
   const sortedRestores = [...restores].sort((a, b) => {
-    let aValue: any = a[sortField];
-    let bValue: any = b[sortField];
-
-    if (sortField === 'creationTimestamp') {
-      aValue = new Date(aValue).getTime();
-      bValue = new Date(bValue).getTime();
+    let comparison = 0;
+    
+    switch (sortField) {
+      case 'name':
+        comparison = a.name.localeCompare(b.name);
+        break;
+      case 'status':
+        comparison = a.status.phase.localeCompare(b.status.phase);
+        break;
+      case 'creationTimestamp':
+        comparison = new Date(a.creationTimestamp).getTime() - new Date(b.creationTimestamp).getTime();
+        break;
     }
-
-    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
+    
+    return sortDirection === 'asc' ? comparison : -comparison;
   });
 
-  const handleSort = (field: keyof Restore) => {
+  const handleSort = (field: SortField) => {
     if (field === sortField) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -96,7 +103,12 @@ const RestoreTable: React.FC<RestoreTableProps> = ({
             >
               Created {sortField === 'creationTimestamp' && (sortDirection === 'asc' ? '↑' : '↓')}
             </th>
-            <th>Status</th>
+            <th
+              className="sortable"
+              onClick={() => handleSort('status')}
+            >
+              Status {sortField === 'status' && (sortDirection === 'asc' ? '↑' : '↓')}
+            </th>
             <th>Errors</th>
             <th>Warnings</th>
             <th>Actions</th>

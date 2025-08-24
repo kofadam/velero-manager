@@ -14,6 +14,9 @@ interface BackupTableProps {
   onRefresh: () => void;
 }
 
+type SortField = 'name' | 'status' | 'created';
+type SortDirection = 'asc' | 'desc';
+
 const BackupTable: React.FC<BackupTableProps> = ({
   backups,
   selectedBackups,
@@ -22,6 +25,9 @@ const BackupTable: React.FC<BackupTableProps> = ({
   onDeleteBackup,
   onRefresh
 }) => {
+  const [sortField, setSortField] = React.useState<SortField>('name');
+  const [sortDirection, setSortDirection] = React.useState<SortDirection>('asc');
+  
   const allSelected = backups.length > 0 && selectedBackups.length === backups.length;
   const someSelected = selectedBackups.length > 0 && selectedBackups.length < backups.length;
 
@@ -46,6 +52,33 @@ const BackupTable: React.FC<BackupTableProps> = ({
     return `${namespaces[0]} +${namespaces.length - 1} more`;
   };
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedBackups = [...backups].sort((a, b) => {
+    let comparison = 0;
+    
+    switch (sortField) {
+      case 'name':
+        comparison = a.name.localeCompare(b.name);
+        break;
+      case 'status':
+        comparison = a.status.phase.localeCompare(b.status.phase);
+        break;
+      case 'created':
+        comparison = new Date(a.creationTimestamp).getTime() - new Date(b.creationTimestamp).getTime();
+        break;
+    }
+    
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
+
   return (
     <div className="backup-table-container">
       <table className="backup-table">
@@ -61,11 +94,17 @@ const BackupTable: React.FC<BackupTableProps> = ({
                 onChange={(e) => onSelectAll(e.target.checked)}
               />
             </th>
-            <th>NAME</th>
-            <th>STATUS</th>
+            <th className="sortable" onClick={() => handleSort('name')}>
+              NAME {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+            </th>
+            <th className="sortable" onClick={() => handleSort('status')}>
+              STATUS {sortField === 'status' && (sortDirection === 'asc' ? '↑' : '↓')}
+            </th>
             <th>ERRORS</th>
             <th>WARNINGS</th>
-            <th>CREATED</th>
+            <th className="sortable" onClick={() => handleSort('created')}>
+              CREATED {sortField === 'created' && (sortDirection === 'asc' ? '↑' : '↓')}
+            </th>
             <th>EXPIRES</th>
             <th>STORAGE LOCATION</th>
             <th>SELECTOR</th>
@@ -73,7 +112,7 @@ const BackupTable: React.FC<BackupTableProps> = ({
           </tr>
         </thead>
         <tbody>
-          {backups.map((backup) => (
+          {sortedBackups.map((backup) => (
             <tr key={backup.name}>
               <td className="select-col">
                 <input

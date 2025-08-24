@@ -1,0 +1,190 @@
+# Namespace for test application
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-app
+  labels:
+    app: velero-test
+---
+# PersistentVolumeClaim for data storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-data-pvc
+  namespace: test-app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard  # Change to your cluster's default storage class if needed
+---
+# ConfigMap with test data
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-app-config
+  namespace: test-app
+data:
+  app.conf: |
+    # Test Application Configuration
+    app_name=velero-test-app
+    version=1.0.0
+    created=$(date)
+  init-data.sh: |
+    #!/bin/bash
+    echo "Initializing test data..."
+    echo "Test file created at $(date)" > /data/test-file.txt
+    echo "Application started successfully" > /data/status.log
+    echo "This is persistent data for Velero testing" > /data/persistent.txt
+    ls -la /data/
+---
+# Test Application Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-app
+  namespace: test-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-app
+  template:
+    metadata:
+      labels:
+        app: test-app
+    spec:
+      initContainers:
+      - name: data-init
+        image: busybox:1.35
+        command: ["/bin/sh"]
+        args: ["/scripts/init-data.sh"]
+        volumeMounts:
+        - name: data-volume
+          mountPath: /data
+        - name: scripts
+          mountPath: /scripts
+      containers:
+      - name: test-app
+        image: nginx:1.21-alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: data-volume
+          mountPath: /usr/share/nginx/html/data
+        - name: config-volume
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: nginx.conf
+        env:
+        - name: APP_NAME
+          value: "Velero Test Application"
+        - name: BACKUP_TEST_ID
+          value: "test-$(date +%s)"
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: test-data-pvc
+      - name: config-volume
+        configMap:
+          name: nginx-config
+      - name: scripts
+        configMap:
+          name: test-app-config
+          defaultMode: 0755
+---
+# Nginx configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: test-app
+data:
+  nginx.conf: |
+    server {
+        listen 80;
+        server_name localhost;
+        
+        location / {
+            root /usr/share/nginx/html;
+            index index.html;
+        }
+        
+        location /data {
+            alias /usr/share/nginx/html/data;
+            autoindex on;
+        }
+        
+        location /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+    }
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Velero Test Application</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; }
+            .container { max-width: 600px; margin: 0 auto; }
+            .status { background: #f0f0f0; padding: 20px; border-radius: 5px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🔄 Velero Test Application</h1>
+            <div class="status">
+                <h3>Application Status</h3>
+                <p><strong>Status:</strong> Running</p>
+                <p><strong>Persistent Storage:</strong> Mounted</p>
+                <p><strong>Purpose:</strong> Testing Velero Backup & Restore</p>
+            </div>
+            <h3>Actions</h3>
+            <ul>
+                <li><a href="/data/">View Persistent Data</a></li>
+                <li><a href="/health">Health Check</a></li>
+            </ul>
+            <h3>Test Instructions</h3>
+            <ol>
+                <li>Create backup: <code>velero backup create test-app-backup --include-namespaces test-app</code></li>
+                <li>Delete namespace: <code>kubectl delete namespace test-app</code></li>
+                <li>Restore: <code>velero restore create --from-backup test-app-backup</code></li>
+                <li>Verify data persistence</li>
+            </ol>
+        </div>
+    </body>
+    </html>
+---
+# Service to expose the test application
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-app-service
+  namespace: test-app
+spec:
+  selector:
+    app: test-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+# Optional: Ingress or NodePort for external access
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-app-nodeport
+  namespace: test-app
+spec:
+  selector:
+    app: test-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30080
+  type: NodePort

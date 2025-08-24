@@ -8,6 +8,7 @@ const BackupList: React.FC = () => {
   const { backups, loading, error, refreshBackups, deleteBackup } = useBackups();
   const [selectedBackups, setSelectedBackups] = useState<string[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [searchFilter, setSearchFilter] = useState('');
 
   const handleSelectBackup = (backupName: string, selected: boolean) => {
     if (selected) {
@@ -39,24 +40,41 @@ const BackupList: React.FC = () => {
     }
   };
 
+  const filteredBackups = backups.filter(backup =>
+    backup.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
+    backup.status.phase.toLowerCase().includes(searchFilter.toLowerCase()) ||
+    (backup.spec.includedNamespaces && backup.spec.includedNamespaces.some(ns => 
+      ns.toLowerCase().includes(searchFilter.toLowerCase())
+    ))
+  );
+
   return (
     <div className="backup-list">
       <div className="backup-header">
+        <div className="backup-search">
+          <input
+            type="text"
+            placeholder="Search backups by name, status, or namespace..."
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            className="search-input"
+          />
+        </div>
         <div className="backup-actions">
-          <button 
+          <button
             className="btn btn-primary"
             onClick={refreshBackups}
             disabled={loading}
           >
             List Backups
           </button>
-          <button 
+          <button
             className="btn btn-primary"
             onClick={() => setShowCreateModal(true)}
           >
             Create Backup
           </button>
-          <button 
+          <button
             className="btn btn-danger"
             onClick={handleDeleteSelected}
             disabled={selectedBackups.length === 0}
@@ -71,7 +89,7 @@ const BackupList: React.FC = () => {
       
       {!loading && !error && (
         <BackupTable
-          backups={backups}
+          backups={filteredBackups}
           selectedBackups={selectedBackups}
           onSelectBackup={handleSelectBackup}
           onSelectAll={handleSelectAll}

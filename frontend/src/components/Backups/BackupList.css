@@ -9,6 +9,29 @@
   background: #2563eb;
   color: white;
   padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.backup-search {
+  flex: 1;
+  max-width: 400px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+  color: #1f2937;
+}
+
+.search-input::placeholder {
+  color: #9ca3af;
 }
 
 .backup-actions {
