@@ -13,7 +13,10 @@ import './App.css';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [activeRoute, setActiveRoute] = useState('dashboard');
+  const [activeRoute, setActiveRoute] = useState(() => {
+    const hash = window.location.hash.slice(1);
+    return hash || 'dashboard';
+  });
 
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
@@ -27,6 +30,11 @@ function App() {
   const handleLogout = () => {
     authService.logout();
     setUser(null);
+  };
+
+  const handleRouteChange = (route: string) => {
+    setActiveRoute(route);
+    window.location.hash = route;
   };
 
   const renderContent = () => {
@@ -54,7 +62,7 @@ function App() {
     <div className="app">
       <Sidebar 
         activeRoute={activeRoute}
-        onRouteChange={setActiveRoute}
+        onRouteChange={handleRouteChange}
         onLogout={handleLogout}
       />
       <div className="main-layout">

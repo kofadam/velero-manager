@@ -3,7 +3,7 @@ import { Restore } from '../../services/types.ts';
 import RestoreActions from './RestoreActions.tsx';
 import './RestoreTable.css';
 
-type SortField = 'name' | 'creationTimestamp' | 'status';
+type SortField = 'name' | 'cluster' | 'creationTimestamp' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 interface RestoreTableProps {
@@ -55,6 +55,9 @@ const RestoreTable: React.FC<RestoreTableProps> = ({
       case 'status':
         comparison = a.status.phase.localeCompare(b.status.phase);
         break;
+      case 'cluster':
+        comparison = (a.cluster || '').localeCompare(b.cluster || '');
+        break;
       case 'creationTimestamp':
         comparison = new Date(a.creationTimestamp).getTime() - new Date(b.creationTimestamp).getTime();
         break;
@@ -96,6 +99,12 @@ const RestoreTable: React.FC<RestoreTableProps> = ({
             >
               Name {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
             </th>
+            <th 
+              className="sortable"
+              onClick={() => handleSort('cluster')}
+            >
+              Cluster {sortField === 'cluster' && (sortDirection === 'asc' ? '↑' : '↓')}
+            </th>
             <th>Backup</th>
             <th 
               className="sortable"
@@ -125,6 +134,9 @@ const RestoreTable: React.FC<RestoreTableProps> = ({
                 />
               </td>
               <td className="restore-name">{restore.name}</td>
+              <td className="cluster-col">
+                <span className="cluster-badge">{restore.cluster || 'UNKNOWN'}</span>
+              </td>
               <td className="backup-name">{restore.spec.backupName}</td>
               <td className="timestamp">
                 {formatTimestamp(restore.creationTimestamp)}

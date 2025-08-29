@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import Modal from '../Common/Modal.tsx';
 import { apiService } from '../../services/api.ts';
+import LoadingSpinner from '../Common/LoadingSpinner.tsx';
 import './LogsModal.css';
 
 interface LogsModalProps {
@@ -28,37 +30,54 @@ const LogsModal: React.FC<LogsModalProps> = ({ restoreName, onClose }) => {
     fetchLogs();
   }, [restoreName]);
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
+  const fetchLogs = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await apiService.getRestoreLogs(restoreName);
+      setLogs(response.logs || 'No logs available');
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Failed to fetch logs');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="logs-modal-overlay" onClick={handleOverlayClick}>
+    <Modal title={`Logs - ${restoreName}`} onClose={onClose} size="xlarge">
       <div className="logs-modal">
-        <div className="logs-modal-header">
-          <h3>Restore Logs: {restoreName}</h3>
-          <button className="close-btn" onClick={onClose}>×</button>
-        </div>
-        
-        <div className="logs-modal-content">
-          {loading ? (
-            <div className="logs-loading">Loading logs...</div>
-          ) : error ? (
-            <div className="logs-error">Error: {error}</div>
-          ) : (
-            <pre className="logs-text">{logs}</pre>
-          )}
-        </div>
-        
-        <div className="logs-modal-footer">
-          <button className="btn btn-secondary" onClick={onClose}>
-            Close
+        <div className="logs-header">
+          <div className="restore-info">
+            <span className="restore-name">{restoreName}</span>
+            <span className="backup-status">RESTORE</span>
+          </div>
+          <button onClick={fetchLogs} disabled={loading} className="refresh-btn">
+            {loading ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
+        
+        <div className="logs-content">
+          {loading && (
+            <div className="logs-loading">
+              <LoadingSpinner />
+              <span>Loading logs...</span>
+            </div>
+          )}
+          
+          {error && (
+            <div className="logs-error">
+              <span>❌ Error: {error}</span>
+              <button onClick={fetchLogs}>Try Again</button>
+            </div>
+          )}
+          
+          {!loading && !error && (
+            <pre className="logs-text">{logs.replace(/\\n/g, '\n')}</pre>
+          )}
+        </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

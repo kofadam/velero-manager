@@ -30,124 +30,78 @@ const DescribeModal: React.FC<DescribeModalProps> = ({ backup, onClose }) => {
     return `${Math.round(duration / 1000)}s`;
   };
 
-  if (loading) {
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  const formatValue = (value: any): string => {
+    if (value === null || value === undefined) {
+      return 'N/A';
+    }
+    if (typeof value === 'object') {
+      return JSON.stringify(value, null, 2);
+    }
+    return String(value);
+  };
+
+  const renderSection = (title: string, data: any) => {
+    if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
+      return null;
+    }
+
     return (
-    <Modal title={`Describe - ${backup.name}`} onClose={onClose} size="xxlarge">
-        <div className="describe-loading">
-          <LoadingSpinner />
-          <span>Loading backup details...</span>
+      <div className="describe-section">
+        <h4>{title}</h4>
+        <div className="describe-content">
+          {typeof data === 'object' ? (
+            Object.entries(data).map(([key, value]) => (
+              <div key={key} className="describe-field">
+                <span className="field-name">{key}:</span>
+                <span className="field-value">{formatValue(value)}</span>
+              </div>
+            ))
+          ) : (
+            <div className="describe-field">
+              <span className="field-value">{formatValue(data)}</span>
+            </div>
+          )}
         </div>
-      </Modal>
+      </div>
     );
-  }
+  };
 
   return (
-    <Modal title={`Describe - ${backup.name}`} onClose={onClose} size="large">
+    <div className="describe-modal-overlay" onClick={handleOverlayClick}>
       <div className="describe-modal">
-        <div className="describe-section">
-          <h3>📋 General Information</h3>
-          <div className="describe-grid">
-            <div className="describe-item">
-              <label>Name:</label>
-              <span>{backup.name}</span>
-            </div>
-            <div className="describe-item">
-              <label>Namespace:</label>
-              <span>{backup.namespace}</span>
-            </div>
-            <div className="describe-item">
-              <label>Status:</label>
-              <span className={`status-badge ${backup.status.phase.toLowerCase()}`}>
-                {backup.status.phase}
-              </span>
-            </div>
-            <div className="describe-item">
-              <label>Storage Location:</label>
-              <span>{backup.spec.storageLocation || 'default'}</span>
-            </div>
-          </div>
+        <div className="describe-modal-header">
+          <h3>Backup Details: {backup.name}</h3>
+          <button className="close-btn" onClick={onClose}>×</button>
         </div>
-
-        <div className="describe-section">
-          <h3>⏰ Timing</h3>
-          <div className="describe-grid">
-            <div className="describe-item">
-              <label>Created:</label>
-              <span>{formatTimestamp(backup.creationTimestamp)}</span>
+        
+        <div className="describe-modal-content">
+          {loading ? (
+            <div className="describe-loading">Loading backup details...</div>
+          ) : error ? (
+            <div className="describe-error">Error: {error}</div>
+          ) : (
+            <div className="describe-details">
+              {renderSection('Metadata', backup.metadata)}
+              {renderSection('Spec', backup.spec)}
+              {renderSection('Status', backup.status)}
             </div>
-            <div className="describe-item">
-              <label>Started:</label>
-              <span>{formatTimestamp(backup.status.startTimestamp)}</span>
-            </div>
-            <div className="describe-item">
-              <label>Completed:</label>
-              <span>{formatTimestamp(backup.status.completionTimestamp)}</span>
-            </div>
-            <div className="describe-item">
-              <label>Duration:</label>
-              <span>{formatDuration(backup.status.startTimestamp, backup.status.completionTimestamp)}</span>
-            </div>
-            <div className="describe-item">
-              <label>Expires:</label>
-              <span>{formatTimestamp(backup.status.expiration)}</span>
-            </div>
-          </div>
+          )}
         </div>
-
-        <div className="describe-section">
-          <h3>📊 Statistics</h3>
-          <div className="describe-grid">
-            <div className="describe-item">
-              <label>Total Items:</label>
-              <span>{backup.status.progress?.totalItems || 0}</span>
-            </div>
-            <div className="describe-item">
-              <label>Items Backed Up:</label>
-              <span>{backup.status.progress?.itemsBackedUp || 0}</span>
-            </div>
-            <div className="describe-item">
-              <label>Errors:</label>
-              <span className={backup.status.errors ? 'text-error' : ''}>{backup.status.errors || 0}</span>
-            </div>
-            <div className="describe-item">
-              <label>Warnings:</label>
-              <span className={backup.status.warnings ? 'text-warning' : ''}>{backup.status.warnings || 0}</span>
-            </div>
-          </div>
+        
+        <div className="describe-modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>
+            Close
+          </button>
         </div>
-
-        <div className="describe-section">
-          <h3>🎯 Scope</h3>
-          <div className="describe-grid">
-            <div className="describe-item">
-              <label>Included Namespaces:</label>
-              <span>{backup.spec.includedNamespaces?.join(', ') || 'All namespaces'}</span>
-            </div>
-            <div className="describe-item">
-              <label>Excluded Namespaces:</label>
-              <span>{backup.spec.excludedNamespaces?.join(', ') || 'None'}</span>
-            </div>
-            <div className="describe-item">
-              <label>TTL:</label>
-              <span>{backup.spec.ttl || '720h0m0s'}</span>
-            </div>
-          </div>
-        </div>
-
-        {backup.labels && Object.keys(backup.labels).length > 0 && (
-          <div className="describe-section">
-            <h3>🏷️ Labels</h3>
-            <div className="labels-grid">
-              {Object.entries(backup.labels).map(([key, value]) => (
-                <div key={key} className="label-item">
-                  <code>{key}={value}</code>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
-    </Modal>
+    </div>
+        
   );
 };
 

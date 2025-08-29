@@ -8,6 +8,14 @@ const RestoreList: React.FC = () => {
   const { restores, loading, error, refreshRestores, deleteRestore } = useRestores();
   const [selectedRestores, setSelectedRestores] = useState<string[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [searchFilter, setSearchFilter] = useState('');
+  const [clusterFilter, setClusterFilter] = useState('all');
+
+  // Get unique clusters from restores
+  const availableClusters = React.useMemo(() => {
+    const clusters = Array.from(new Set(restores.map(restore => restore.cluster).filter(Boolean)));
+    return clusters.sort();
+  }, [restores]);
 
   const handleSelectRestore = (restoreName: string, selected: boolean) => {
     if (selected) {
@@ -47,6 +55,18 @@ const RestoreList: React.FC = () => {
     refreshRestores();
   };
 
+  const filteredRestores = restores.filter(restore => {
+    // Search filter
+    const matchesSearch = restore.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      restore.status.phase.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      restore.spec.backupName.toLowerCase().includes(searchFilter.toLowerCase());
+    
+    // Cluster filter
+    const matchesCluster = clusterFilter === 'all' || restore.cluster === clusterFilter;
+    
+    return matchesSearch && matchesCluster;
+  });
+
   if (loading) {
     return <div className="loading">Loading restores...</div>;
   }
@@ -59,6 +79,25 @@ const RestoreList: React.FC = () => {
     <div className="restore-list">
       <div className="restore-list-header">
         <h1>Restores</h1>
+        <div className="restore-filters">
+          <input
+            type="text"
+            placeholder="Search restores by name, status, or backup..."
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            className="search-input"
+          />
+          <select
+            value={clusterFilter}
+            onChange={(e) => setClusterFilter(e.target.value)}
+            className="cluster-filter"
+          >
+            <option value="all">All Clusters</option>
+            {availableClusters.map(cluster => (
+              <option key={cluster} value={cluster}>{cluster}</option>
+            ))}
+          </select>
+        </div>
         <div className="restore-actions">
           <button 
             className="btn btn-primary"
@@ -78,7 +117,7 @@ const RestoreList: React.FC = () => {
       </div>
       
       <RestoreTable 
-        restores={restores}
+        restores={filteredRestores}
         selectedRestores={selectedRestores}
         onSelectRestore={handleSelectRestore}
         onSelectAll={handleSelectAll}
