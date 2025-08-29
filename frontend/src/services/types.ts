@@ -21,6 +21,7 @@ export interface BackupSpec {
 
 export interface Backup {
   name: string;
+  cluster: string;
   namespace: string;
   creationTimestamp: string;
   labels: Record<string, string>;
@@ -70,6 +71,7 @@ export interface RestoreSpec {
 
 export interface Restore {
   name: string;
+  cluster: string;
   namespace: string;
   creationTimestamp: string;
   labels: Record<string, string>;
@@ -79,5 +81,46 @@ export interface Restore {
 
 export interface RestoresResponse {
   restores: Restore[];
+  count: number;
+}
+
+// Multi-cluster types
+export interface Cluster {
+  name: string;
+  backupCount: number;
+  lastBackup: string | null;
+}
+
+export interface ClustersResponse {
+  clusters: Cluster[];
+  count: number;
+}
+
+export interface ClusterHealth {
+  cluster: string;
+  status: 'healthy' | 'no-backups' | 'error';
+  backupCount: number;
+  lastBackup: string | null;
+}
+
+export interface CronJobSpec {
+  schedule: string;
+  suspend: boolean;
+  concurrencyPolicy: string;
+  jobTemplate: any;
+}
+
+export interface CronJob {
+  name: string;
+  cluster: string;
+  namespace: string;
+  creationTimestamp: string;
+  labels: Record<string, string>;
+  spec: CronJobSpec;
+  status: any;
+}
+
+export interface CronJobsResponse {
+  cronjobs: CronJob[];
   count: number;
 }

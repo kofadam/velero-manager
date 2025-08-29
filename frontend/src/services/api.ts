@@ -76,4 +76,25 @@ export const apiService = {
     const response = await api.get('/health');
     return response.data;
   },
+
+  // Multi-cluster endpoints
+  async getClusters(): Promise<any> {
+    const response = await api.get('/clusters');
+    return response.data;
+  },
+
+  async getClusterBackups(clusterName: string): Promise<BackupsResponse> {
+    const response = await api.get<BackupsResponse>(`/clusters/${clusterName}/backups`);
+    return response.data;
+  },
+
+  async getClusterHealth(clusterName: string): Promise<any> {
+    const response = await api.get(`/clusters/${clusterName}/health`);
+    return response.data;
+  },
+
+  async getCronJobs(): Promise<any> {
+    const response = await api.get('/cronjobs');
+    return response.data;
+  },
 };

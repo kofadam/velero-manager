@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../../services/api.ts';
+import { Cluster, ClusterHealth } from '../../services/types.ts';
 import LoadingSpinner from '../Common/LoadingSpinner.tsx';
 import './Dashboard.css';
 
@@ -11,6 +12,10 @@ interface DashboardStats {
   failedRestores: number;
 }
 
+interface ClusterStats extends Cluster {
+  health: ClusterHealth;
+}
+
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats>({
     totalBackups: 0,
@@ -19,6 +24,7 @@ const Dashboard: React.FC = () => {
     failedBackups: 0,
     failedRestores: 0
   });
+  const [clusters, setClusters] = useState<ClusterStats[]>([]);
   const [recentBackups, setRecentBackups] = useState<any[]>([]);
   const [recentRestores, setRecentRestores] = useState<any[]>([]);
   const [recentSchedules, setRecentSchedules] = useState<any[]>([]);
@@ -34,15 +40,38 @@ const Dashboard: React.FC = () => {
     setError(null);
     
     try {
-      const [backupsRes, restoresRes, schedulesRes] = await Promise.all([
+      const [backupsRes, restoresRes, schedulesRes, clustersRes] = await Promise.all([
         apiService.getBackups(),
         apiService.getRestores(),
-        apiService.getSchedules()
+        apiService.getSchedules(),
+        apiService.getClusters()
       ]);
 
       const backups = backupsRes.backups || [];
       const restores = restoresRes.restores || [];
       const schedules = schedulesRes.schedules || [];
+      const clusterList = clustersRes.clusters || [];
+
+      // Fetch health status for each cluster
+      const clusterHealthPromises = clusterList.map(async (cluster: Cluster) => {
+        try {
+          const health = await apiService.getClusterHealth(cluster.name);
+          return { ...cluster, health };
+        } catch (err) {
+          return { 
+            ...cluster, 
+            health: { 
+              cluster: cluster.name, 
+              status: 'error' as const, 
+              backupCount: 0, 
+              lastBackup: null 
+            } 
+          };
+        }
+      });
+
+      const clustersWithHealth = await Promise.all(clusterHealthPromises);
+      setClusters(clustersWithHealth);
 
       // Calculate stats
       const failedBackups = backups.filter((b: any) => 
@@ -65,7 +94,7 @@ const Dashboard: React.FC = () => {
       const sortByDate = (items: any[]) => 
         items.sort((a, b) => new Date(b.creationTimestamp).getTime() - new Date(a.creationTimestamp).getTime());
 
-      setRecentBackups(sortByDate([...backups]).slice(0, 3));
+      setRecentBackups(sortByDate([...backups]).slice(0, 5));
       setRecentRestores(sortByDate([...restores]).slice(0, 3));
       setRecentSchedules(sortByDate([...schedules]).slice(0, 3));
 
@@ -191,6 +220,42 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Cluster Overview */}
+      <div className="clusters-section">
+        <h2>🏢 Managed Clusters</h2>
+        {clusters.length > 0 ? (
+          <div className="clusters-grid">
+            {clusters.map((cluster) => (
+              <div key={cluster.name} className="cluster-card">
+                <div className="cluster-header">
+                  <div className="cluster-name">{cluster.name}</div>
+                  <div className={`cluster-status status-${cluster.health.status}`}>
+                    {cluster.health.status === 'healthy' && '🟢'}
+                    {cluster.health.status === 'no-backups' && '🟡'}
+                    {cluster.health.status === 'error' && '🔴'}
+                    {cluster.health.status}
+                  </div>
+                </div>
+                <div className="cluster-stats">
+                  <div className="cluster-stat">
+                    <span className="stat-value">{cluster.backupCount}</span>
+                    <span className="stat-label">Backups</span>
+                  </div>
+                  <div className="cluster-stat">
+                    <span className="stat-value">
+                      {cluster.lastBackup ? formatDate(cluster.lastBackup) : 'Never'}
+                    </span>
+                    <span className="stat-label">Last Backup</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">No clusters found</div>
+        )}
+      </div>
+
       {/* Recent Activity Tables */}
       <div className="recent-section">
         <div className="recent-grid">
@@ -202,6 +267,7 @@ const Dashboard: React.FC = () => {
                 <thead>
                   <tr>
                     <th>Name</th>
+                    <th>Cluster</th>
                     <th>Status</th>
                     <th>Created</th>
                   </tr>
@@ -210,6 +276,9 @@ const Dashboard: React.FC = () => {
                   {recentBackups.map((backup) => (
                     <tr key={backup.name}>
                       <td className="name-col">{backup.name}</td>
+                      <td>
+                        <span className="cluster-badge">{backup.cluster}</span>
+                      </td>
                       <td>
                         <span className={`status ${getStatusClass(backup.status?.phase)}`}>
                           {backup.status?.phase || 'Unknown'}
