@@ -1,212 +1,204 @@
 # Velero Manager
 
-A modern, clean web UI for managing Velero backups, schedules, and restores in Kubernetes clusters.
+An enterprise-grade multi-cluster web interface for managing Velero backup operations across Kubernetes environments with comprehensive observability.
 
 ## Features
 
-- 📦 **Backup Management** - Create, view, and delete backups
-- ⏰ **Schedule Management** - Manage automated backup schedules  
-- 🔄 **Restore Operations** - Easy restore with configuration options
-- 📊 **Real-time Status** - Live updates on backup/restore progress
-- 🎨 **Modern UI** - GitHub-style clean interface with Tailwind CSS
+- **Multi-Cluster Management** - Centralized control across multiple Kubernetes clusters
+- **Backup Operations** - Create, monitor, and manage backups with real-time status
+- **Restore Management** - Cross-cluster restore capabilities with target selection
+- **Schedule Automation** - CronJob-based backup scheduling (replacing Velero schedules)
+- **Cluster Health Monitoring** - Real-time cluster status and backup metrics
+- **Material-UI Design** - Modern dashboard with professional enterprise interface
+- **Comprehensive Observability** - Integrated Alloy + Prometheus + Grafana metrics
+- **Air-Gap Ready** - Fully self-contained for isolated environments
 
 ## Architecture
 
-- **Frontend**: React + TypeScript + Tailwind CSS
-- **Backend**: Go with Kubernetes client-go
-- **Deployment**: Single container for air-gap environments
+- **Frontend**: React 18 + TypeScript with Material-UI design system
+- **Backend**: Go 1.24 + Gin framework with real Velero CRD integration
+- **Observability**: Alloy metrics collection, Prometheus storage, Grafana dashboards
+- **Storage**: MinIO S3 backend with tested disaster recovery workflows
+- **Deployment**: Docker containers + Kubernetes manifests for air-gap environments
 
 ## Quick Start
 
 ### Development Mode
 ```bash
 # Start backend
-cd backend
-go mod tidy
-go run main.go
+cd ./velero-manager
+./backend/velero-manager
 
-# Start frontend (in another terminal)
-cd frontend
-npm install
-npm run dev
-```
-
-### Production Build
-```bash
-# Build frontend
-cd frontend
+# Build frontend (required after changes)
+cd ./velero-manager/frontend
 npm run build
-
-# Build backend with embedded frontend
-cd backend
-go build -o velero-manager main.go
-
-# Run
-./velero-manager
 ```
 
-### Docker Deployment
+### Production Deployment
 ```bash
-# Build and run with Docker Compose
-docker-compose up --build
+# Build and deploy locally (development)
+./build.sh                # Builds and pushes to localhost:32000 registry
+./deploy-local.sh         # Updates Kubernetes deployment
 
-# Or build manually
-docker build -t velero-manager:latest .
-docker run -p 8080:8080 -v ~/.kube/config:/root/.kube/config velero-manager:latest
+# Release build
+docker build -t kofadam/velero-manager:v2.0.0 .
+docker push kofadam/velero-manager:v2.0.0
 ```
 
-## Development
-
-### Prerequisites
-- Go 1.21+
-- Node.js 18+
-- Kubernetes cluster with Velero installed
-- kubectl configured with cluster access
-
-### Backend Development
+### Access Application
 ```bash
-cd backend
-go mod tidy
-go run main.go
+# Local development
+http://localhost:8080
+
+# Grafana observability dashboard  
+http://localhost:3000
+
+# Prometheus metrics
+http://localhost:9090
 ```
-Backend runs on http://localhost:8080
 
-### Frontend Development
-```bash
-cd frontend
-npm install
-npm run dev
+## Multi-Cluster Configuration
+
+### Backend API Endpoints
+
+#### Cluster Management
+- `GET /api/v1/clusters` - List all managed clusters
+- `GET /api/v1/clusters/{cluster}/health` - Get cluster health status
+- `GET /api/v1/clusters/{cluster}/backups` - List cluster-specific backups
+
+#### Backup Operations
+- `GET /api/v1/backups` - List all backups across clusters
+- `POST /api/v1/backups` - Create new backup
+- `DELETE /api/v1/backups/{name}` - Delete backup
+
+#### Restore Operations  
+- `GET /api/v1/restores` - List all restores
+- `POST /api/v1/restores` - Create restore (with target cluster selection)
+- `GET /api/v1/restores/{name}/logs` - Get restore logs
+
+#### CronJob Management
+- `GET /api/v1/cronjobs` - List backup automation jobs
+- `POST /api/v1/cronjobs` - Create scheduled backup job
+
+## Observability Stack
+
+### Metrics Collection (Alloy)
+```yaml
+# k8s/observability/alloy.yaml
+- Velero pod metrics scraping
+- Backup/restore operation metrics
+- Cluster health indicators
+- Custom business metrics
 ```
-Frontend runs on http://localhost:3000 with API proxy to backend
 
-### Testing
-```bash
-# Test backend
-cd backend
-go test ./...
+### Prometheus Storage
+```yaml
+# k8s/observability/prometheus.yaml
+- Velero metrics retention
+- Multi-cluster data aggregation
+- Alert rule definitions
+```
 
-# Test frontend
-cd frontend
-npm test
-
-# Integration tests
-make test
+### Grafana Dashboards
+```yaml
+# k8s/observability/grafana.yaml
+- Real-time backup success rates
+- Cross-cluster health overview
+- Historical trend analysis
+- Failure correlation views
 ```
 
 ## Air-Gap Deployment
 
-This application is designed for air-gapped Kubernetes environments:
+Designed for completely isolated Kubernetes environments:
 
-- **No external dependencies** during runtime
-- **Embedded frontend assets** in Go binary
-- **Local authentication** (no external OAuth)
-- **Direct Kubernetes API** communication only
+### Requirements
+- **No internet access** required during operation
+- **All dependencies** vendored or containerized
+- **Local container registry** (localhost:32000 for development)
+- **MinIO S3** backend for backup storage
+- **Velero** with node-agent deployed in target clusters
 
 ### Kubernetes Deployment
-```yaml
-# Apply RBAC and deployment
-kubectl apply -f k8s/
-
-# Access via port-forward
-kubectl port-forward deployment/velero-manager 8080:8080
-```
-
-## Configuration
-
-### Environment Variables
 ```bash
-# Kubernetes config (defaults to ~/.kube/config)
-KUBECONFIG=/path/to/kubeconfig
+# Deploy observability stack
+kubectl apply -f k8s/observability/
 
-# Server port (default: 8080)
-PORT=8080
+# Deploy main application
+kubectl apply -f k8s/deployment.yaml
 
-# Velero namespace (default: velero)
-VELERO_NAMESPACE=velero
-
-# Log level (default: info)
-LOG_LEVEL=debug
+# Verify deployment
+kubectl get pods -n velero-manager
 ```
 
-### Build Configuration
+## Development Workflow
+
+### Local CI/CD Pipeline
 ```bash
-# Build with custom tags
-go build -tags production -o velero-manager main.go
-
-# Build for different architectures
-GOOS=linux GOARCH=amd64 go build -o velero-manager-linux main.go
+# Complete development cycle
+1. Make frontend/backend changes
+2. ./build.sh              # Auto-build and local registry push
+3. ./deploy-local.sh       # Update running Kubernetes deployment
+4. Test at http://localhost:8080
+5. git commit & push only when stable
 ```
 
-## API Endpoints
+### Version Management
+```bash
+# Automatic version injection
+./version.sh              # Get current git-based version
+# Docker build automatically injects version into React frontend
+# UI displays actual version (not hardcoded)
+```
 
-### Backups
-- `GET /api/v1/backups` - List all backups
-- `POST /api/v1/backups` - Create new backup
-- `GET /api/v1/backups/:name` - Get backup details
-- `DELETE /api/v1/backups/:name` - Delete backup
+### Branch Strategy
+```bash
+# Current active branch
+feature/multi-cluster-management
 
-### Schedules
-- `GET /api/v1/schedules` - List all schedules
-- `POST /api/v1/schedules` - Create new schedule
-- `DELETE /api/v1/schedules/:name` - Delete schedule
+# Tested features
+- Multi-cluster backend (complete)
+- Dashboard Material-UI redesign (complete) 
+- Backup/Restore cluster support (complete)
+- Modal consistency (complete)
+- UI background standardization (in progress)
+```
 
-### Restores
-- `GET /api/v1/restores` - List all restores
-- `POST /api/v1/restores` - Create new restore
+## Current Status (v2.0.0)
 
-### System
-- `GET /api/v1/health` - Health check
+### Completed Features
+- **Backend**: Full multi-cluster API with real CRD integration
+- **Dashboard**: Complete Material-UI transformation with compact layout
+- **Backup Page**: Cluster filtering, sorting, search with consistent styling
+- **Restore Page**: Multi-cluster support with standardized interface
+- **Observability**: Working metrics collection showing accurate data
+- **Routing**: Browser refresh maintains page state
+- **App Branding**: Updated title, needs favicon replacement
+
+### In Progress
+- **UI Consistency**: Standardizing header styling across all pages
+- **Schedule Page**: Adding cluster support and Material-UI styling
+- **Settings Page**: Material-UI transformation pending
+
+### Tested Functionality
+```bash
+# Confirmed working end-to-end
+curl http://localhost:8080/api/v1/clusters/core-cl1/health
+# Returns: {"backupCount": 1, "cluster": "core-cl1", "lastBackup": "2025-08-29T08:40:27Z", "status": "healthy"}
+
+# Complete disaster recovery workflow tested
+1. Create backup → 2. Simulate failure → 3. Cross-cluster restore → 4. Verify data
+```
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
-## Troubleshooting
-
-### Common Issues
-
-**Backend won't start:**
-```bash
-# Check Kubernetes connection
-kubectl cluster-info
-
-# Verify Velero installation
-kubectl get pods -n velero
-```
-
-**Frontend build fails:**
-```bash
-# Clear node_modules and reinstall
-rm -rf frontend/node_modules
-cd frontend && npm install
-```
-
-**Permission errors:**
-```bash
-# Check RBAC permissions
-kubectl auth can-i get backups.velero.io
-kubectl auth can-i create backups.velero.io
-```
-
-### Debug Mode
-```bash
-# Run with debug logging
-LOG_LEVEL=debug go run main.go
-
-# Enable Kubernetes client debug
-KUBERNETES_DEBUG=true go run main.go
-```
-
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - Enterprise backup management for Kubernetes environments.
 
 ## Acknowledgments
 
-- [Velero](https://velero.io/) - The amazing backup tool this UI manages
-- [Kubernetes](https://kubernetes.io/) - The platform we're running on
-- Inspired by modern GitHub UI patterns
+- [Velero](https://velero.io/) - Kubernetes backup and disaster recovery
+- [Material-UI](https://mui.com/) - Design system and component library
+- [Prometheus](https://prometheus.io/) + [Grafana](https://grafana.com/) - Observability stack
+- Air-gap deployment patterns for secure enterprise environments
