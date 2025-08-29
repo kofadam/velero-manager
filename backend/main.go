@@ -59,6 +59,10 @@ func main() {
 		api.DELETE("/schedules/:name", veleroHandler.DeleteSchedule)
 		api.PUT("/schedules/:name", veleroHandler.UpdateSchedule)
 		api.POST("/schedules/:name/backup", veleroHandler.CreateBackupFromSchedule)
+		api.GET("/cronjobs", veleroHandler.ListCronJobs)
+		api.GET("/clusters", veleroHandler.ListClusters)
+		api.GET("/clusters/:cluster/backups", veleroHandler.ListBackupsByCluster)
+		api.GET("/clusters/:cluster/health", veleroHandler.GetClusterHealth)
 		api.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 		})

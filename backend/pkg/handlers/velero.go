@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 	"velero-manager/pkg/k8s"
 
@@ -51,8 +52,12 @@ func (h *VeleroHandler) ListBackups(c *gin.Context) {
 	// Convert to simpler format
 	var backups []map[string]interface{}
 	for _, backup := range backupList.Items {
+		backupName := backup.GetName()
+		clusterName := extractClusterFromBackupName(backupName)
+		
 		backupData := map[string]interface{}{
-			"name":              backup.GetName(),
+			"name":              backupName,
+			"cluster":           clusterName,
 			"namespace":         backup.GetNamespace(),
 			"creationTimestamp": backup.GetCreationTimestamp(),
 			"labels":            backup.GetLabels(),
@@ -242,6 +247,7 @@ func (h *VeleroHandler) CreateRestore(c *gin.Context) {
 	var request struct {
 		Name                    string            `json:"name" binding:"required"`
 		BackupName              string            `json:"backupName" binding:"required"`
+		TargetCluster           string            `json:"targetCluster,omitempty"`
 		IncludedNamespaces      []string          `json:"includedNamespaces,omitempty"`
 		ExcludedNamespaces      []string          `json:"excludedNamespaces,omitempty"`
 		NamespaceMapping        map[string]string `json:"namespaceMapping,omitempty"`
@@ -258,13 +264,23 @@ func (h *VeleroHandler) CreateRestore(c *gin.Context) {
 	}
 
 	// Create restore object
+	labels := make(map[string]interface{})
+	if request.TargetCluster != "" {
+		labels["velero.io/target-cluster"] = request.TargetCluster
+	}
+	
+	metadata := map[string]interface{}{
+		"name":      request.Name,
+		"namespace": "velero",
+	}
+	if len(labels) > 0 {
+		metadata["labels"] = labels
+	}
+	
 	restore := map[string]interface{}{
 		"apiVersion": "velero.io/v1",
 		"kind":       "Restore",
-		"metadata": map[string]interface{}{
-			"name":      request.Name,
-			"namespace": "velero",
-		},
+		"metadata":   metadata,
 		"spec": map[string]interface{}{
 			"backupName": request.BackupName,
 		},
@@ -341,8 +357,12 @@ func (h *VeleroHandler) ListRestores(c *gin.Context) {
 	// Convert to simpler format
 	var restores []map[string]interface{}
 	for _, restore := range restoreList.Items {
+		restoreName := restore.GetName()
+		clusterName := extractClusterFromRestoreName(restoreName, restore.Object)
+		
 		restoreData := map[string]interface{}{
-			"name":              restore.GetName(),
+			"name":              restoreName,
+			"cluster":           clusterName,
 			"namespace":         restore.GetNamespace(),
 			"creationTimestamp": restore.GetCreationTimestamp(),
 			"labels":            restore.GetLabels(),
@@ -681,5 +701,257 @@ func (h *VeleroHandler) CreateBackupFromSchedule(c *gin.Context) {
 		"schedule":   scheduleName,
 		"status":     "created",
 		"backupType": "manual",
+	})
+}
+
+func (h *VeleroHandler) ListCronJobs(c *gin.Context) {
+	// Get cronjobs from Velero namespace
+	cronJobList, err := h.k8sClient.DynamicClient.
+		Resource(k8s.CronJobGVR).
+		Namespace("velero").
+		List(h.k8sClient.Context, metav1.ListOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":     "Failed to list cronjobs",
+			"details":   err.Error(),
+			"namespace": "velero",
+		})
+		return
+	}
+
+	// Convert to simpler format
+	var cronJobs []map[string]interface{}
+	for _, cronJob := range cronJobList.Items {
+		cronJobName := cronJob.GetName()
+		clusterName := extractClusterFromCronJobName(cronJobName)
+		
+		cronJobData := map[string]interface{}{
+			"name":              cronJobName,
+			"cluster":           clusterName,
+			"namespace":         cronJob.GetNamespace(),
+			"creationTimestamp": cronJob.GetCreationTimestamp(),
+			"labels":            cronJob.GetLabels(),
+		}
+
+		// Extract spec if available
+		if spec, found := cronJob.Object["spec"]; found {
+			cronJobData["spec"] = spec
+		}
+
+		// Extract status if available
+		if status, found := cronJob.Object["status"]; found {
+			cronJobData["status"] = status
+		}
+
+		cronJobs = append(cronJobs, cronJobData)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"cronjobs": cronJobs,
+		"count":    len(cronJobs),
+	})
+}
+
+// extractClusterFromCronJobName parses cluster name from cronjob naming convention
+// Example: "backup-core-cl1-daily" -> "core-cl1"
+func extractClusterFromCronJobName(cronJobName string) string {
+	if strings.HasPrefix(cronJobName, "backup-") && strings.HasSuffix(cronJobName, "-daily") {
+		// Remove "backup-" prefix and "-daily" suffix
+		clusterPart := strings.TrimPrefix(cronJobName, "backup-")
+		clusterPart = strings.TrimSuffix(clusterPart, "-daily")
+		return clusterPart
+	}
+	
+	return "unknown"
+}
+
+// extractClusterFromBackupName parses cluster name from backup naming convention
+// Example: "core-cl1-daily-backup-20250821020001" -> "core-cl1"
+func extractClusterFromBackupName(backupName string) string {
+	parts := strings.Split(backupName, "-daily-backup-")
+	if len(parts) >= 2 {
+		return parts[0]
+	}
+	
+	// Fallback for other naming patterns
+	if strings.Contains(backupName, "-centralized-") {
+		parts = strings.Split(backupName, "-centralized-")
+		if len(parts) >= 2 {
+			return parts[0]
+		}
+	}
+	
+	return "unknown"
+}
+
+// extractClusterFromRestoreName parses cluster name from restore name or backup reference
+func extractClusterFromRestoreName(restoreName string, restoreObj map[string]interface{}) string {
+	// Try parsing from restore name first
+	if cluster := extractClusterFromBackupName(restoreName); cluster != "management" && cluster != "unknown" {
+		return cluster
+	}
+	
+	// Try extracting from backup name in spec
+	if spec, found := restoreObj["spec"].(map[string]interface{}); found {
+		if backupName, found := spec["backupName"].(string); found {
+			return extractClusterFromBackupName(backupName)
+		}
+	}
+	
+	return "management"
+}
+
+func (h *VeleroHandler) ListClusters(c *gin.Context) {
+	// Get all backups to extract cluster list
+	backupList, err := h.k8sClient.DynamicClient.
+		Resource(k8s.BackupGVR).
+		Namespace("velero").
+		List(h.k8sClient.Context, metav1.ListOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to list backups for cluster detection",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Extract unique clusters from backup names
+	clusterMap := make(map[string]map[string]interface{})
+	
+	for _, backup := range backupList.Items {
+		clusterName := extractClusterFromBackupName(backup.GetName())
+		if clusterName == "unknown" {
+			continue
+		}
+
+		if _, exists := clusterMap[clusterName]; !exists {
+			clusterMap[clusterName] = map[string]interface{}{
+				"name":        clusterName,
+				"backupCount": 0,
+				"lastBackup":  nil,
+			}
+		}
+
+		// Count backups per cluster
+		clusterMap[clusterName]["backupCount"] = clusterMap[clusterName]["backupCount"].(int) + 1
+
+		// Track most recent backup
+		if clusterMap[clusterName]["lastBackup"] == nil {
+			clusterMap[clusterName]["lastBackup"] = backup.GetCreationTimestamp()
+		}
+	}
+
+	// Convert map to slice
+	var clusters []map[string]interface{}
+	for _, cluster := range clusterMap {
+		clusters = append(clusters, cluster)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"clusters": clusters,
+		"count":    len(clusters),
+	})
+}
+
+func (h *VeleroHandler) ListBackupsByCluster(c *gin.Context) {
+	clusterName := c.Param("cluster")
+	if clusterName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "cluster name is required",
+		})
+		return
+	}
+
+	// Get all backups
+	backupList, err := h.k8sClient.DynamicClient.
+		Resource(k8s.BackupGVR).
+		Namespace("velero").
+		List(h.k8sClient.Context, metav1.ListOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to list backups",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Filter by cluster
+	var backups []map[string]interface{}
+	for _, backup := range backupList.Items {
+		if extractClusterFromBackupName(backup.GetName()) == clusterName {
+			backupData := map[string]interface{}{
+				"name":              backup.GetName(),
+				"cluster":           clusterName,
+				"namespace":         backup.GetNamespace(),
+				"creationTimestamp": backup.GetCreationTimestamp(),
+				"labels":            backup.GetLabels(),
+			}
+
+			if status, found := backup.Object["status"]; found {
+				backupData["status"] = status
+			}
+			if spec, found := backup.Object["spec"]; found {
+				backupData["spec"] = spec
+			}
+
+			backups = append(backups, backupData)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"cluster": clusterName,
+		"backups": backups,
+		"count":   len(backups),
+	})
+}
+
+func (h *VeleroHandler) GetClusterHealth(c *gin.Context) {
+	clusterName := c.Param("cluster")
+	if clusterName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "cluster name is required",
+		})
+		return
+	}
+
+	// Check if cluster has recent backups (indicates connectivity)
+	backupList, err := h.k8sClient.DynamicClient.
+		Resource(k8s.BackupGVR).
+		Namespace("velero").
+		List(h.k8sClient.Context, metav1.ListOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to check cluster health",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	var lastBackup interface{}
+	var backupCount int
+	
+	for _, backup := range backupList.Items {
+		if extractClusterFromBackupName(backup.GetName()) == clusterName {
+			backupCount++
+			if lastBackup == nil {
+				lastBackup = backup.GetCreationTimestamp()
+			}
+		}
+	}
+
+	status := "healthy"
+	if backupCount == 0 {
+		status = "no-backups"
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"cluster":     clusterName,
+		"status":      status,
+		"backupCount": backupCount,
+		"lastBackup":  lastBackup,
 	})
 }
