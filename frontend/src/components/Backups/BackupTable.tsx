@@ -14,7 +14,7 @@ interface BackupTableProps {
   onRefresh: () => void;
 }
 
-type SortField = 'name' | 'status' | 'created';
+type SortField = 'name' | 'cluster' | 'status' | 'created';
 type SortDirection = 'asc' | 'desc';
 
 const BackupTable: React.FC<BackupTableProps> = ({
@@ -25,8 +25,8 @@ const BackupTable: React.FC<BackupTableProps> = ({
   onDeleteBackup,
   onRefresh
 }) => {
-  const [sortField, setSortField] = React.useState<SortField>('name');
-  const [sortDirection, setSortDirection] = React.useState<SortDirection>('asc');
+  const [sortField, setSortField] = React.useState<SortField>('created');
+  const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
   
   const allSelected = backups.length > 0 && selectedBackups.length === backups.length;
   const someSelected = selectedBackups.length > 0 && selectedBackups.length < backups.length;
@@ -68,6 +68,9 @@ const BackupTable: React.FC<BackupTableProps> = ({
       case 'name':
         comparison = a.name.localeCompare(b.name);
         break;
+      case 'cluster':
+        comparison = a.cluster.localeCompare(b.cluster);
+        break;
       case 'status':
         comparison = a.status.phase.localeCompare(b.status.phase);
         break;
@@ -97,6 +100,9 @@ const BackupTable: React.FC<BackupTableProps> = ({
             <th className="sortable" onClick={() => handleSort('name')}>
               NAME {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
             </th>
+            <th className="sortable" onClick={() => handleSort('cluster')}>
+              CLUSTER {sortField === 'cluster' && (sortDirection === 'asc' ? '↑' : '↓')}
+            </th>
             <th className="sortable" onClick={() => handleSort('status')}>
               STATUS {sortField === 'status' && (sortDirection === 'asc' ? '↑' : '↓')}
             </th>
@@ -123,6 +129,9 @@ const BackupTable: React.FC<BackupTableProps> = ({
               </td>
               <td className="name-col">
                 <span className="backup-name">{backup.name}</span>
+              </td>
+              <td className="cluster-col">
+                <span className="cluster-badge">{backup.cluster}</span>
               </td>
               <td>
                 <span className={`status ${getStatusClass(backup.status.phase)}`}>

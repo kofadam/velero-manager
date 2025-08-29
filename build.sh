@@ -1,32 +1,23 @@
 #!/bin/bash
 set -e
 
-# Get version (trim whitespace)
+# Get version (trim whitespace)  
 VERSION=$(./version.sh | tr -d '\n\r')
-echo "🏗️  Building Velero Manager version: $VERSION"
+echo "Building Velero Manager version: $VERSION"
 
 # Build frontend with version
-echo "📦 Building frontend..."
+echo "Building frontend..."
 cd frontend
 REACT_APP_VERSION="$VERSION" npm run build
 cd ..
 
 # Build Docker image with version tag
-echo "🐳 Building Docker image..."
-docker build -t velero-manager:latest -t "kofadam/velero-manager:$VERSION" .
+echo "Building Docker image..."
+docker build --build-arg REACT_APP_VERSION="$VERSION" -t velero-manager:latest -t "localhost:32000/velero-manager:$VERSION" .
 
-# Save image for air-gap transfer
-echo "💾 Saving Docker image for air-gap transfer..."
-docker save "kofadam/velero-manager:$VERSION" | gzip > "velero-manager-$VERSION.tar.gz"
+# Push to local registry for testing
+echo "Pushing to local registry..."
+docker push "localhost:32000/velero-manager:$VERSION"
 
-echo "✅ Build complete! Files ready for air-gap deployment:"
-echo "   - velero-manager-$VERSION.tar.gz (Docker image)"
-echo "   - k8s/ directory (Kubernetes manifests)"
-echo ""
-echo "📋 Next steps:"
-echo "   1. Transfer files to air-gap environment"
-echo "   2. docker load < velero-manager-$VERSION.tar.gz"
-echo "   3. Update k8s/deployment.yaml image to kofadam/velero-manager:$VERSION"
-echo "   4. kubectl apply -f k8s/"
-echo ""
-echo "🏷️  Version: $VERSION"
+echo "Build complete! Version: $VERSION"
+echo "Image available at: localhost:32000/velero-manager:$VERSION"

@@ -13,7 +13,7 @@ import './App.css';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [activeRoute, setActiveRoute] = useState('backups');
+  const [activeRoute, setActiveRoute] = useState('dashboard');
 
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
@@ -59,7 +59,7 @@ function App() {
       />
       <div className="main-layout">
         <Header 
-          title="Backups" 
+          title={activeRoute.charAt(0).toUpperCase() + activeRoute.slice(1)} 
           user={user.username}
         />
         <main className="main-content">

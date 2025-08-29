@@ -37,6 +37,16 @@
   max-width: 800px;
 }
 
+.modal-xlarge {
+  width: 95vw;
+  max-width: 1200px;
+}
+
+.modal-xxlarge {
+  width: 98vw;
+  max-width: none;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;

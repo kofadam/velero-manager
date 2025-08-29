@@ -9,6 +9,13 @@ const BackupList: React.FC = () => {
   const [selectedBackups, setSelectedBackups] = useState<string[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
+  const [clusterFilter, setClusterFilter] = useState('all');
+
+  // Get unique clusters from backups
+  const availableClusters = React.useMemo(() => {
+    const clusters = Array.from(new Set(backups.map(backup => backup.cluster).filter(Boolean)));
+    return clusters.sort();
+  }, [backups]);
 
   const handleSelectBackup = (backupName: string, selected: boolean) => {
     if (selected) {
@@ -40,18 +47,24 @@ const BackupList: React.FC = () => {
     }
   };
 
-  const filteredBackups = backups.filter(backup =>
-    backup.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
-    backup.status.phase.toLowerCase().includes(searchFilter.toLowerCase()) ||
-    (backup.spec.includedNamespaces && backup.spec.includedNamespaces.some(ns => 
-      ns.toLowerCase().includes(searchFilter.toLowerCase())
-    ))
-  );
+  const filteredBackups = backups.filter(backup => {
+    // Search filter
+    const matchesSearch = backup.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      backup.status.phase.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      (backup.spec.includedNamespaces && backup.spec.includedNamespaces.some(ns => 
+        ns.toLowerCase().includes(searchFilter.toLowerCase())
+      ));
+    
+    // Cluster filter
+    const matchesCluster = clusterFilter === 'all' || backup.cluster === clusterFilter;
+    
+    return matchesSearch && matchesCluster;
+  });
 
   return (
     <div className="backup-list">
       <div className="backup-header">
-        <div className="backup-search">
+        <div className="backup-filters">
           <input
             type="text"
             placeholder="Search backups by name, status, or namespace..."
@@ -59,6 +72,16 @@ const BackupList: React.FC = () => {
             onChange={(e) => setSearchFilter(e.target.value)}
             className="search-input"
           />
+          <select
+            value={clusterFilter}
+            onChange={(e) => setClusterFilter(e.target.value)}
+            className="cluster-filter"
+          >
+            <option value="all">All Clusters</option>
+            {availableClusters.map(cluster => (
+              <option key={cluster} value={cluster}>{cluster}</option>
+            ))}
+          </select>
         </div>
         <div className="backup-actions">
           <button

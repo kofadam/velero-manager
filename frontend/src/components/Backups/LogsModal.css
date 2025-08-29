@@ -1,7 +1,10 @@
 .logs-modal {
   display: flex;
   flex-direction: column;
-  height: 500px;
+  height: 70vh;
+  min-height: 600px;
+  width: 90vw;
+  max-width: 1200px;
 }
 
 .logs-header {

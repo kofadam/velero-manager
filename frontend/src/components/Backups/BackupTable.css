@@ -110,3 +110,28 @@
   margin: 0;
   font-size: 14px;
 }
+
+.cluster-col {
+  width: 100px;
+}
+
+.cluster-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  background-color: #e0e7ff;
+  color: #3730a3;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sortable:hover {
+  background-color: #f1f5f9;
+}

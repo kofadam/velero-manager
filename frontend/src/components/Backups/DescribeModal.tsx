@@ -32,7 +32,7 @@ const DescribeModal: React.FC<DescribeModalProps> = ({ backup, onClose }) => {
 
   if (loading) {
     return (
-      <Modal title={`Describe - ${backup.name}`} onClose={onClose} size="large">
+    <Modal title={`Describe - ${backup.name}`} onClose={onClose} size="xxlarge">
         <div className="describe-loading">
           <LoadingSpinner />
           <span>Loading backup details...</span>

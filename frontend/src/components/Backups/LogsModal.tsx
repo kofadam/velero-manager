@@ -26,15 +26,22 @@ const LogsModal: React.FC<LogsModalProps> = ({ backup, onClose }) => {
       // Simulate fetching logs - in real implementation, this would call the backend
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mock logs for now
-      const mockLogs = `
-time="2025-08-19T12:00:00Z" level=info msg="Starting backup" backup=${backup.name}
-time="2025-08-19T12:00:01Z" level=info msg="Backing up resource" resource=pods namespace=${backup.spec.includedNamespaces?.[0] || 'default'}
-time="2025-08-19T12:00:02Z" level=info msg="Backing up resource" resource=services namespace=${backup.spec.includedNamespaces?.[0] || 'default'}
-time="2025-08-19T12:00:03Z" level=info msg="Backing up resource" resource=deployments namespace=${backup.spec.includedNamespaces?.[0] || 'default'}
-time="2025-08-19T12:00:05Z" level=info msg="Backup completed successfully" backup=${backup.name}
-time="2025-08-19T12:00:05Z" level=info msg="Backup uploaded to storage" location=${backup.spec.storageLocation}
-      `.trim();
+      // Backup logs explanation
+      const mockLogs = `Backup logs for '${backup.name}' are not directly accessible through the API.
+
+To view detailed backup logs, use the Velero CLI:
+velero backup logs ${backup.name}
+
+Or check the Velero pod logs:
+kubectl logs -n velero deployment/velero
+
+Current backup status: ${backup.status.phase}
+Started: ${backup.status.startTimestamp || 'N/A'}
+Completed: ${backup.status.completionTimestamp || 'N/A'}
+Format Version: ${backup.status.formatVersion || 'N/A'}
+
+Created: ${backup.creationTimestamp}
+Storage Location: ${backup.spec.storageLocation}`;
       
       setLogs(mockLogs);
     } catch (err: any) {
@@ -45,7 +52,7 @@ time="2025-08-19T12:00:05Z" level=info msg="Backup uploaded to storage" location
   };
 
   return (
-    <Modal title={`Logs - ${backup.name}`} onClose={onClose} size="large">
+    <Modal title={`Logs - ${backup.name}`} onClose={onClose} size="xlarge">
       <div className="logs-modal">
         <div className="logs-header">
           <div className="backup-info">

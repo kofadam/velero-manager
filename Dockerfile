@@ -1,11 +1,10 @@
-# Multi-stage build for air-gap deployment
 FROM node:18-alpine AS frontend-builder
-
+ARG REACT_APP_VERSION=v1.2.0-dev
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci --only=production
 COPY frontend/ ./
-RUN npm run build
+RUN REACT_APP_VERSION=${REACT_APP_VERSION} npm run build
 
 # Go backend builder
 FROM golang:latest AS backend-builder

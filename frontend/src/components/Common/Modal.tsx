@@ -5,7 +5,7 @@ interface ModalProps {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
-  size?: 'small' | 'medium' | 'large';
+  size?: 'small' | 'medium' | 'large' | 'xlarge' | 'xxlarge';
 }
 
 const Modal: React.FC<ModalProps> = ({ title, onClose, children, size = 'medium' }) => {
