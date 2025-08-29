@@ -63,7 +63,8 @@ const BackupList: React.FC = () => {
 
   return (
     <div className="backup-list">
-      <div className="backup-header">
+      <div className="backup-content">
+        <div className="backup-header">
         <div className="backup-filters">
           <input
             type="text"
@@ -130,6 +131,7 @@ const BackupList: React.FC = () => {
           }}
         />
       )}
+      </div>
     </div>
   );
 };
