@@ -84,8 +84,14 @@ var (
 	}
 	
 	CronJobGVR = schema.GroupVersionResource{
-		Group:    "batch",
-		Version:  "v1",
+		Group: "batch",
+		Version: "v1",
 		Resource: "cronjobs",
+	}
+	
+	JobGVR = schema.GroupVersionResource{
+		Group: "batch",
+		Version: "v1",
+		Resource: "jobs",
 	}
 )

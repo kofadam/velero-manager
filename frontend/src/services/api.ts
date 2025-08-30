@@ -59,16 +59,14 @@ export const apiService = {
   },
 
   async deleteSchedule(name: string): Promise<void> {
-    await api.delete(`/schedules/${name}`);
+    await api.delete(`/cronjobs/${name}`);
   },
-
   async updateSchedule(name: string, updates: any): Promise<any> {
-    const response = await api.put(`/schedules/${name}`, updates);
+    const response = await api.put(`/cronjobs/${name}`, updates);
     return response.data;
   },
-
   async createBackupFromSchedule(scheduleName: string): Promise<any> {
-    const response = await api.post(`/schedules/${scheduleName}/backup`);
+    const response = await api.post(`/cronjobs/${scheduleName}/trigger`);
     return response.data;
   },
 

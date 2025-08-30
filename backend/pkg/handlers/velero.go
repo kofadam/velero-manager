@@ -704,6 +704,115 @@ func (h *VeleroHandler) CreateBackupFromSchedule(c *gin.Context) {
 	})
 }
 
+func (h *VeleroHandler) CreateCronJob(c *gin.Context) {
+	var request struct {
+		Name               string   `json:"name" binding:"required"`
+		Cluster            string   `json:"cluster" binding:"required"`
+		Schedule           string   `json:"schedule" binding:"required"`
+		IncludedNamespaces []string `json:"includedNamespaces,omitempty"`
+		ExcludedNamespaces []string `json:"excludedNamespaces,omitempty"`
+		TTL                string   `json:"ttl,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Set defaults
+	if request.TTL == "" {
+		request.TTL = "720h"
+	}
+
+	// Generate CronJob name following the pattern
+	cronJobName := fmt.Sprintf("backup-%s-daily", request.Cluster)
+	if request.Name != "" {
+		cronJobName = request.Name
+	}
+
+	// Build namespace selector
+	namespaceArg := "--all-namespaces"
+	if len(request.IncludedNamespaces) > 0 {
+		namespaceArg = fmt.Sprintf("--include-namespaces=%s", strings.Join(request.IncludedNamespaces, ","))
+	}
+
+	// Create CronJob manifest
+	cronJob := map[string]interface{}{
+		"apiVersion": "batch/v1",
+		"kind":       "CronJob",
+		"metadata": map[string]interface{}{
+			"name":      cronJobName,
+			"namespace": "velero",
+			"labels": map[string]interface{}{
+				"velero.io/cluster": request.Cluster,
+				"app":               "velero-backup",
+			},
+		},
+		"spec": map[string]interface{}{
+			"schedule": request.Schedule,
+			"jobTemplate": map[string]interface{}{
+				"spec": map[string]interface{}{
+					"template": map[string]interface{}{
+						"spec": map[string]interface{}{
+							"containers": []map[string]interface{}{
+								{
+									"name":  "velero-backup",
+									"image": "velero/velero:v1.12.0",
+									"command": []string{
+										"/bin/sh",
+										"-c",
+										fmt.Sprintf(`velero backup create %s-$(date +%%Y%%m%%d%%H%%M%%S) %s --ttl %s --wait`,
+											request.Cluster, namespaceArg, request.TTL),
+									},
+									"volumeMounts": []map[string]interface{}{
+										{
+											"name":      "cluster-credentials",
+											"mountPath": "/credentials",
+											"readOnly":  true,
+										},
+									},
+								},
+							},
+							"restartPolicy": "OnFailure",
+							"volumes": []map[string]interface{}{
+								{
+									"name": "cluster-credentials",
+									"secret": map[string]interface{}{
+										"secretName": fmt.Sprintf("%s-credentials", request.Cluster),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create the CronJob in Kubernetes
+	result, err := h.k8sClient.DynamicClient.
+		Resource(k8s.CronJobGVR).
+		Namespace("velero").
+		Create(h.k8sClient.Context, &unstructured.Unstructured{Object: cronJob}, metav1.CreateOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to create CronJob",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "CronJob created successfully",
+		"cronJob": result.GetName(),
+		"cluster": request.Cluster,
+	})
+}
+
 func (h *VeleroHandler) ListCronJobs(c *gin.Context) {
 	// Get cronjobs from Velero namespace
 	cronJobList, err := h.k8sClient.DynamicClient.
@@ -750,6 +859,168 @@ func (h *VeleroHandler) ListCronJobs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"cronjobs": cronJobs,
 		"count":    len(cronJobs),
+	})
+}
+
+func (h *VeleroHandler) DeleteCronJob(c *gin.Context) {
+	cronJobName := c.Param("name")
+	if cronJobName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "CronJob name is required",
+		})
+		return
+	}
+
+	err := h.k8sClient.DynamicClient.
+		Resource(k8s.CronJobGVR).
+		Namespace("velero").
+		Delete(h.k8sClient.Context, cronJobName, metav1.DeleteOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to delete CronJob",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "CronJob deleted successfully",
+		"cronJob": cronJobName,
+	})
+}
+
+func (h *VeleroHandler) UpdateCronJob(c *gin.Context) {
+	cronJobName := c.Param("name")
+	if cronJobName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "CronJob name is required",
+		})
+		return
+	}
+
+	var request struct {
+		Suspend *bool `json:"suspend,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Get existing CronJob
+	existing, err := h.k8sClient.DynamicClient.
+		Resource(k8s.CronJobGVR).
+		Namespace("velero").
+		Get(h.k8sClient.Context, cronJobName, metav1.GetOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error":   "CronJob not found",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Update suspend field
+	if request.Suspend != nil {
+		if spec, ok := existing.Object["spec"].(map[string]interface{}); ok {
+			spec["suspend"] = *request.Suspend
+		}
+	}
+
+	// Update the CronJob
+	result, err := h.k8sClient.DynamicClient.
+		Resource(k8s.CronJobGVR).
+		Namespace("velero").
+		Update(h.k8sClient.Context, existing, metav1.UpdateOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to update CronJob",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "CronJob updated successfully",
+		"cronJob": result.GetName(),
+	})
+}
+
+func (h *VeleroHandler) TriggerCronJob(c *gin.Context) {
+	cronJobName := c.Param("name")
+	if cronJobName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "CronJob name is required",
+		})
+		return
+	}
+
+	// Get the CronJob to extract its spec
+	cronJob, err := h.k8sClient.DynamicClient.
+		Resource(k8s.CronJobGVR).
+		Namespace("velero").
+		Get(h.k8sClient.Context, cronJobName, metav1.GetOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error":   "CronJob not found",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Extract cluster name for the backup
+	clusterName := extractClusterFromCronJobName(cronJobName)
+	
+	// Create a Job from the CronJob template
+	jobName := fmt.Sprintf("%s-manual-%d", cronJobName, time.Now().Unix())
+	
+	// Get job template from CronJob spec
+	spec, _ := cronJob.Object["spec"].(map[string]interface{})
+	jobTemplate, _ := spec["jobTemplate"].(map[string]interface{})
+	jobSpec, _ := jobTemplate["spec"].(map[string]interface{})
+
+	// Create Job manifest
+	job := map[string]interface{}{
+		"apiVersion": "batch/v1",
+		"kind":       "Job",
+		"metadata": map[string]interface{}{
+			"name":      jobName,
+			"namespace": "velero",
+			"labels": map[string]interface{}{
+				"velero.io/cluster":   clusterName,
+				"velero.io/triggered": "manual",
+				"cronjob-name":        cronJobName,
+			},
+		},
+		"spec": jobSpec,
+	}
+
+	// Create the Job
+	result, err := h.k8sClient.DynamicClient.
+		Resource(k8s.JobGVR).
+		Namespace("velero").
+		Create(h.k8sClient.Context, &unstructured.Unstructured{Object: job}, metav1.CreateOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to trigger CronJob",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Backup triggered successfully",
+		"job":     result.GetName(),
+		"cronJob": cronJobName,
+		"cluster": clusterName,
 	})
 }
 

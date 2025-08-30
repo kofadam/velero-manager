@@ -40,7 +40,7 @@ const ScheduleList: React.FC = () => {
 
   const handleToggleSchedule = async (scheduleName: string, paused: boolean) => {
     try {
-      await apiService.updateSchedule(scheduleName, { paused });
+      await apiService.updateSchedule(scheduleName, { suspend: paused });
       await fetchSchedules(); // Refresh list
     } catch (err: any) {
       const errorMessage = err.response?.data?.details || err.message || 'Failed to update schedule';

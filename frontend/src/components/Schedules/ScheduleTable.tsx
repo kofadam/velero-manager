@@ -25,13 +25,13 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
   };
 
   const getScheduleStatus = (schedule: any): { status: string; className: string } => {
-    const isPaused = schedule.spec?.paused === true;
+    const isSuspended = schedule.spec?.suspend === true;
     const hasValidationErrors = schedule.status?.validationErrors?.length > 0;
     
     if (hasValidationErrors) {
       return { status: 'Error', className: 'status-error' };
     }
-    if (isPaused) {
+    if (isSuspended) {
       return { status: 'Paused', className: 'status-paused' };
     }
     return { status: 'Active', className: 'status-active' };
@@ -111,7 +111,7 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
         <tbody>
           {schedules.map((schedule) => {
             const statusInfo = getScheduleStatus(schedule);
-            const isPaused = schedule.spec?.paused === true;
+            const isSuspended = schedule.spec?.suspend === true;
             const cronExpression = schedule.spec?.schedule || '';
             const cronDescription = translateCronExpression(cronExpression);
 
@@ -120,7 +120,7 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
                 <td className="name-col">
                   <div className="schedule-name">
                     <span className="name-text">{schedule.name}</span>
-                    {isPaused && <span className="paused-badge">PAUSED</span>}
+                    {isSuspended && <span className="paused-badge">PAUSED</span>}
                   </div>
                 </td>
                 
@@ -169,11 +169,11 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
                     </button>
                     
                     <button
-                      className={`action-btn ${isPaused ? 'enable-btn' : 'pause-btn'}`}
-                      onClick={() => handleToggle(schedule.name, isPaused)}
-                      title={isPaused ? 'Enable Schedule' : 'Pause Schedule'}
+                      className={`action-btn ${isSuspended ? 'enable-btn' : 'pause-btn'}`}
+                      onClick={() => handleToggle(schedule.name, isSuspended)}
+                      title={isSuspended ? 'Resume Schedule' : 'Pause Schedule'}
                     >
-                      {isPaused ? '▶️' : '⏸️'}
+                      {isSuspended ? '▶️' : '⏸️'}
                     </button>
                     
                     <button
