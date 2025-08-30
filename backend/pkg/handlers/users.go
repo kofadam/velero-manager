@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"velero-manager/pkg/k8s"
+	"velero-manager/pkg/middleware"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -73,6 +74,26 @@ func (h *UserHandler) getUsers() (map[string]User, error) {
 	return users, nil
 }
 
+// GetUsers returns users as interface{} to satisfy middleware.UserValidator interface
+func (h *UserHandler) GetUsers() (map[string]interface{}, error) {
+	users, err := h.getUsers()
+	if err != nil {
+		return nil, err
+	}
+	
+	result := make(map[string]interface{})
+	for k, v := range users {
+		result[k] = map[string]interface{}{
+			"username": v.Username,
+			"role":     v.Role,
+			"created":  v.Created,
+		}
+	}
+	
+	return result, nil
+}
+
+
 func (h *UserHandler) saveUsers(users map[string]User) error {
 	data, _ := json.Marshal(users)
 	
@@ -135,10 +156,23 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// Create JWT token
+	jwtToken, err := middleware.CreateJWTToken(user.Username, user.Role)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create authentication token"})
+		return
+	}
+
+	// Also create session token as fallback
+	sessionToken := fmt.Sprintf("session_%s_%d", user.Username, metav1.Now().Unix())
+	middleware.StoreSession(user.Username, user.Role, sessionToken)
+
 	c.JSON(http.StatusOK, gin.H{
-		"username": user.Username,
-		"role":     user.Role,
-		"token":    "session-token", // Simple for now
+		"username":     user.Username,
+		"role":         user.Role,
+		"token":        jwtToken,
+		"sessionToken": sessionToken,
+		"tokenType":    "Bearer",
 	})
 }
 

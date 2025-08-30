@@ -8,6 +8,7 @@ import (
 	"velero-manager/pkg/handlers"
 	"velero-manager/pkg/k8s"
 	"velero-manager/pkg/metrics"
+	"velero-manager/pkg/middleware"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -43,47 +44,73 @@ func main() {
 	// Initialize handlers
 	veleroHandler := handlers.NewVeleroHandler(k8sClient)
 	userHandler := handlers.NewUserHandler(k8sClient)
+	
+	// Set user validator for admin middleware
+	middleware.SetUserValidator(userHandler)
 
 	// API routes
 	api := router.Group("/api/v1")
 	{
-		// Auth endpoints (no auth required)
+		// Public endpoints (no auth required)
 		api.POST("/login", userHandler.Login)
-		
-		// User management (auth required - TODO: add middleware)
-		api.GET("/users", userHandler.ListUsers)
-		api.POST("/users", userHandler.CreateUser)
-		api.DELETE("/users/:username", userHandler.DeleteUser)
-		api.PUT("/users/:username/password", userHandler.ChangePassword)
-		api.GET("/backups", veleroHandler.ListBackups)
-		api.POST("/backups", veleroHandler.CreateBackup)
-		api.DELETE("/backups/:name", veleroHandler.DeleteBackup)
-		api.GET("/restores", veleroHandler.ListRestores)
-		api.POST("/restores", veleroHandler.CreateRestore)
-		api.DELETE("/restores/:name", veleroHandler.DeleteRestore)
-		api.GET("/restores/:name/logs", veleroHandler.GetRestoreLogs)
-		api.GET("/restores/:name/describe", veleroHandler.DescribeRestore)
-		api.GET("/schedules", veleroHandler.ListSchedules)
-		api.POST("/schedules", veleroHandler.CreateSchedule)
-		api.DELETE("/schedules/:name", veleroHandler.DeleteSchedule)
-		api.PUT("/schedules/:name", veleroHandler.UpdateSchedule)
-		api.POST("/schedules/:name/backup", veleroHandler.CreateBackupFromSchedule)
-		api.GET("/cronjobs", veleroHandler.ListCronJobs)
-		api.POST("/cronjobs", veleroHandler.CreateCronJob)
-		api.DELETE("/cronjobs/:name", veleroHandler.DeleteCronJob)
-		api.PUT("/cronjobs/:name", veleroHandler.UpdateCronJob)
-		api.POST("/cronjobs/:name/trigger", veleroHandler.TriggerCronJob)
-		api.GET("/clusters", veleroHandler.ListClusters)
-		api.POST("/clusters", veleroHandler.AddCluster)
-		api.GET("/clusters/:cluster/backups", veleroHandler.ListBackupsByCluster)
-		api.GET("/clusters/:cluster/health", veleroHandler.GetClusterHealth)
-		api.GET("/clusters/:cluster/details", veleroHandler.GetClusterDetails)
-		api.GET("/storage-locations", veleroHandler.ListStorageLocations)
-		api.POST("/storage-locations", veleroHandler.CreateStorageLocation)
-		api.DELETE("/storage-locations/:name", veleroHandler.DeleteStorageLocation)
 		api.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 		})
+		
+		// Protected endpoints (authentication required)
+		protected := api.Group("/")
+		protected.Use(middleware.RequireAuth())
+		{
+			// User management - admin only
+			admin := protected.Group("/")
+			admin.Use(middleware.RequireAdmin())
+			{
+				admin.GET("/users", userHandler.ListUsers)
+				admin.POST("/users", userHandler.CreateUser)
+				admin.DELETE("/users/:username", userHandler.DeleteUser)
+				admin.POST("/clusters", veleroHandler.AddCluster)
+				admin.POST("/storage-locations", veleroHandler.CreateStorageLocation)
+				admin.DELETE("/storage-locations/:name", veleroHandler.DeleteStorageLocation)
+			}
+			
+			// User can change their own password
+			protected.PUT("/users/:username/password", userHandler.ChangePassword)
+			
+			// Backup operations (authenticated users)
+			protected.GET("/backups", veleroHandler.ListBackups)
+			protected.POST("/backups", veleroHandler.CreateBackup)
+			protected.DELETE("/backups/:name", veleroHandler.DeleteBackup)
+			
+			// Restore operations (authenticated users)
+			protected.GET("/restores", veleroHandler.ListRestores)
+			protected.POST("/restores", veleroHandler.CreateRestore)
+			protected.DELETE("/restores/:name", veleroHandler.DeleteRestore)
+			protected.GET("/restores/:name/logs", veleroHandler.GetRestoreLogs)
+			protected.GET("/restores/:name/describe", veleroHandler.DescribeRestore)
+			
+			// Schedule operations (authenticated users)
+			protected.GET("/schedules", veleroHandler.ListSchedules)
+			protected.POST("/schedules", veleroHandler.CreateSchedule)
+			protected.DELETE("/schedules/:name", veleroHandler.DeleteSchedule)
+			protected.PUT("/schedules/:name", veleroHandler.UpdateSchedule)
+			protected.POST("/schedules/:name/backup", veleroHandler.CreateBackupFromSchedule)
+			
+			// CronJob operations (authenticated users)
+			protected.GET("/cronjobs", veleroHandler.ListCronJobs)
+			protected.POST("/cronjobs", veleroHandler.CreateCronJob)
+			protected.DELETE("/cronjobs/:name", veleroHandler.DeleteCronJob)
+			protected.PUT("/cronjobs/:name", veleroHandler.UpdateCronJob)
+			protected.POST("/cronjobs/:name/trigger", veleroHandler.TriggerCronJob)
+			
+			// Cluster operations (read operations for all authenticated users)
+			protected.GET("/clusters", veleroHandler.ListClusters)
+			protected.GET("/clusters/:cluster/backups", veleroHandler.ListBackupsByCluster)
+			protected.GET("/clusters/:cluster/health", veleroHandler.GetClusterHealth)
+			protected.GET("/clusters/:cluster/details", veleroHandler.GetClusterDetails)
+			
+			// Storage locations (read operations for all authenticated users)
+			protected.GET("/storage-locations", veleroHandler.ListStorageLocations)
+		}
 	}
 
 	// Prometheus metrics endpoint
