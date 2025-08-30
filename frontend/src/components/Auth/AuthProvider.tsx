@@ -1,12 +1,16 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User } from '../../services/types';
+import { User, AuthConfig } from '../../services/types';
 import { authService } from '../../services/auth';
 
 interface AuthContextType {
   user: User | null;
-  login: (username: string, password: string) => Promise<User>;
-  logout: () => void;
+  authConfig: AuthConfig | null;
+  legacyLogin: (username: string, password: string) => Promise<User>;
+  oidcLogin: () => Promise<string>;
+  handleOIDCCallback: (code: string, state: string) => Promise<User>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,34 +29,73 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    setUser(currentUser);
-    setLoading(false);
+    const initializeAuth = async () => {
+      try {
+        // Load auth configuration
+        const config = await authService.getAuthConfig();
+        setAuthConfig(config);
+
+        // Check for existing user session
+        const currentUser = authService.getCurrentUser();
+        setUser(currentUser);
+      } catch (error) {
+        console.error('Failed to initialize auth:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
-  const login = async (username: string, password: string): Promise<User> => {
-    const userData = await authService.login(username, password);
+  const legacyLogin = async (username: string, password: string): Promise<User> => {
+    const userData = await authService.legacyLogin(username, password);
     setUser(userData);
     return userData;
   };
 
-  const logout = () => {
-    authService.logout();
+  const oidcLogin = async (): Promise<string> => {
+    return await authService.initiateOIDCLogin();
+  };
+
+  const handleOIDCCallback = async (code: string, state: string): Promise<User> => {
+    const userData = await authService.handleOIDCCallback(code, state);
+    setUser(userData);
+    return userData;
+  };
+
+  const logout = async (): Promise<void> => {
+    await authService.logout();
     setUser(null);
   };
 
   const value = {
     user,
-    login,
+    authConfig,
+    legacyLogin,
+    oidcLogin,
+    handleOIDCCallback,
     logout,
     isAuthenticated: !!user?.isAuthenticated,
+    loading,
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        fontSize: '18px'
+      }}>
+        Loading...
+      </div>
+    );
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

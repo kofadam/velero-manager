@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"velero-manager/pkg/config"
 	"velero-manager/pkg/handlers"
 	"velero-manager/pkg/k8s"
 	"velero-manager/pkg/metrics"
@@ -22,6 +23,14 @@ func main() {
 		log.Fatalf("Failed to create Kubernetes client: %v", err)
 	}
 
+	// Load OIDC configuration
+	oidcConfig := config.GetOIDCConfig()
+	if oidcConfig.Enabled {
+		log.Printf("OIDC authentication enabled with issuer: %s", oidcConfig.IssuerURL)
+	} else {
+		log.Println("OIDC authentication disabled, using legacy authentication")
+	}
+
 	// Initialize metrics
 	veleroMetrics := metrics.NewVeleroMetrics(k8sClient)
 	
@@ -33,10 +42,10 @@ func main() {
 	router := gin.Default()
 
 	// CORS configuration for development
-	config := cors.DefaultConfig()
-	config.AllowAllOrigins = true
-	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
-	router.Use(cors.New(config))
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowAllOrigins = true
+	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization", "X-Auth-Token"}
+	router.Use(cors.New(corsConfig))
 
 	// Add Prometheus metrics middleware
 	router.Use(veleroMetrics.PrometheusMiddleware())
@@ -45,6 +54,12 @@ func main() {
 	veleroHandler := handlers.NewVeleroHandler(k8sClient)
 	userHandler := handlers.NewUserHandler(k8sClient)
 	
+	// Initialize auth handler with OIDC support
+	authHandler, err := handlers.NewAuthHandler(k8sClient, oidcConfig)
+	if err != nil {
+		log.Fatalf("Failed to create auth handler: %v", err)
+	}
+	
 	// Set user validator for admin middleware
 	middleware.SetUserValidator(userHandler)
 
@@ -52,14 +67,23 @@ func main() {
 	api := router.Group("/api/v1")
 	{
 		// Public endpoints (no auth required)
-		api.POST("/login", userHandler.Login)
 		api.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 		})
 		
+		// Auth endpoints
+		auth := api.Group("/auth")
+		{
+			auth.GET("/info", authHandler.GetAuthInfo)           // Get auth config and user info
+			auth.POST("/login", authHandler.LegacyLogin)         // Legacy username/password login
+			auth.GET("/oidc/login", authHandler.InitiateOIDCLogin) // Start OIDC flow
+			auth.GET("/oidc/callback", authHandler.HandleOIDCCallback) // OIDC callback
+			auth.POST("/logout", authHandler.Logout)             // Logout (both OIDC and legacy)
+		}
+		
 		// Protected endpoints (authentication required)
 		protected := api.Group("/")
-		protected.Use(middleware.RequireAuth())
+		protected.Use(middleware.RequireOIDCAuth(authHandler.GetOIDCProvider()))
 		{
 			// User management - admin only
 			admin := protected.Group("/")

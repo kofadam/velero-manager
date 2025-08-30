@@ -36,16 +36,39 @@ export interface BackupsResponse {
 
 export interface User {
   username: string;
+  email?: string;
+  fullName?: string;
   isAuthenticated: boolean;
-  authMethod: 'basic' | 'oidc';
+  authMethod: 'basic' | 'oidc' | 'jwt' | 'session';
   role?: string;
+  oidcRoles?: string[];
+  oidcGroups?: string[];
 }
 
 export interface AuthConfig {
   oidcEnabled: boolean;
-  oidcUrl?: string;
-  realm?: string;
-  clientId?: string;
+  legacyAuthEnabled: boolean;
+  authenticated: boolean;
+  user?: User;
+}
+
+export interface OIDCLoginResponse {
+  authUrl: string;
+  state: string;
+}
+
+export interface AuthResponse {
+  username: string;
+  email?: string;
+  fullName?: string;
+  role: string;
+  roles?: string[];
+  groups?: string[];
+  token: string;
+  sessionToken?: string;
+  tokenType: string;
+  authMethod: string;
+  idToken?: string;
 }
 
 export interface RestoreStatus {

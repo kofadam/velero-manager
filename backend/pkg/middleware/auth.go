@@ -99,6 +99,13 @@ func CleanExpiredSessions() {
 	}
 }
 
+// ClearSession removes a specific session
+func ClearSession(token string) {
+	sessionMutex.Lock()
+	defer sessionMutex.Unlock()
+	delete(userSessions, token)
+}
+
 func RequireAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Clean expired sessions periodically
