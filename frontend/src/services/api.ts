@@ -68,7 +68,7 @@ export const apiService = {
   async createBackupFromSchedule(scheduleName: string): Promise<any> {
     const response = await api.post(`/cronjobs/${scheduleName}/trigger`);
     return response.data;
-  },
+  },  
 
   async getHealth(): Promise<{ status: string }> {
     const response = await api.get('/health');
@@ -91,7 +91,19 @@ export const apiService = {
     return response.data;
   },
 
- 
+  async getStorageLocations(): Promise<any> {
+    const response = await api.get('/storage-locations');
+    return response.data;
+  },
+
+  async createStorageLocation(location: any): Promise<any> {
+    const response = await api.post('/storage-locations', location);
+    return response.data;
+  },
+
+  async deleteStorageLocation(name: string): Promise<void> {
+    await api.delete(`/storage-locations/${name}`);
+  },
   async getCronJobs(): Promise<any> {
     const response = await api.get('/cronjobs');
     return response.data;

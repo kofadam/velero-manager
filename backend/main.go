@@ -67,6 +67,9 @@ func main() {
 		api.GET("/clusters", veleroHandler.ListClusters)
 		api.GET("/clusters/:cluster/backups", veleroHandler.ListBackupsByCluster)
 		api.GET("/clusters/:cluster/health", veleroHandler.GetClusterHealth)
+		api.GET("/storage-locations", veleroHandler.ListStorageLocations)
+		api.POST("/storage-locations", veleroHandler.CreateStorageLocation)
+		api.DELETE("/storage-locations/:name", veleroHandler.DeleteStorageLocation)
 		api.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 		})

@@ -1179,6 +1179,134 @@ func (h *VeleroHandler) ListBackupsByCluster(c *gin.Context) {
 	})
 }
 
+func (h *VeleroHandler) ListStorageLocations(c *gin.Context) {
+	// Get storage locations from Velero namespace
+	storageList, err := h.k8sClient.DynamicClient.
+		Resource(k8s.BackupStorageLocationGVR).
+		Namespace("velero").
+		List(h.k8sClient.Context, metav1.ListOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to list storage locations",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	var locations []map[string]interface{}
+	for _, location := range storageList.Items {
+		locationData := map[string]interface{}{
+			"name":      location.GetName(),
+			"namespace": location.GetNamespace(),
+			"spec":      location.Object["spec"],
+			"status":    location.Object["status"],
+		}
+		locations = append(locations, locationData)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"locations": locations,
+		"count":     len(locations),
+	})
+}
+
+func (h *VeleroHandler) CreateStorageLocation(c *gin.Context) {
+	var request struct {
+		Name       string `json:"name" binding:"required"`
+		Provider   string `json:"provider" binding:"required"`
+		Bucket     string `json:"bucket" binding:"required"`
+		Region     string `json:"region,omitempty"`
+		Prefix     string `json:"prefix,omitempty"`
+		Config     map[string]string `json:"config,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Create BackupStorageLocation object
+	storageLocation := map[string]interface{}{
+		"apiVersion": "velero.io/v1",
+		"kind":       "BackupStorageLocation",
+		"metadata": map[string]interface{}{
+			"name":      request.Name,
+			"namespace": "velero",
+		},
+		"spec": map[string]interface{}{
+			"provider": request.Provider,
+			"objectStorage": map[string]interface{}{
+				"bucket": request.Bucket,
+				"prefix": request.Prefix,
+			},
+		},
+	}
+
+	// Add config if provided
+	if len(request.Config) > 0 {
+		storageLocation["spec"].(map[string]interface{})["config"] = request.Config
+	}
+
+	// Create the storage location in Kubernetes
+	result, err := h.k8sClient.DynamicClient.
+		Resource(k8s.BackupStorageLocationGVR).
+		Namespace("velero").
+		Create(h.k8sClient.Context, &unstructured.Unstructured{Object: storageLocation}, metav1.CreateOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to create storage location",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message":  "Storage location created successfully",
+		"location": result.GetName(),
+	})
+}
+
+func (h *VeleroHandler) DeleteStorageLocation(c *gin.Context) {
+	locationName := c.Param("name")
+	if locationName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Storage location name is required",
+		})
+		return
+	}
+
+	// Prevent deletion of default location
+	if locationName == "default" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Cannot delete default storage location",
+		})
+		return
+	}
+
+	err := h.k8sClient.DynamicClient.
+		Resource(k8s.BackupStorageLocationGVR).
+		Namespace("velero").
+		Delete(h.k8sClient.Context, locationName, metav1.DeleteOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to delete storage location",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":  "Storage location deleted successfully",
+		"location": locationName,
+	})
+}
+
 func (h *VeleroHandler) GetClusterHealth(c *gin.Context) {
 	clusterName := c.Param("cluster")
 	if clusterName == "" {

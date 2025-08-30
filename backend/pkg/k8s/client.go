@@ -78,9 +78,15 @@ var (
 	}
 	
 	RestoreGVR = schema.GroupVersionResource{
-		Group:    "velero.io",
-		Version:  "v1",
+		Group: "velero.io",
+		Version: "v1",
 		Resource: "restores",
+	}
+	
+	BackupStorageLocationGVR = schema.GroupVersionResource{
+		Group: "velero.io",
+		Version: "v1",
+		Resource: "backupstoragelocations",
 	}
 	
 	CronJobGVR = schema.GroupVersionResource{
