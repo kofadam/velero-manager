@@ -27,10 +27,14 @@ api.interceptors.request.use(
 // Add response interceptor to handle authentication errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
       // Token expired or invalid, logout user
-      authService.logout();
+      try {
+        await authService.logout();
+      } catch (logoutError) {
+        console.error('Error during logout:', logoutError);
+      }
       window.location.href = '/login';
     }
     return Promise.reject(error);
