@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	"velero-manager/pkg/k8s"
@@ -46,6 +47,14 @@ type VeleroMetrics struct {
 	VeleroAvailable    prometheus.Gauge
 	APIRequestsTotal   prometheus.CounterVec
 	APIRequestDuration prometheus.HistogramVec
+	
+	// Cluster-based metrics
+	ClusterHealthStatus      prometheus.GaugeVec
+	ClusterBackupSuccessRate prometheus.GaugeVec
+	ClusterRestoreSuccessRate prometheus.GaugeVec
+	ClusterLastBackupTime    prometheus.GaugeVec
+	ClusterBackupTotal       prometheus.GaugeVec
+	ClusterRestoreTotal      prometheus.GaugeVec
 }
 
 func NewVeleroMetrics(k8sClient *k8s.Client) *VeleroMetrics {
@@ -178,6 +187,37 @@ func NewVeleroMetrics(k8sClient *k8s.Client) *VeleroMetrics {
 			Help:    "Duration of API requests to Velero Manager",
 			Buckets: prometheus.DefBuckets,
 		}, []string{"method", "endpoint"}),
+		
+		// Cluster-based metrics
+		ClusterHealthStatus: *promauto.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "velero_cluster_health_status",
+			Help: "Health status of clusters (0=critical, 1=no-backups, 2=warning, 3=healthy)",
+		}, []string{"cluster"}),
+		
+		ClusterBackupSuccessRate: *promauto.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "velero_cluster_backup_success_rate",
+			Help: "Backup success rate percentage per cluster",
+		}, []string{"cluster"}),
+		
+		ClusterRestoreSuccessRate: *promauto.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "velero_cluster_restore_success_rate",
+			Help: "Restore success rate percentage per cluster",
+		}, []string{"cluster"}),
+		
+		ClusterLastBackupTime: *promauto.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "velero_cluster_last_backup_timestamp",
+			Help: "Timestamp of last backup per cluster",
+		}, []string{"cluster"}),
+		
+		ClusterBackupTotal: *promauto.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "velero_cluster_backup_total",
+			Help: "Total number of backups per cluster",
+		}, []string{"cluster", "status"}),
+		
+		ClusterRestoreTotal: *promauto.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "velero_cluster_restore_total",
+			Help: "Total number of restores per cluster",
+		}, []string{"cluster", "status"}),
 	}
 }
 
@@ -203,6 +243,11 @@ func (vm *VeleroMetrics) UpdateVeleroMetrics() error {
 
 	// Update schedule metrics
 	if err := vm.updateScheduleMetrics(); err != nil {
+		return err
+	}
+
+	// Update cluster-based metrics
+	if err := vm.updateClusterMetrics(); err != nil {
 		return err
 	}
 
@@ -487,4 +532,181 @@ func (vm *VeleroMetrics) updateScheduleMetrics() error {
 func (vm *VeleroMetrics) RecordAPIRequest(method, endpoint string, statusCode int, duration time.Duration) {
 	vm.APIRequestsTotal.WithLabelValues(method, endpoint, strconv.Itoa(statusCode)).Inc()
 	vm.APIRequestDuration.WithLabelValues(method, endpoint).Observe(duration.Seconds())
+}
+
+// extractClusterFromBackupName parses cluster name from backup naming convention
+func extractClusterFromBackupName(backupName string) string {
+	parts := strings.Split(backupName, "-daily-backup-")
+	if len(parts) >= 2 {
+		return parts[0]
+	}
+	
+	// Fallback for other naming patterns
+	if strings.Contains(backupName, "-centralized-") {
+		parts = strings.Split(backupName, "-centralized-")
+		if len(parts) >= 2 {
+			return parts[0]
+		}
+	}
+	
+	return "unknown"
+}
+
+// updateClusterMetrics collects and updates cluster-based metrics
+func (vm *VeleroMetrics) updateClusterMetrics() error {
+	// Get all backups to calculate cluster metrics
+	backupList, err := vm.k8sClient.DynamicClient.
+		Resource(k8s.BackupGVR).
+		Namespace("velero").
+		List(context.Background(), metav1.ListOptions{})
+
+	if err != nil {
+		return err
+	}
+
+	// Get all restores for cluster restore metrics
+	restoreList, _ := vm.k8sClient.DynamicClient.
+		Resource(k8s.RestoreGVR).
+		Namespace("velero").
+		List(context.Background(), metav1.ListOptions{})
+
+	// Reset cluster metrics
+	vm.ClusterHealthStatus.Reset()
+	vm.ClusterBackupSuccessRate.Reset() 
+	vm.ClusterRestoreSuccessRate.Reset()
+	vm.ClusterLastBackupTime.Reset()
+	vm.ClusterBackupTotal.Reset()
+	vm.ClusterRestoreTotal.Reset()
+
+	// Build cluster statistics
+	clusterStats := make(map[string]struct{
+		totalBackups     int
+		successfulBackups int
+		failedBackups    int
+		lastBackup       time.Time
+		totalRestores    int
+		successfulRestores int
+		failedRestores   int
+	})
+
+	// Process backups
+	if backupList != nil {
+		for _, backup := range backupList.Items {
+			clusterName := extractClusterFromBackupName(backup.GetName())
+			if clusterName == "unknown" {
+				continue
+			}
+
+			stats := clusterStats[clusterName]
+			stats.totalBackups++
+
+			// Get backup status and timing
+			if status, found := backup.Object["status"]; found {
+				if statusMap, ok := status.(map[string]interface{}); ok {
+					if phase, ok := statusMap["phase"].(string); ok {
+						switch phase {
+						case "Completed":
+							stats.successfulBackups++
+						case "Failed", "FailedValidation":
+							stats.failedBackups++
+						}
+					}
+				}
+			}
+
+			// Track last backup time
+			creationTime := backup.GetCreationTimestamp()
+			if creationTime.After(stats.lastBackup) {
+				stats.lastBackup = creationTime.Time
+			}
+
+			clusterStats[clusterName] = stats
+		}
+	}
+
+	// Process restores
+	if restoreList != nil {
+		for _, restore := range restoreList.Items {
+			// Get cluster name from backup name in restore spec
+			backupName := ""
+			if spec, found := restore.Object["spec"]; found {
+				if specMap, ok := spec.(map[string]interface{}); ok {
+					if bn, ok := specMap["backupName"].(string); ok {
+						backupName = bn
+					}
+				}
+			}
+
+			clusterName := extractClusterFromBackupName(backupName)
+			if clusterName == "unknown" {
+				continue
+			}
+
+			stats := clusterStats[clusterName]
+			stats.totalRestores++
+
+			// Get restore status
+			if status, found := restore.Object["status"]; found {
+				if statusMap, ok := status.(map[string]interface{}); ok {
+					if phase, ok := statusMap["phase"].(string); ok {
+						switch phase {
+						case "Completed":
+							stats.successfulRestores++
+						case "Failed":
+							stats.failedRestores++
+						}
+					}
+				}
+			}
+
+			clusterStats[clusterName] = stats
+		}
+	}
+
+	// Update Prometheus metrics for each cluster
+	for clusterName, stats := range clusterStats {
+		// Calculate backup success rate
+		backupSuccessRate := 0.0
+		if stats.totalBackups > 0 {
+			backupSuccessRate = float64(stats.successfulBackups) / float64(stats.totalBackups) * 100
+		}
+		vm.ClusterBackupSuccessRate.WithLabelValues(clusterName).Set(backupSuccessRate)
+
+		// Calculate restore success rate
+		restoreSuccessRate := 0.0
+		if stats.totalRestores > 0 {
+			restoreSuccessRate = float64(stats.successfulRestores) / float64(stats.totalRestores) * 100
+		}
+		vm.ClusterRestoreSuccessRate.WithLabelValues(clusterName).Set(restoreSuccessRate)
+
+		// Set health status (0=critical, 1=no-backups, 2=warning, 3=healthy)
+		healthStatus := 1.0 // no-backups
+		if stats.totalBackups == 0 {
+			healthStatus = 1.0 // no-backups
+		} else if stats.failedBackups > 0 && stats.successfulBackups == 0 {
+			healthStatus = 0.0 // critical
+		} else if backupSuccessRate < 70 {
+			healthStatus = 2.0 // warning
+		} else {
+			healthStatus = 3.0 // healthy
+		}
+		vm.ClusterHealthStatus.WithLabelValues(clusterName).Set(healthStatus)
+
+		// Set last backup timestamp
+		if !stats.lastBackup.IsZero() {
+			vm.ClusterLastBackupTime.WithLabelValues(clusterName).Set(float64(stats.lastBackup.Unix()))
+		}
+
+		// Set backup totals by status
+		vm.ClusterBackupTotal.WithLabelValues(clusterName, "successful").Set(float64(stats.successfulBackups))
+		vm.ClusterBackupTotal.WithLabelValues(clusterName, "failed").Set(float64(stats.failedBackups))
+		vm.ClusterBackupTotal.WithLabelValues(clusterName, "total").Set(float64(stats.totalBackups))
+
+		// Set restore totals by status
+		vm.ClusterRestoreTotal.WithLabelValues(clusterName, "successful").Set(float64(stats.successfulRestores))
+		vm.ClusterRestoreTotal.WithLabelValues(clusterName, "failed").Set(float64(stats.failedRestores))
+		vm.ClusterRestoreTotal.WithLabelValues(clusterName, "total").Set(float64(stats.totalRestores))
+	}
+
+	return nil
 }

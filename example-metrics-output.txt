@@ -1,0 +1,68 @@
+# Example Prometheus Metrics Output from Velero Manager v2.3.3+
+
+# HELP velero_available Whether Velero CRDs are available (1) or not (0)
+# TYPE velero_available gauge
+velero_available 1
+
+# HELP velero_backup_failure_total Total number of failed Velero backups  
+# TYPE velero_backup_failure_total counter
+velero_backup_failure_total{namespace="velero",schedule="manual",storage_location="default"} 2
+
+# HELP velero_backup_success_total Total number of successful Velero backups
+# TYPE velero_backup_success_total counter
+velero_backup_success_total{namespace="velero",schedule="manual",storage_location="default"} 15
+
+# HELP velero_cluster_backup_success_rate Backup success rate percentage per cluster
+# TYPE velero_cluster_backup_success_rate gauge
+velero_cluster_backup_success_rate{cluster="core-cl1"} 95.2
+velero_cluster_backup_success_rate{cluster="edge-cl2"} 87.5
+velero_cluster_backup_success_rate{cluster="test-cl3"} 100
+
+# HELP velero_cluster_backup_total Total number of backups per cluster  
+# TYPE velero_cluster_backup_total gauge
+velero_cluster_backup_total{cluster="core-cl1",status="failed"} 1
+velero_cluster_backup_total{cluster="core-cl1",status="successful"} 20
+velero_cluster_backup_total{cluster="core-cl1",status="total"} 21
+velero_cluster_backup_total{cluster="edge-cl2",status="failed"} 2
+velero_cluster_backup_total{cluster="edge-cl2",status="successful"} 14
+velero_cluster_backup_total{cluster="edge-cl2",status="total"} 16
+
+# HELP velero_cluster_health_status Health status of clusters (0=critical, 1=no-backups, 2=warning, 3=healthy)
+# TYPE velero_cluster_health_status gauge
+velero_cluster_health_status{cluster="core-cl1"} 3
+velero_cluster_health_status{cluster="edge-cl2"} 2
+velero_cluster_health_status{cluster="test-cl3"} 3
+
+# HELP velero_cluster_last_backup_timestamp Timestamp of last backup per cluster
+# TYPE velero_cluster_last_backup_timestamp gauge
+velero_cluster_last_backup_timestamp{cluster="core-cl1"} 1.7565912e+09
+velero_cluster_last_backup_timestamp{cluster="edge-cl2"} 1.7565898e+09
+velero_cluster_last_backup_timestamp{cluster="test-cl3"} 1.7565915e+09
+
+# HELP velero_cluster_restore_success_rate Restore success rate percentage per cluster
+# TYPE velero_cluster_restore_success_rate gauge
+velero_cluster_restore_success_rate{cluster="core-cl1"} 100
+velero_cluster_restore_success_rate{cluster="edge-cl2"} 85.7
+
+# HELP velero_cluster_restore_total Total number of restores per cluster
+# TYPE velero_cluster_restore_total gauge  
+velero_cluster_restore_total{cluster="core-cl1",status="failed"} 0
+velero_cluster_restore_total{cluster="core-cl1",status="successful"} 3
+velero_cluster_restore_total{cluster="core-cl1",status="total"} 3
+velero_cluster_restore_total{cluster="edge-cl2",status="failed"} 1
+velero_cluster_restore_total{cluster="edge-cl2",status="successful"} 6
+velero_cluster_restore_total{cluster="edge-cl2",status="total"} 7
+
+# HELP velero_manager_api_requests_total Total number of API requests to Velero Manager
+# TYPE velero_manager_api_requests_total counter
+velero_manager_api_requests_total{endpoint="/api/v1/backups",method="GET",status_code="200"} 45
+velero_manager_api_requests_total{endpoint="/api/v1/clusters",method="GET",status_code="200"} 12
+velero_manager_api_requests_total{endpoint="/api/v1/dashboard/metrics",method="GET",status_code="200"} 8
+
+# HELP velero_schedule_total Total number of Velero schedules
+# TYPE velero_schedule_total gauge
+velero_schedule_total{namespace="velero",phase="Enabled"} 3
+
+# Example showing cluster naming convention:
+# Backup names: "core-cl1-daily-backup-20250830020001", "edge-cl2-daily-backup-20250830020002"
+# Extracted clusters: "core-cl1", "edge-cl2"
