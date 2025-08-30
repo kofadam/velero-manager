@@ -38,6 +38,7 @@ export interface User {
   username: string;
   isAuthenticated: boolean;
   authMethod: 'basic' | 'oidc';
+  role?: string;
 }
 
 export interface AuthConfig {

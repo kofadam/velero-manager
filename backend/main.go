@@ -42,10 +42,19 @@ func main() {
 
 	// Initialize handlers
 	veleroHandler := handlers.NewVeleroHandler(k8sClient)
+	userHandler := handlers.NewUserHandler(k8sClient)
 
 	// API routes
 	api := router.Group("/api/v1")
 	{
+		// Auth endpoints (no auth required)
+		api.POST("/login", userHandler.Login)
+		
+		// User management (auth required - TODO: add middleware)
+		api.GET("/users", userHandler.ListUsers)
+		api.POST("/users", userHandler.CreateUser)
+		api.DELETE("/users/:username", userHandler.DeleteUser)
+		api.PUT("/users/:username/password", userHandler.ChangePassword)
 		api.GET("/backups", veleroHandler.ListBackups)
 		api.POST("/backups", veleroHandler.CreateBackup)
 		api.DELETE("/backups/:name", veleroHandler.DeleteBackup)

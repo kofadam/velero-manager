@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../../services/api.ts';
+import UserManagement from './UserManagement.tsx';
 import './Settings.css';
 
 interface StorageLocation {
@@ -21,6 +22,7 @@ interface StorageLocation {
 }
 
 const Settings: React.FC = () => {
+  const [activeTab, setActiveTab] = useState('storage');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -104,9 +106,25 @@ const Settings: React.FC = () => {
         <h1>⚙️ Settings</h1>
       </div>
 
-      <div className="settings-section">
-        <h2>📍 Backup Storage Locations</h2>
-        <p>Manage backup storage locations for your Velero backups.</p>
+      <div className="settings-tabs">
+        <button 
+          className={`tab ${activeTab === 'storage' ? 'active' : ''}`}
+          onClick={() => setActiveTab('storage')}
+        >
+          📍 Storage Locations
+        </button>
+        <button 
+          className={`tab ${activeTab === 'users' ? 'active' : ''}`}
+          onClick={() => setActiveTab('users')}
+        >
+          👥 Users
+        </button>
+      </div>
+
+      {activeTab === 'storage' && (
+        <div className="settings-section">
+          <h2>📍 Backup Storage Locations</h2>
+          <p>Manage backup storage locations for your Velero backups.</p>
         
         <div className="actions-bar">
           <button 
@@ -168,7 +186,12 @@ const Settings: React.FC = () => {
             </table>
           </div>
         )}
-      </div>
+        </div>
+      )}
+
+      {activeTab === 'users' && (
+        <UserManagement />
+      )}
 
       {showCreateModal && (
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>

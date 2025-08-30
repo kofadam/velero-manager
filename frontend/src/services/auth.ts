@@ -7,17 +7,29 @@ class AuthService {
   };
 
   async login(username: string, password: string): Promise<User> {
-    // Basic auth simulation
-    if (username === 'admin' && password === 'admin') {
+    try {
+      const response = await fetch('/api/v1/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Invalid credentials');
+      }
+
+      const data = await response.json();
       this.user = {
-        username: 'admin',
+        username: data.username,
         isAuthenticated: true,
-        authMethod: 'basic'
+        authMethod: 'basic',
+        role: data.role,
       };
       localStorage.setItem('velero_user', JSON.stringify(this.user));
       return this.user;
+    } catch (error) {
+      throw new Error('Invalid credentials');
     }
-    throw new Error('Invalid credentials');
   }
 
   logout(): void {
