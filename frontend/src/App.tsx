@@ -3,6 +3,7 @@ import Sidebar from './components/Layout/Sidebar.tsx';
 import Header from './components/Layout/Header.tsx';
 import BackupList from './components/Backups/BackupList.tsx';
 import Dashboard from './components/Dashboard/Dashboard.tsx';
+import Clusters from './components/Clusters/Clusters.tsx';
 import ScheduleList from './components/Schedules/ScheduleList.tsx';
 import RestoreList from './components/Restores/RestoreList.tsx';
 import Settings from './components/Settings/Settings.tsx';
@@ -43,6 +44,8 @@ function App() {
         return <BackupList />;
       case 'dashboard':
         return <Dashboard />;
+      case 'clusters':
+        return <Clusters />;
       case 'restore':
         return <RestoreList />;
       case 'schedules':

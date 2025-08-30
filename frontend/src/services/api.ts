@@ -91,6 +91,11 @@ export const apiService = {
     return response.data;
   },
 
+  async getClusterDetails(clusterName: string): Promise<any> {
+    const response = await api.get(`/clusters/${clusterName}/details`);
+    return response.data;
+  },
+
   async getStorageLocations(): Promise<any> {
     const response = await api.get('/storage-locations');
     return response.data;

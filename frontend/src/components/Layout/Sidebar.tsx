@@ -11,6 +11,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ activeRoute, onRouteChange, onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'clusters', label: 'Clusters', icon: '🖥️' },
     { id: 'backups', label: 'Backup', icon: '💾' },
     { id: 'restore', label: 'Restore', icon: '🔄' },
     { id: 'schedules', label: 'Schedules', icon: '⏰' },

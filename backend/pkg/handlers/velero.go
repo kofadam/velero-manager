@@ -1151,55 +1151,65 @@ func (h *VeleroHandler) GetClusterDetails(c *gin.Context) {
 }
 
 func (h *VeleroHandler) ListClusters(c *gin.Context) {
-	// Get all backups to extract cluster list
-	backupList, err := h.k8sClient.DynamicClient.
-		Resource(k8s.BackupGVR).
+	// Get all CronJobs to identify clusters
+	cronJobList, err := h.k8sClient.DynamicClient.
+		Resource(k8s.CronJobGVR).
 		Namespace("velero").
 		List(h.k8sClient.Context, metav1.ListOptions{})
-
+	
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to list backups for cluster detection",
+			"error": "Failed to list cronjobs",
 			"details": err.Error(),
 		})
 		return
 	}
-
-	// Extract unique clusters from backup names
+	
+	// Build cluster map from CronJobs first
 	clusterMap := make(map[string]map[string]interface{})
 	
-	for _, backup := range backupList.Items {
-		clusterName := extractClusterFromBackupName(backup.GetName())
-		if clusterName == "unknown" {
-			continue
-		}
-
-		if _, exists := clusterMap[clusterName]; !exists {
+	for _, cronJob := range cronJobList.Items {
+		clusterName := extractClusterFromCronJobName(cronJob.GetName())
+		if clusterName != "unknown" && clusterName != "" {
 			clusterMap[clusterName] = map[string]interface{}{
-				"name":        clusterName,
+				"name": clusterName,
 				"backupCount": 0,
-				"lastBackup":  nil,
+				"lastBackup": nil,
 			}
 		}
-
-		// Count backups per cluster
-		clusterMap[clusterName]["backupCount"] = clusterMap[clusterName]["backupCount"].(int) + 1
-
-		// Track most recent backup
-		if clusterMap[clusterName]["lastBackup"] == nil {
-			clusterMap[clusterName]["lastBackup"] = backup.GetCreationTimestamp()
+	}
+	
+	// Try to get backups (but don't fail if they don't exist)
+	backupList, err := h.k8sClient.DynamicClient.
+		Resource(k8s.BackupGVR).
+		Namespace("velero").
+		List(h.k8sClient.Context, metav1.ListOptions{})
+	
+	if err == nil {
+	
+	// Add backup counts and last backup times
+		for _, backup := range backupList.Items {
+			clusterName := extractClusterFromBackupName(backup.GetName())
+			if cluster, exists := clusterMap[clusterName]; exists {
+				cluster["backupCount"] = cluster["backupCount"].(int) + 1
+				
+				backupTime := backup.GetCreationTimestamp()
+				if cluster["lastBackup"] == nil || backupTime.After(cluster["lastBackup"].(metav1.Time).Time) {
+					cluster["lastBackup"] = backupTime
+				}
+			}
 		}
 	}
-
+	
 	// Convert map to slice
-	var clusters []map[string]interface{}
+	clusters := make([]map[string]interface{}, 0, len(clusterMap))
 	for _, cluster := range clusterMap {
 		clusters = append(clusters, cluster)
 	}
-
+	
 	c.JSON(http.StatusOK, gin.H{
 		"clusters": clusters,
-		"count":    len(clusters),
+		"count": len(clusters),
 	})
 }
 
