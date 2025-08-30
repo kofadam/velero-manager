@@ -1,7 +1,27 @@
 import React from 'react';
 import { translateCronExpression } from '../../utils/cronUtils.ts';
 import { formatDate, formatDateShort } from '../../utils/dateUtils.ts';
-import './ScheduleTable.css';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Chip,
+  Typography,
+  Box,
+  IconButton,
+  Tooltip
+} from '@mui/material';
+import { 
+  PlayArrow, 
+  Pause, 
+  Edit, 
+  Delete, 
+  FlashOn 
+} from '@mui/icons-material';
 
 interface ScheduleTableProps {
   schedules: any[];
@@ -24,17 +44,17 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
     return 'Next run: TBD';
   };
 
-  const getScheduleStatus = (schedule: any): { status: string; className: string } => {
+  const getScheduleStatus = (schedule: any): { status: string; color: 'success' | 'info' | 'error' | 'warning' | 'default' } => {
     const isSuspended = schedule.spec?.suspend === true;
     const hasValidationErrors = schedule.status?.validationErrors?.length > 0;
     
     if (hasValidationErrors) {
-      return { status: 'Error', className: 'status-error' };
+      return { status: 'Error', color: 'error' };
     }
     if (isSuspended) {
-      return { status: 'Paused', className: 'status-paused' };
+      return { status: 'Paused', color: 'warning' };
     }
-    return { status: 'Active', className: 'status-active' };
+    return { status: 'Active', color: 'success' };
   };
 
   const getLastBackupInfo = (schedule: any): string => {
@@ -74,41 +94,66 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
 
   if (schedules.length === 0) {
     return (
-      <div className="schedule-table-container">
-        <div className="empty-state">
-          <div className="empty-icon">⏰</div>
-          <h3>No Backup Schedules</h3>
-          <p>Create your first backup schedule to automate regular backups</p>
-          <div className="empty-suggestions">
-            <h4>💡 Schedule Ideas:</h4>
-            <ul>
-              <li>🌙 <strong>Daily at 2 AM</strong> - For critical daily backups</li>
-              <li>🏢 <strong>Weekdays at 6 PM</strong> - For business applications</li>
-              <li>📅 <strong>Weekly on Sunday</strong> - For less critical data</li>
-            </ul>
-          </div>
-        </div>
-      </div>
+      <TableContainer component={Paper} elevation={2}>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: 400,
+          flexDirection: 'column',
+          p: 4
+        }}>
+          <Typography variant="h2" sx={{ mb: 2, opacity: 0.5 }}>⏰</Typography>
+          <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
+            No Backup Schedules
+          </Typography>
+          <Typography color="text.secondary" variant="body1" sx={{ mb: 3, textAlign: 'center' }}>
+            Create your first backup schedule to automate regular backups
+          </Typography>
+          <Box sx={{ textAlign: 'left', mt: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+              💡 Schedule Ideas:
+            </Typography>
+            <Box component="ul" sx={{ pl: 2, '& li': { mb: 1 } }}>
+              <li>
+                <Typography variant="body2">
+                  🌙 <strong>Daily at 2 AM</strong> - For critical daily backups
+                </Typography>
+              </li>
+              <li>
+                <Typography variant="body2">
+                  🏢 <strong>Weekdays at 6 PM</strong> - For business applications
+                </Typography>
+              </li>
+              <li>
+                <Typography variant="body2">
+                  📅 <strong>Weekly on Sunday</strong> - For less critical data
+                </Typography>
+              </li>
+            </Box>
+          </Box>
+        </Box>
+      </TableContainer>
     );
   }
 
   return (
-    <div className="schedule-table-container">
-      <table className="schedule-table">
-        <thead>
-          <tr>
-            <th>NAME</th>
-            <th>CLUSTER</th>
-            <th>SCHEDULE</th>
-            <th>DESCRIPTION</th>
-            <th>STATUS</th>
-            <th>LAST BACKUP</th>
-            <th>NAMESPACES</th>
-            <th>CREATED</th>
-            <th>ACTIONS</th>
-          </tr>
-        </thead>
-        <tbody>
+    <TableContainer component={Paper} elevation={2}>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>Name</TableCell>
+            <TableCell>Cluster</TableCell>
+            <TableCell>Schedule</TableCell>
+            <TableCell>Description</TableCell>
+            <TableCell>Status</TableCell>
+            <TableCell>Last Backup</TableCell>
+            <TableCell>Namespaces</TableCell>
+            <TableCell>Created</TableCell>
+            <TableCell>Actions</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {schedules.map((schedule) => {
             const statusInfo = getScheduleStatus(schedule);
             const isSuspended = schedule.spec?.suspend === true;
@@ -116,89 +161,184 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
             const cronDescription = translateCronExpression(cronExpression);
 
             return (
-              <tr key={schedule.name}>
-                <td className="name-col">
-                  <div className="schedule-name">
-                    <span className="name-text">{schedule.name}</span>
-                    {isSuspended && <span className="paused-badge">PAUSED</span>}
-                  </div>
-                </td>
+              <TableRow 
+                key={schedule.name}
+                hover
+                sx={{ 
+                  '&:hover': { 
+                    backgroundColor: 'action.hover',
+                  } 
+                }}
+              >
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        fontWeight: 600,
+                        color: 'primary.main'
+                      }}
+                    >
+                      {schedule.name}
+                    </Typography>
+                    {isSuspended && (
+                      <Chip 
+                        label="PAUSED" 
+                        size="small" 
+                        color="warning" 
+                        variant="outlined"
+                        sx={{ fontSize: '0.625rem', height: '20px' }}
+                      />
+                    )}
+                  </Box>
+                </TableCell>
                 
-                <td className="cluster-col">
-                  <span className="cluster-badge">{schedule.cluster || 'unknown'}</span>
-                </td>
+                <TableCell>
+                  <Chip 
+                    label={schedule.cluster || 'unknown'} 
+                    size="small"
+                    variant="outlined"
+                    sx={{ 
+                      backgroundColor: 'grey.100',
+                      color: 'text.primary',
+                      borderColor: 'grey.300'
+                    }}
+                  />
+                </TableCell>
                 
-                <td className="schedule-col">
-                  <div className="schedule-info">
-                    <code className="cron-expression">{cronExpression}</code>
-                  </div>
-                </td>
+                <TableCell>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontFamily: 'monospace',
+                      backgroundColor: 'grey.100',
+                      px: 1,
+                      py: 0.5,
+                      borderRadius: 1,
+                      fontSize: '0.75rem'
+                    }}
+                  >
+                    {cronExpression}
+                  </Typography>
+                </TableCell>
                 
-                <td className="description-col">
-                  <div className="schedule-description">
+                <TableCell>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: 'text.secondary',
+                      maxWidth: 200,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}
+                  >
                     {cronDescription}
-                  </div>
-                </td>
+                  </Typography>
+                </TableCell>
                 
-                <td>
-                  <span className={`status ${statusInfo.className}`}>
-                    {statusInfo.status}
-                  </span>
-                </td>
+                <TableCell>
+                  <Chip 
+                    label={statusInfo.status}
+                    color={statusInfo.color}
+                    size="small"
+                    sx={{ 
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      fontSize: '0.75rem',
+                      letterSpacing: '0.5px'
+                    }}
+                  />
+                </TableCell>
                 
-                <td className="date-col">
-                  {getLastBackupInfo(schedule)}
-                </td>
+                <TableCell>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: 'text.secondary',
+                      fontSize: '0.875rem',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {getLastBackupInfo(schedule)}
+                  </Typography>
+                </TableCell>
                 
-                <td className="namespaces-col">
-                  {schedule.spec?.template?.includedNamespaces?.join(', ') || 'All namespaces'}
-                </td>
+                <TableCell>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: 'text.secondary',
+                      maxWidth: 150,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}
+                  >
+                    {schedule.spec?.template?.includedNamespaces?.join(', ') || 'All namespaces'}
+                  </Typography>
+                </TableCell>
                 
-                <td className="date-col">
-                  {formatDateShort(schedule.creationTimestamp)}
-                </td>
+                <TableCell>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: 'text.secondary',
+                      fontSize: '0.875rem',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {formatDateShort(schedule.creationTimestamp)}
+                  </Typography>
+                </TableCell>
                 
-                <td className="actions-col">
-                  <div className="schedule-actions">
-                    <button
-                      className="action-btn backup-now-btn"
-                      onClick={() => onCreateBackupNow(schedule.name)}
-                      title="Create Backup Now"
-                    >
-                      ⚡
-                    </button>
+                <TableCell>
+                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <Tooltip title="Create Backup Now">
+                      <IconButton 
+                        size="small"
+                        onClick={() => onCreateBackupNow(schedule.name)}
+                        sx={{ color: 'warning.main' }}
+                      >
+                        <FlashOn fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                     
-                    <button
-                      className={`action-btn ${isSuspended ? 'enable-btn' : 'pause-btn'}`}
-                      onClick={() => handleToggle(schedule.name, isSuspended)}
-                      title={isSuspended ? 'Resume Schedule' : 'Pause Schedule'}
-                    >
-                      {isSuspended ? '▶️' : '⏸️'}
-                    </button>
+                    <Tooltip title={isSuspended ? 'Resume Schedule' : 'Pause Schedule'}>
+                      <IconButton 
+                        size="small"
+                        onClick={() => handleToggle(schedule.name, isSuspended)}
+                        sx={{ color: isSuspended ? 'success.main' : 'warning.main' }}
+                      >
+                        {isSuspended ? <PlayArrow fontSize="small" /> : <Pause fontSize="small" />}
+                      </IconButton>
+                    </Tooltip>
                     
-                    <button
-                      className="action-btn edit-btn"
-                      onClick={() => alert('Edit functionality coming soon!')}
-                      title="Edit Schedule"
-                    >
-                      ✏️
-                    </button>
+                    <Tooltip title="Edit Schedule">
+                      <IconButton 
+                        size="small"
+                        onClick={() => alert('Edit functionality coming soon!')}
+                        sx={{ color: 'info.main' }}
+                      >
+                        <Edit fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                     
-                    <button
-                      className="action-btn delete-btn"
-                      onClick={() => handleDelete(schedule.name)}
-                      title="Delete Schedule"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                    <Tooltip title="Delete Schedule">
+                      <IconButton 
+                        size="small"
+                        onClick={() => handleDelete(schedule.name)}
+                        sx={{ color: 'error.main' }}
+                      >
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </TableCell>
+              </TableRow>
             );
           })}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 };
 

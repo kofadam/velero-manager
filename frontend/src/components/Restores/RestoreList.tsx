@@ -2,7 +2,20 @@ import React, { useState, useEffect } from 'react';
 import RestoreTable from './RestoreTable.tsx';
 import CreateRestoreModal from './CreateRestoreModal.tsx';
 import { useRestores } from '../../hooks/useRestores.ts';
-import './RestoreList.css';
+import {
+  Box,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Button,
+  CircularProgress,
+  Alert,
+  Paper,
+  Typography
+} from '@mui/material';
+import { Refresh, Add, Delete } from '@mui/icons-material';
 
 const RestoreList: React.FC = () => {
   const { restores, loading, error, refreshRestores, deleteRestore } = useRestores();
@@ -68,75 +81,110 @@ const RestoreList: React.FC = () => {
   });
 
   if (loading) {
-    return <div className="loading">Loading restores...</div>;
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+        <CircularProgress />
+        <Typography sx={{ ml: 2 }}>Loading restores...</Typography>
+      </Box>
+    );
   }
 
   if (error) {
-    return <div className="error">Error: {error}</div>;
+    return (
+      <Box sx={{ p: 2 }}>
+        <Alert severity="error">Error: {error}</Alert>
+      </Box>
+    );
   }
 
   return (
-    <div className="restore-list">
-      <div className="restore-list-header">
-        <div className="restore-filters">
-          <input
-            type="text"
-            placeholder="Search restores by name, status, or backup..."
-            value={searchFilter}
-            onChange={(e) => setSearchFilter(e.target.value)}
-            className="search-input"
-          />
-          <select
-            value={clusterFilter}
-            onChange={(e) => setClusterFilter(e.target.value)}
-            className="cluster-filter"
-          >
-            <option value="all">All Clusters</option>
-            {availableClusters.map(cluster => (
-              <option key={cluster} value={cluster}>{cluster}</option>
-            ))}
-          </select>
-        </div>
-        <div className="restore-actions">
-          <button
-            className="btn btn-secondary"
-            onClick={refreshRestores}
-            disabled={loading}
-          >
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-          <button 
-            className="btn btn-primary"
-            onClick={handleCreateRestore}
-          >
-            Create Restore
-          </button>
-          {selectedRestores.length > 0 && (
-            <button 
-              className="btn btn-danger"
-              onClick={handleDeleteSelected}
+    <Box sx={{ p: 3 }}>
+      <Paper sx={{ p: 3 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' },
+          justifyContent: 'space-between',
+          alignItems: { xs: 'stretch', md: 'center' },
+          gap: 2,
+          mb: 3
+        }}>
+          <Box sx={{ 
+            display: 'flex', 
+            gap: 2, 
+            flex: 1,
+            flexDirection: { xs: 'column', sm: 'row' }
+          }}>
+            <TextField
+              placeholder="Search restores by name, status, or backup..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              variant="outlined"
+              size="small"
+              sx={{ minWidth: 300 }}
+            />
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+              <InputLabel>Cluster</InputLabel>
+              <Select
+                value={clusterFilter}
+                onChange={(e) => setClusterFilter(e.target.value)}
+                label="Cluster"
+              >
+                <MenuItem value="all">All Clusters</MenuItem>
+                {availableClusters.map(cluster => (
+                  <MenuItem key={cluster} value={cluster}>{cluster}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+          <Box sx={{ 
+            display: 'flex', 
+            gap: 1,
+            flexWrap: 'wrap'
+          }}>
+            <Button
+              variant="outlined"
+              onClick={refreshRestores}
+              disabled={loading}
+              startIcon={loading ? <CircularProgress size={16} /> : <Refresh />}
             >
-              Delete Selected ({selectedRestores.length})
-            </button>
-          )}
-        </div>
-      </div>
-      
-      <RestoreTable 
-        restores={filteredRestores}
-        selectedRestores={selectedRestores}
-        onSelectRestore={handleSelectRestore}
-        onSelectAll={handleSelectAll}
-        onDeleteRestore={deleteRestore}
-        onRefresh={refreshRestores}
-      />
-
-      {showCreateModal && (
-        <CreateRestoreModal 
-          onClose={handleModalClose}
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            <Button 
+              variant="contained"
+              onClick={handleCreateRestore}
+              startIcon={<Add />}
+            >
+              Create Restore
+            </Button>
+            {selectedRestores.length > 0 && (
+              <Button 
+                variant="contained"
+                color="error"
+                onClick={handleDeleteSelected}
+                startIcon={<Delete />}
+              >
+                Delete Selected ({selectedRestores.length})
+              </Button>
+            )}
+          </Box>
+        </Box>
+        
+        <RestoreTable 
+          restores={filteredRestores}
+          selectedRestores={selectedRestores}
+          onSelectRestore={handleSelectRestore}
+          onSelectAll={handleSelectAll}
+          onDeleteRestore={deleteRestore}
+          onRefresh={refreshRestores}
         />
-      )}
-    </div>
+
+        {showCreateModal && (
+          <CreateRestoreModal 
+            onClose={handleModalClose}
+          />
+        )}
+      </Paper>
+    </Box>
   );
 };
 

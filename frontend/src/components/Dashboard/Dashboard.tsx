@@ -1,8 +1,20 @@
 import React, { useState, useEffect } from 'react';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Paper from '@mui/material/Paper';
+import Grid from '@mui/material/Grid';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CircularProgress from '@mui/material/CircularProgress';
+import Chip from '@mui/material/Chip';
+import Button from '@mui/material/Button';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import BackupIcon from '@mui/icons-material/Backup';
+import RestoreIcon from '@mui/icons-material/Restore';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { apiService } from '../../services/api.ts';
 import { Cluster, ClusterHealth } from '../../services/types.ts';
-import LoadingSpinner from '../Common/LoadingSpinner.tsx';
-import './Dashboard.css';
 
 interface DashboardStats {
   totalBackups: number;
@@ -126,250 +138,279 @@ const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="dashboard-loading">
-        <LoadingSpinner size="large" />
-        <span>Loading dashboard...</span>
-      </div>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress size={60} />
+        <Typography variant="h6" sx={{ ml: 2 }}>Loading dashboard...</Typography>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div className="dashboard-error">
-        <h3>❌ Error loading dashboard</h3>
-        <p>{error}</p>
-        <button onClick={fetchDashboardData} className="retry-btn">
-          🔄 Retry
-        </button>
-      </div>
+      <Box textAlign="center" py={4}>
+        <Typography variant="h5" color="error" gutterBottom>Error loading dashboard</Typography>
+        <Typography variant="body1" color="text.secondary" gutterBottom>{error}</Typography>
+        <Button
+          variant="contained"
+          startIcon={<RefreshIcon />}
+          onClick={fetchDashboardData}
+          sx={{ mt: 2 }}
+        >
+          Retry
+        </Button>
+      </Box>
     );
   }
 
-  const hasAlerts = stats.failedBackups > 0 || stats.failedRestores > 0;
-
   return (
-    <div className="dashboard">
-      <div className="dashboard-container">
-        <div className="dashboard-header">
-          <h1 className="dashboard-title">Dashboard</h1>
-          <button onClick={fetchDashboardData} className="refresh-button">
-            <svg className="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-            </svg>
-            Refresh
-          </button>
-        </div>
-
-        <div className="dashboard-content">
+    <Box>
+      {/* Header */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4" component="h1">
+          Dashboard
+        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={fetchDashboardData}
+        >
+          Refresh
+        </Button>
+      </Box>
 
       {/* Stats Cards */}
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-card-content">
-                <div className="stat-header">
-                  <h3 className="stat-title">Total Backups</h3>
-                  <div className="stat-icon backup-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
-                    </svg>
-                  </div>
-                </div>
-                <div className="stat-value">{stats.totalBackups}</div>
-                <div className="stat-change positive">
-                  <svg className="stat-trend-icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
-                  </svg>
-                  {stats.failedBackups === 0 ? 'All successful' : `${stats.failedBackups} failed`}
-                </div>
-              </div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-card-content">
-                <div className="stat-header">
-                  <h3 className="stat-title">Total Restores</h3>
-                  <div className="stat-icon restore-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9z"/>
-                    </svg>
-                  </div>
-                </div>
-                <div className="stat-value">{stats.totalRestores}</div>
-                <div className="stat-change positive">
-                  <svg className="stat-trend-icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
-                  </svg>
-                  {stats.failedRestores === 0 ? 'All successful' : `${stats.failedRestores} failed`}
-                </div>
-              </div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-card-content">
-                <div className="stat-header">
-                  <h3 className="stat-title">Active Schedules</h3>
-                  <div className="stat-icon schedule-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
-                  </div>
-                </div>
-                <div className="stat-value">{stats.totalSchedules}</div>
-                <div className="stat-change neutral">
-                  <svg className="stat-trend-icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                  </svg>
-                  Automated
-                </div>
-              </div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-card-content">
-                <div className="stat-header">
-                  <h3 className="stat-title">Success Rate</h3>
-                  <div className="stat-icon success-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                    </svg>
-                  </div>
-                </div>
-                <div className="stat-value">
-                  {((stats.totalBackups - stats.failedBackups) / Math.max(stats.totalBackups, 1) * 100).toFixed(1)}%
-                </div>
-                <div className="stat-change positive">
-                  <svg className="stat-trend-icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
-                  </svg>
-                  Excellent
-                </div>
-              </div>
-            </div>
-          </div>
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography color="textSecondary" gutterBottom variant="body2">
+                    Total Backups
+                  </Typography>
+                  <Typography variant="h3" component="div">
+                    {stats.totalBackups}
+                  </Typography>
+                  <Typography color={stats.failedBackups === 0 ? "success.main" : "error.main"} variant="body2">
+                    {stats.failedBackups === 0 ? 'All successful' : `${stats.failedBackups} failed`}
+                  </Typography>
+                </Box>
+                <BackupIcon sx={{ fontSize: 40, color: 'primary.main' }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography color="textSecondary" gutterBottom variant="body2">
+                    Total Restores
+                  </Typography>
+                  <Typography variant="h3" component="div">
+                    {stats.totalRestores}
+                  </Typography>
+                  <Typography color={stats.failedRestores === 0 ? "success.main" : "error.main"} variant="body2">
+                    {stats.failedRestores === 0 ? 'All successful' : `${stats.failedRestores} failed`}
+                  </Typography>
+                </Box>
+                <RestoreIcon sx={{ fontSize: 40, color: 'secondary.main' }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography color="textSecondary" gutterBottom variant="body2">
+                    Active Schedules
+                  </Typography>
+                  <Typography variant="h3" component="div">
+                    {stats.totalSchedules}
+                  </Typography>
+                  <Typography color="info.main" variant="body2">
+                    Automated
+                  </Typography>
+                </Box>
+                <ScheduleIcon sx={{ fontSize: 40, color: 'info.main' }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography color="textSecondary" gutterBottom variant="body2">
+                    Success Rate
+                  </Typography>
+                  <Typography variant="h3" component="div">
+                    {((stats.totalBackups - stats.failedBackups) / Math.max(stats.totalBackups, 1) * 100).toFixed(1)}%
+                  </Typography>
+                  <Typography color="success.main" variant="body2">
+                    Excellent
+                  </Typography>
+                </Box>
+                <CheckCircleIcon sx={{ fontSize: 40, color: 'success.main' }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Cluster Overview */}
-          <div className="clusters-section">
-            <div className="section-header">
-              <h2 className="section-title">Managed Clusters</h2>
-              <span className="section-subtitle">{clusters.length} active cluster{clusters.length !== 1 ? 's' : ''}</span>
-            </div>
-            {clusters.length > 0 ? (
-              <div className="clusters-grid">
-                {clusters.map((cluster) => (
-                  <div key={cluster.name} className="cluster-card">
-                    <div className="cluster-header">
-                      <div className="cluster-info">
-                        <h3 className="cluster-name">{cluster.name}</h3>
-                        <div className={`cluster-status status-${cluster.health.status}`}>
-                          <div className={`status-indicator ${cluster.health.status}`}></div>
-                          <span className="status-text">{cluster.health.status}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="cluster-metrics">
-                      <div className="metric">
-                        <div className="metric-value">{cluster.health.backupCount || 0}</div>
-                        <div className="metric-label">Total Backups</div>
-                      </div>
-                      <div className="metric">
-                        <div className="metric-value">
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+          <Typography variant="h6" component="h2">
+            Managed Clusters
+          </Typography>
+          <Chip 
+            label={`${clusters.length} active cluster${clusters.length !== 1 ? 's' : ''}`} 
+            color="primary" 
+            variant="outlined" 
+            size="small"
+          />
+        </Box>
+        {clusters.length > 0 ? (
+          <Grid container spacing={2}>
+            {clusters.map((cluster) => (
+              <Grid item xs={12} md={6} lg={4} key={cluster.name}>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                      <Typography variant="h6" component="h3">
+                        {cluster.name}
+                      </Typography>
+                      <Chip
+                        label={cluster.health.status}
+                        color={cluster.health.status === 'healthy' ? 'success' : 'error'}
+                        size="small"
+                      />
+                    </Box>
+                    <Grid container spacing={2}>
+                      <Grid item xs={6}>
+                        <Typography variant="h4" component="div">
+                          {cluster.health.backupCount || 0}
+                        </Typography>
+                        <Typography color="textSecondary" variant="body2">
+                          Total Backups
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="body1" component="div">
                           {cluster.health.lastBackup ? 'Recent' : 'Never'}
-                        </div>
-                        <div className="metric-label">Last Activity</div>
-                      </div>
-                    </div>
+                        </Typography>
+                        <Typography color="textSecondary" variant="body2">
+                          Last Activity
+                        </Typography>
+                      </Grid>
+                    </Grid>
                     {cluster.health.lastBackup && (
-                      <div className="cluster-timestamp">
+                      <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
                         Last backup: {formatDate(cluster.health.lastBackup)}
-                      </div>
+                      </Typography>
                     )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-state">
-                <div className="empty-icon">
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                  </svg>
-                </div>
-                <p>No clusters configured</p>
-              </div>
-            )}
-          </div>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        ) : (
+          <Box textAlign="center" py={4}>
+            <Typography variant="body1" color="textSecondary">
+              No clusters configured
+            </Typography>
+          </Box>
+        )}
+      </Paper>
 
       {/* Recent Activity */}
-          <div className="recent-section">
-            <div className="section-header">
-              <h2 className="section-title">Recent Activity</h2>
-              <span className="section-subtitle">Latest backup and restore operations</span>
-            </div>
-            <div className="recent-grid">
-              <div className="recent-card">
-                <div className="card-header">
-                  <h3 className="card-title">Recent Backups</h3>
-                  <div className="card-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
-                    </svg>
-                  </div>
-                </div>
-                {recentBackups.length > 0 ? (
-                  <div className="activity-list">
-                    {recentBackups.map((backup) => (
-                      <div key={backup.name} className="activity-item">
-                        <div className="activity-content">
-                          <div className="activity-name">{backup.name}</div>
-                          <div className="activity-meta">
-                            <span className="cluster-tag">{backup.cluster}</span>
-                            <span className="activity-date">{formatDate(backup.creationTimestamp)}</span>
-                          </div>
-                        </div>
-                        <div className={`activity-status ${getStatusClass(backup.status?.phase)}`}>
-                          {backup.status?.phase || 'Unknown'}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="empty-state">No recent backups</div>
-                )}
-              </div>
-
-              <div className="recent-card">
-                <div className="card-header">
-                  <h3 className="card-title">Recent Restores</h3>
-                  <div className="card-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9z"/>
-                    </svg>
-                  </div>
-                </div>
-                {recentRestores.length > 0 ? (
-                  <div className="activity-list">
-                    {recentRestores.map((restore) => (
-                      <div key={restore.name} className="activity-item">
-                        <div className="activity-content">
-                          <div className="activity-name">{restore.name}</div>
-                          <div className="activity-meta">
-                            <span className="activity-date">{formatDate(restore.creationTimestamp)}</span>
-                          </div>
-                        </div>
-                        <div className={`activity-status ${getStatusClass(restore.status?.phase)}`}>
-                          {restore.status?.phase || 'Unknown'}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="empty-state">No recent restores</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      <Grid container spacing={3}>
+        <Grid item xs={12} lg={6}>
+          <Paper sx={{ p: 2 }}>
+            <Box display="flex" alignItems="center" gap={1} mb={2}>
+              <BackupIcon color="primary" />
+              <Typography variant="h6" component="h3">
+                Recent Backups
+              </Typography>
+            </Box>
+            {recentBackups.length > 0 ? (
+              <Box>
+                {recentBackups.slice(0, 5).map((backup) => (
+                  <Box key={backup.name} display="flex" justifyContent="space-between" alignItems="center" py={1}>
+                    <Box>
+                      <Typography variant="body1" fontWeight="medium">
+                        {backup.name}
+                      </Typography>
+                      <Box display="flex" gap={1} alignItems="center">
+                        <Chip label={backup.cluster} size="small" variant="outlined" />
+                        <Typography variant="caption" color="textSecondary">
+                          {formatDate(backup.creationTimestamp)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Chip
+                      label={backup.status?.phase || 'Unknown'}
+                      color={backup.status?.phase === 'Completed' ? 'success' : 
+                             backup.status?.phase === 'Failed' ? 'error' : 'default'}
+                      size="small"
+                    />
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Box textAlign="center" py={4}>
+                <Typography variant="body2" color="textSecondary">
+                  No recent backups
+                </Typography>
+              </Box>
+            )}
+          </Paper>
+        </Grid>
+        <Grid item xs={12} lg={6}>
+          <Paper sx={{ p: 2 }}>
+            <Box display="flex" alignItems="center" gap={1} mb={2}>
+              <RestoreIcon color="secondary" />
+              <Typography variant="h6" component="h3">
+                Recent Restores
+              </Typography>
+            </Box>
+            {recentRestores.length > 0 ? (
+              <Box>
+                {recentRestores.map((restore) => (
+                  <Box key={restore.name} display="flex" justifyContent="space-between" alignItems="center" py={1}>
+                    <Box>
+                      <Typography variant="body1" fontWeight="medium">
+                        {restore.name}
+                      </Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        {formatDate(restore.creationTimestamp)}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={restore.status?.phase || 'Unknown'}
+                      color={restore.status?.phase === 'Completed' ? 'success' : 
+                             restore.status?.phase === 'Failed' ? 'error' : 'default'}
+                      size="small"
+                    />
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Box textAlign="center" py={4}>
+                <Typography variant="body2" color="textSecondary">
+                  No recent restores
+                </Typography>
+              </Box>
+            )}
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
   );
 };
 

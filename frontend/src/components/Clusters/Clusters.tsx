@@ -1,7 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../../services/api.ts';
 import AddClusterModal from './AddClusterModal.tsx';
-import './Clusters.css';
+import {
+  Box,
+  TextField,
+  Button,
+  CircularProgress,
+  Alert,
+  Paper,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip
+} from '@mui/material';
+import { Refresh, Add } from '@mui/icons-material';
 
 interface Cluster {
   name: string;
@@ -37,15 +53,15 @@ const Clusters: React.FC = () => {
   const getHealthStatus = (lastBackup: string, backupCount: number) => {
     if (!lastBackup) {
       // No backups yet, but cluster is configured
-      return { label: 'Configured', className: 'status-healthy' };
+      return { label: 'Configured', color: 'success' as const };
     }
     
     const lastBackupDate = new Date(lastBackup);
     const hoursSinceBackup = (Date.now() - lastBackupDate.getTime()) / (1000 * 60 * 60);
     
-    if (hoursSinceBackup < 25) return { label: 'Healthy', className: 'status-healthy' };
-    if (hoursSinceBackup < 48) return { label: 'Warning', className: 'status-warning' };
-    return { label: 'Critical', className: 'status-critical' };
+    if (hoursSinceBackup < 25) return { label: 'Healthy', color: 'success' as const };
+    if (hoursSinceBackup < 48) return { label: 'Warning', color: 'warning' as const };
+    return { label: 'Critical', color: 'error' as const };
   };
 
   const formatDate = (dateString: string) => {
@@ -59,80 +75,173 @@ const Clusters: React.FC = () => {
   );
 
   return (
-    <div className="clusters-list">
-      <div className="clusters-content">
-        <div className="clusters-header">
-          <input
-            type="text"
+    <Box sx={{ p: 3 }}>
+      <Paper sx={{ p: 3 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 2,
+          mb: 3,
+          flexWrap: 'wrap'
+        }}>
+          <TextField
             placeholder="Search clusters by name..."
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
-            className="search-input"
+            variant="outlined"
+            size="small"
+            sx={{ minWidth: 300 }}
           />
-          <button
-            className="btn btn-secondary"
-            onClick={fetchClusters}
-            disabled={loading}
-          >
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowAddModal(true)}
-          >
-            Add Cluster
-          </button>
-        </div>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined"
+              onClick={fetchClusters}
+              disabled={loading}
+              startIcon={loading ? <CircularProgress size={16} /> : <Refresh />}
+            >
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => setShowAddModal(true)}
+              startIcon={<Add />}
+            >
+              Add Cluster
+            </Button>
+          </Box>
+        </Box>
 
-        {loading && <div className="loading">Loading clusters...</div>}
-        {error && <div className="error">Error: {error}</div>}
+        {loading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+            <CircularProgress />
+            <Typography sx={{ ml: 2 }}>Loading clusters...</Typography>
+          </Box>
+        )}
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            Error: {error}
+          </Alert>
+        )}
 
         {!loading && !error && (
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Cluster Name</th>
-                  <th>API Endpoint</th>
-                  <th>Storage Location</th>
-                  <th className="text-center">Total Backups</th>
-                  <th>Last Backup</th>
-                  <th className="text-center">Health Status</th>
-                </tr>
-              </thead>
-              <tbody>
+          <TableContainer component={Paper} elevation={2}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Cluster Name</TableCell>
+                  <TableCell>API Endpoint</TableCell>
+                  <TableCell>Storage Location</TableCell>
+                  <TableCell align="center">Total Backups</TableCell>
+                  <TableCell>Last Backup</TableCell>
+                  <TableCell align="center">Health Status</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {filteredClusters.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center">
-                      No clusters found
-                    </td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      <Box sx={{ py: 4 }}>
+                        <Typography color="text.secondary" variant="h6">
+                          No clusters found
+                        </Typography>
+                        <Typography color="text.secondary" variant="body2">
+                          Add your first cluster to get started
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   filteredClusters.map((cluster) => {
                     const health = getHealthStatus(cluster.lastBackup, cluster.backupCount);
                     return (
-                      <tr key={cluster.name}>
-                        <td>{cluster.name}</td>
-                        <td>
-                          <span className="text-muted">Not configured</span>
-                        </td>
-                        <td>{`${cluster.name}-storage`}</td>
-                        <td className="text-center">{cluster.backupCount}</td>
-                        <td>{formatDate(cluster.lastBackup)}</td>
-                        <td className="text-center">
-                          <span className={`status-badge ${health.className}`}>
-                            {health.label}
-                          </span>
-                        </td>
-                      </tr>
+                      <TableRow 
+                        key={cluster.name}
+                        hover
+                        sx={{ 
+                          '&:hover': { 
+                            backgroundColor: 'action.hover',
+                          } 
+                        }}
+                      >
+                        <TableCell>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              fontWeight: 600,
+                              color: 'primary.main'
+                            }}
+                          >
+                            {cluster.name}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography 
+                            color="text.secondary" 
+                            variant="body2"
+                            sx={{ fontStyle: 'italic' }}
+                          >
+                            Not configured
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              fontFamily: 'monospace',
+                              color: 'text.secondary',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            {`${cluster.name}-storage`}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              fontWeight: 600,
+                              color: cluster.backupCount > 0 ? 'success.main' : 'text.secondary'
+                            }}
+                          >
+                            {cluster.backupCount}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: 'text.secondary',
+                              fontSize: '0.875rem',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {formatDate(cluster.lastBackup)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Chip 
+                            label={health.label} 
+                            color={health.color}
+                            size="small"
+                            sx={{ 
+                              fontWeight: 600,
+                              textTransform: 'uppercase',
+                              fontSize: '0.75rem',
+                              letterSpacing: '0.5px'
+                            }}
+                          />
+                        </TableCell>
+                      </TableRow>
                     );
                   })
                 )}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
-      </div>
+      </Paper>
       
       {showAddModal && (
         <AddClusterModal
@@ -143,7 +252,7 @@ const Clusters: React.FC = () => {
           }}
         />
       )}
-    </div>
+    </Box>
   );
 };
 

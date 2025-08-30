@@ -3,7 +3,20 @@ import { Backup } from '../../services/types.ts';
 import BackupActions from './BackupActions.tsx';
 import { formatDate, formatDateShort } from '../../utils/dateUtils.ts';
 import { BACKUP_PHASES } from '../../utils/constants.ts';
-import './BackupTable.css';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Checkbox,
+  Chip,
+  Typography,
+  Box,
+  TableSortLabel
+} from '@mui/material';
 
 interface BackupTableProps {
   backups: Backup[];
@@ -31,17 +44,17 @@ const BackupTable: React.FC<BackupTableProps> = ({
   const allSelected = backups.length > 0 && selectedBackups.length === backups.length;
   const someSelected = selectedBackups.length > 0 && selectedBackups.length < backups.length;
 
-  const getStatusClass = (phase: string) => {
+  const getStatusColor = (phase: string): 'success' | 'info' | 'error' | 'warning' | 'default' => {
     switch (phase) {
       case BACKUP_PHASES.COMPLETED:
-        return 'status-completed';
+        return 'success';
       case BACKUP_PHASES.FAILED:
       case BACKUP_PHASES.FAILED_VALIDATION:
-        return 'status-failed';
+        return 'error';
       case BACKUP_PHASES.IN_PROGRESS:
-        return 'status-in-progress';
+        return 'info';
       default:
-        return 'status-unknown';
+        return 'default';
     }
   };
 
@@ -83,98 +96,205 @@ const BackupTable: React.FC<BackupTableProps> = ({
   });
 
   return (
-    <div className="backup-table-container">
-      <table className="backup-table">
-        <thead>
-          <tr>
-            <th className="select-col">
-              <input
-                type="checkbox"
+    <TableContainer component={Paper} elevation={2}>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell padding="checkbox">
+              <Checkbox
                 checked={allSelected}
-                ref={input => {
-                  if (input) input.indeterminate = someSelected;
-                }}
+                indeterminate={someSelected}
                 onChange={(e) => onSelectAll(e.target.checked)}
+                sx={{ color: 'primary.main' }}
               />
-            </th>
-            <th className="sortable" onClick={() => handleSort('name')}>
-              NAME {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
-            </th>
-            <th className="sortable" onClick={() => handleSort('cluster')}>
-              CLUSTER {sortField === 'cluster' && (sortDirection === 'asc' ? '↑' : '↓')}
-            </th>
-            <th className="sortable" onClick={() => handleSort('status')}>
-              STATUS {sortField === 'status' && (sortDirection === 'asc' ? '↑' : '↓')}
-            </th>
-            <th>ERRORS</th>
-            <th>WARNINGS</th>
-            <th className="sortable" onClick={() => handleSort('created')}>
-              CREATED {sortField === 'created' && (sortDirection === 'asc' ? '↑' : '↓')}
-            </th>
-            <th>EXPIRES</th>
-            <th>SELECTOR</th>
-            <th>ACTIONS</th>
-          </tr>
-        </thead>
-        <tbody>
+            </TableCell>
+            <TableCell>
+              <TableSortLabel
+                active={sortField === 'name'}
+                direction={sortField === 'name' ? sortDirection : 'asc'}
+                onClick={() => handleSort('name')}
+              >
+                Name
+              </TableSortLabel>
+            </TableCell>
+            <TableCell>
+              <TableSortLabel
+                active={sortField === 'cluster'}
+                direction={sortField === 'cluster' ? sortDirection : 'asc'}
+                onClick={() => handleSort('cluster')}
+              >
+                Cluster
+              </TableSortLabel>
+            </TableCell>
+            <TableCell>
+              <TableSortLabel
+                active={sortField === 'status'}
+                direction={sortField === 'status' ? sortDirection : 'asc'}
+                onClick={() => handleSort('status')}
+              >
+                Status
+              </TableSortLabel>
+            </TableCell>
+            <TableCell align="center">Errors</TableCell>
+            <TableCell align="center">Warnings</TableCell>
+            <TableCell>
+              <TableSortLabel
+                active={sortField === 'created'}
+                direction={sortField === 'created' ? sortDirection : 'asc'}
+                onClick={() => handleSort('created')}
+              >
+                Created
+              </TableSortLabel>
+            </TableCell>
+            <TableCell>Expires</TableCell>
+            <TableCell>Selector</TableCell>
+            <TableCell>Actions</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {sortedBackups.map((backup) => (
-            <tr key={backup.name}>
-              <td className="select-col">
-                <input
-                  type="checkbox"
+            <TableRow 
+              key={backup.name}
+              hover
+              sx={{ 
+                '&:hover': { 
+                  backgroundColor: 'action.hover',
+                } 
+              }}
+            >
+              <TableCell padding="checkbox">
+                <Checkbox
                   checked={selectedBackups.includes(backup.name)}
                   onChange={(e) => onSelectBackup(backup.name, e.target.checked)}
+                  sx={{ color: 'primary.main' }}
                 />
-              </td>
-              <td className="name-col">
-                <span className="backup-name">{backup.name}</span>
-              </td>
-              <td className="cluster-col">
-                <span className="cluster-badge">{backup.cluster}</span>
-              </td>
-              <td>
-                <span className={`status ${getStatusClass(backup.status.phase)}`}>
-                  {backup.status.phase}
-                </span>
-              </td>
-              <td className="number-col">
-                <span className={backup.status.errors || backup.status.validationErrors?.length ? 'error-count' : ''}>
+              </TableCell>
+              <TableCell>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    fontWeight: 600,
+                    color: 'primary.main',
+                    maxWidth: 200,
+                    wordBreak: 'break-word'
+                  }}
+                >
+                  {backup.name}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Chip 
+                  label={backup.cluster} 
+                  size="small"
+                  variant="outlined"
+                  sx={{ 
+                    backgroundColor: 'grey.100',
+                    color: 'text.primary',
+                    borderColor: 'grey.300'
+                  }}
+                />
+              </TableCell>
+              <TableCell>
+                <Chip 
+                  label={backup.status.phase}
+                  color={getStatusColor(backup.status.phase)}
+                  size="small"
+                  sx={{ 
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    fontSize: '0.75rem',
+                    letterSpacing: '0.5px'
+                  }}
+                />
+              </TableCell>
+              <TableCell align="center">
+                <Typography 
+                  variant="body2"
+                  sx={{ 
+                    fontWeight: 600,
+                    color: (backup.status.validationErrors?.length || backup.status.errors || 0) > 0 ? 'error.main' : 'text.secondary'
+                  }}
+                >
                   {backup.status.validationErrors?.length || backup.status.errors || 0}
-                </span>
-              </td>
-              <td className="number-col">
-                <span className={backup.status.warnings ? 'warning-count' : ''}>
+                </Typography>
+              </TableCell>
+              <TableCell align="center">
+                <Typography 
+                  variant="body2"
+                  sx={{ 
+                    fontWeight: 600,
+                    color: (backup.status.warnings || 0) > 0 ? 'warning.main' : 'text.secondary'
+                  }}
+                >
                   {backup.status.warnings || 0}
-                </span>
-              </td>
-              <td className="date-col">
-                {formatDateShort(backup.creationTimestamp)}
-              </td>
-              <td className="date-col">
-                {backup.status.expiration ? formatDateShort(backup.status.expiration) : '-'}
-              </td>
-              <td className="selector-col">
-                {getNamespaceDisplay(backup.spec.includedNamespaces)}
-              </td>
-              <td className="actions-col">
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: 'text.secondary',
+                    fontSize: '0.875rem',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {formatDateShort(backup.creationTimestamp)}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: 'text.secondary',
+                    fontSize: '0.875rem',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {backup.status.expiration ? formatDateShort(backup.status.expiration) : '-'}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: 'text.secondary',
+                    maxWidth: 150,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}
+                >
+                  {getNamespaceDisplay(backup.spec.includedNamespaces)}
+                </Typography>
+              </TableCell>
+              <TableCell>
                 <BackupActions
                   backup={backup}
                   onDelete={onDeleteBackup}
                   onRefresh={onRefresh}
                 />
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
       
       {backups.length === 0 && (
-        <div className="empty-state">
-          <p>No backups found</p>
-          <p>Create your first backup to get started</p>
-        </div>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: 200,
+          flexDirection: 'column'
+        }}>
+          <Typography color="text.secondary" variant="h6">
+            No backups found
+          </Typography>
+          <Typography color="text.secondary" variant="body2">
+            Create your first backup to get started
+          </Typography>
+        </Box>
       )}
-    </div>
+    </TableContainer>
   );
 };
 

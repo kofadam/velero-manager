@@ -1,7 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../../services/api.ts';
 import UserManagement from './UserManagement.tsx';
-import './Settings.css';
+import {
+  Box,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Button,
+  CircularProgress,
+  Alert,
+  Paper,
+  Typography,
+  Tabs,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Chip
+} from '@mui/material';
+import { Refresh, Add, Close, Delete, Settings as SettingsIcon, People, Storage } from '@mui/icons-material';
 
 interface StorageLocation {
   name: string;
@@ -101,186 +128,205 @@ const Settings: React.FC = () => {
     }
   };
   return (
-    <div className="settings">
-      <div className="settings-header">
-        <h1>⚙️ Settings</h1>
-      </div>
-
-      <div className="settings-tabs">
-        <button 
-          className={`tab ${activeTab === 'storage' ? 'active' : ''}`}
-          onClick={() => setActiveTab('storage')}
-        >
-          📍 Storage Locations
-        </button>
-        <button 
-          className={`tab ${activeTab === 'users' ? 'active' : ''}`}
-          onClick={() => setActiveTab('users')}
-        >
-          👥 Users
-        </button>
-      </div>
-
-      {activeTab === 'storage' && (
-        <div className="settings-section">
-          <h2>📍 Backup Storage Locations</h2>
-          <p>Manage backup storage locations for your Velero backups.</p>
-        
-        <div className="actions-bar">
-          <button 
-            className="btn btn-secondary"
-            onClick={fetchStorageLocations}
-            disabled={loading}
+    <Box sx={{ p: 3 }}>
+      <Paper sx={{ p: 3 }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+          <Typography variant="h4" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <SettingsIcon /> Settings
+          </Typography>
+          <Tabs 
+            value={activeTab} 
+            onChange={(e, newValue) => setActiveTab(newValue)}
+            aria-label="settings tabs"
           >
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-          <button 
-            className="btn btn-primary"
-            onClick={() => setShowCreateModal(true)}
-          >
-            ➕ Create Storage Location
-          </button>
-        </div>
+            <Tab 
+              icon={<Storage />} 
+              iconPosition="start"
+              label="Storage Locations" 
+              value="storage" 
+            />
+            <Tab 
+              icon={<People />} 
+              iconPosition="start"
+              label="Users" 
+              value="users" 
+            />
+          </Tabs>
+        </Box>
 
-        {loading && <div className="loading">Loading storage locations...</div>}
-        {error && <div className="error">Error: {error}</div>}
-        
-        {!loading && !error && (
-          <div className="storage-locations-list">
-            <table className="storage-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Provider</th>
-                  <th>Bucket</th>
-                  <th>Status</th>
-                  <th>Default</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {storageLocations.map((location) => (
-                  <tr key={location.name}>
-                    <td>{location.name}</td>
-                    <td>{location.spec.provider}</td>
-                    <td>{location.spec.objectStorage.bucket}</td>
-                    <td>
-                      <span className={`status ${location.status?.phase === 'Available' ? 'status-available' : 'status-unavailable'}`}>
-                        {location.status?.phase || 'Unknown'}
-                      </span>
-                    </td>
-                    <td>{location.spec.default ? '✓' : '-'}</td>
-                    <td>
-                      {location.name !== 'default' && (
-                        <button 
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDeleteLocation(location.name)}
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        </div>
-      )}
-
-      {activeTab === 'users' && (
-        <UserManagement />
-      )}
-
-      {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Create Backup Location</h3>
-              <button 
-                className="modal-close"
-                onClick={() => setShowCreateModal(false)}
+        {activeTab === 'storage' && (
+          <Box>
+            <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <Storage /> Backup Storage Locations
+            </Typography>
+            <Typography color="text.secondary" sx={{ mb: 3 }}>
+              Manage backup storage locations for your Velero backups.
+            </Typography>
+          
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mb: 3 }}>
+              <Button 
+                variant="outlined"
+                onClick={fetchStorageLocations}
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={16} /> : <Refresh />}
               >
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <form onSubmit={handleCreateLocation}>
-                <div className="form-group">
-                  <label htmlFor="locationName">Location Name *</label>
-                  <input
-                    type="text"
-                    id="locationName"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    placeholder="e.g., dept3-storage"
-                    required
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="provider">Provider *</label>
-                  <select 
-                    id="provider" 
-                    value={formData.provider}
-                    onChange={(e) => setFormData({...formData, provider: e.target.value})}
-                    required
-                  >
-                    <option value="aws">AWS S3 / MinIO</option>
-                    <option value="gcp">Google Cloud Storage</option>
-                    <option value="azure">Azure Blob Storage</option>
-                  </select>
-                </div>
+                {loading ? 'Refreshing...' : 'Refresh'}
+              </Button>
+              <Button 
+                variant="contained"
+                onClick={() => setShowCreateModal(true)}
+                startIcon={<Add />}
+              >
+                Create Storage Location
+              </Button>
+            </Box>
 
-                <div className="form-group">
-                  <label htmlFor="bucket">Bucket Name *</label>
-                  <input
-                    type="text"
-                    id="bucket"
-                    value={formData.bucket}
-                    onChange={(e) => setFormData({...formData, bucket: e.target.value})}
-                    placeholder="e.g., dept3-backups"
-                    required
-                  />
-                </div>
+            {loading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Loading storage locations...</Typography>
+              </Box>
+            )}
+            
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                Error: {error}
+              </Alert>
+            )}
+            
+            {!loading && !error && (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Name</TableCell>
+                      <TableCell>Provider</TableCell>
+                      <TableCell>Bucket</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Default</TableCell>
+                      <TableCell>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {storageLocations.map((location) => (
+                      <TableRow key={location.name}>
+                        <TableCell>{location.name}</TableCell>
+                        <TableCell>{location.spec.provider}</TableCell>
+                        <TableCell>{location.spec.objectStorage.bucket}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={location.status?.phase || 'Unknown'}
+                            color={location.status?.phase === 'Available' ? 'success' : 'error'}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>{location.spec.default ? '✓' : '-'}</TableCell>
+                        <TableCell>
+                          {location.name !== 'default' && (
+                            <Button 
+                              variant="outlined"
+                              color="error"
+                              size="small"
+                              onClick={() => handleDeleteLocation(location.name)}
+                              startIcon={<Delete />}
+                            >
+                              Delete
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Box>
+        )}
 
-                <div className="form-group">
-                  <label htmlFor="s3Url">S3 URL (for MinIO)</label>
-                  <input
-                    type="text"
-                    id="s3Url"
-                    value={formData.s3Url}
-                    onChange={(e) => setFormData({...formData, s3Url: e.target.value})}
-                    placeholder="http://10.100.102.110:9000"
-                  />
-                </div>
+        {activeTab === 'users' && (
+          <UserManagement />
+        )}
 
-                <div className="form-group">
-                  <label htmlFor="prefix">Prefix (optional)</label>
-                  <input
-                    type="text"
-                    id="prefix"
-                    value={formData.prefix}
-                    onChange={(e) => setFormData({...formData, prefix: e.target.value})}
-                    placeholder="e.g., velero/"
-                  />
-                </div>
-                
-                <div className="form-actions">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    Create Location
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+        <Dialog
+          open={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            Create Backup Location
+            <IconButton onClick={() => setShowCreateModal(false)}>
+              <Close />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent>
+            <Box component="form" onSubmit={handleCreateLocation} sx={{ pt: 2 }}>
+              <TextField
+                fullWidth
+                label="Location Name *"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                placeholder="e.g., dept3-storage"
+                required
+                sx={{ mb: 2 }}
+              />
+              
+              <FormControl fullWidth required sx={{ mb: 2 }}>
+                <InputLabel>Provider *</InputLabel>
+                <Select 
+                  value={formData.provider}
+                  onChange={(e) => setFormData({...formData, provider: e.target.value})}
+                  label="Provider *"
+                >
+                  <MenuItem value="aws">AWS S3 / MinIO</MenuItem>
+                  <MenuItem value="gcp">Google Cloud Storage</MenuItem>
+                  <MenuItem value="azure">Azure Blob Storage</MenuItem>
+                </Select>
+              </FormControl>
+
+              <TextField
+                fullWidth
+                label="Bucket Name *"
+                value={formData.bucket}
+                onChange={(e) => setFormData({...formData, bucket: e.target.value})}
+                placeholder="e.g., dept3-backups"
+                required
+                sx={{ mb: 2 }}
+              />
+
+              <TextField
+                fullWidth
+                label="S3 URL (for MinIO)"
+                value={formData.s3Url}
+                onChange={(e) => setFormData({...formData, s3Url: e.target.value})}
+                placeholder="http://10.100.102.110:9000"
+                sx={{ mb: 2 }}
+              />
+
+              <TextField
+                fullWidth
+                label="Prefix (optional)"
+                value={formData.prefix}
+                onChange={(e) => setFormData({...formData, prefix: e.target.value})}
+                placeholder="e.g., velero/"
+                sx={{ mb: 2 }}
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowCreateModal(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateLocation}
+              variant="contained"
+            >
+              Create Location
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Paper>
+    </Box>
   );
 };
 

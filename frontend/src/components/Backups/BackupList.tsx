@@ -1,8 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import IconButton from '@mui/material/IconButton';
+import AddIcon from '@mui/icons-material/Add';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
 import BackupTable from './BackupTable.tsx';
 import CreateBackupModal from './CreateBackupModal.tsx';
 import { useBackups } from '../../hooks/useBackups.ts';
-import './BackupList.css';
 
 const BackupList: React.FC = () => {
   const { backups, loading, error, refreshBackups, deleteBackup } = useBackups();
@@ -10,7 +23,7 @@ const BackupList: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [clusterFilter, setClusterFilter] = useState('all');
-  // Get unique clusters from backups
+  
   const availableClusters = React.useMemo(() => {
     const clusters = Array.from(new Set(backups.map(backup => backup.cluster).filter(Boolean)));
     return clusters.sort();
@@ -47,70 +60,78 @@ const BackupList: React.FC = () => {
   };
 
   const filteredBackups = backups.filter(backup => {
-    // Search filter
     const matchesSearch = backup.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
       backup.status.phase.toLowerCase().includes(searchFilter.toLowerCase()) ||
       (backup.spec.includedNamespaces && backup.spec.includedNamespaces.some(ns => 
         ns.toLowerCase().includes(searchFilter.toLowerCase())
       ));
     
-    // Cluster filter
     const matchesCluster = clusterFilter === 'all' || backup.cluster === clusterFilter;
     
     return matchesSearch && matchesCluster;
   });
 
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
+
   return (
-    <div className="backup-list">
-      <div className="backup-content">
-        <div className="backup-header">
-        <div className="backup-filters">
-          <input
-            type="text"
-            placeholder="Search backups by name, status, or namespace..."
+    <Box>
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
+          <TextField
+            size="small"
+            placeholder="Search backups..."
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
-            className="search-input"
+            sx={{ flex: 1, minWidth: 200 }}
           />
-          <select
-            value={clusterFilter}
-            onChange={(e) => setClusterFilter(e.target.value)}
-            className="cluster-filter"
-          >
-            <option value="all">All Clusters</option>
-            {availableClusters.map(cluster => (
-              <option key={cluster} value={cluster}>{cluster}</option>
-            ))}
-          </select>
-        </div>
-        <div className="backup-actions">
-          <button
-            className="btn btn-secondary"
-            onClick={refreshBackups}
-            disabled={loading}
-          >
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowCreateModal(true)}
-          >
-            Create Backup
-          </button>
-          <button
-            className="btn btn-danger"
-            onClick={handleDeleteSelected}
-            disabled={selectedBackups.length === 0}
-          >
-            Delete Selected
-          </button>
-        </div>
-      </div>
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel>Cluster</InputLabel>
+            <Select
+              value={clusterFilter}
+              label="Cluster"
+              onChange={(e) => setClusterFilter(e.target.value)}
+            >
+              <MenuItem value="all">All Clusters</MenuItem>
+              {availableClusters.map(cluster => (
+                <MenuItem key={cluster} value={cluster}>{cluster}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setShowCreateModal(true)}
+            >
+              Create Backup
+            </Button>
+            <IconButton onClick={refreshBackups} color="primary">
+              <RefreshIcon />
+            </IconButton>
+            {selectedBackups.length > 0 && (
+              <IconButton onClick={handleDeleteSelected} color="error">
+                <DeleteIcon />
+              </IconButton>
+            )}
+          </Box>
+        </Box>
+      </Paper>
 
-      {loading && <div className="loading">Loading backups...</div>}
-      {error && <div className="error">Error: {error}</div>}
-      
-      {!loading && !error && (
+      <Paper>
         <BackupTable
           backups={filteredBackups}
           selectedBackups={selectedBackups}
@@ -119,7 +140,7 @@ const BackupList: React.FC = () => {
           onDeleteBackup={deleteBackup}
           onRefresh={refreshBackups}
         />
-      )}
+      </Paper>
 
       {showCreateModal && (
         <CreateBackupModal
@@ -130,8 +151,7 @@ const BackupList: React.FC = () => {
           }}
         />
       )}
-      </div>
-    </div>
+    </Box>
   );
 };
 

@@ -2,7 +2,15 @@ import React, { useState, useEffect } from 'react';
 import ScheduleTable from './ScheduleTable.tsx';
 import CreateScheduleModal from './CreateScheduleModal.tsx';
 import { apiService } from '../../services/api.ts';
-import './ScheduleList.css';
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Alert,
+  Paper,
+  Typography
+} from '@mui/material';
+import { Refresh, Add } from '@mui/icons-material';
 
 const ScheduleList: React.FC = () => {
   const [schedules, setSchedules] = useState<any[]>([]);
@@ -63,48 +71,66 @@ const ScheduleList: React.FC = () => {
   };
 
   return (
-    <div className="schedule-list">
-      <div className="schedule-header">
-        <div className="schedule-actions">
-          <button 
-            className="btn btn-secondary"
+    <Box sx={{ p: 3 }}>
+      <Paper sx={{ p: 3 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: 1,
+          mb: 3
+        }}>
+          <Button 
+            variant="outlined"
             onClick={fetchSchedules}
             disabled={loading}
+            startIcon={loading ? <CircularProgress size={16} /> : <Refresh />}
           >
             {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-          <button 
-            className="btn btn-primary"
+          </Button>
+          <Button 
+            variant="contained"
             onClick={() => setShowCreateModal(true)}
+            startIcon={<Add />}
           >
-            ➕ Create Schedule
-          </button>
-        </div>
-      </div>
+            Create Schedule
+          </Button>
+        </Box>
 
-      {loading && <div className="loading">Loading schedules...</div>}
-      {error && <div className="error">Error: {error}</div>}
-      
-      {!loading && !error && (
-        <ScheduleTable
-          schedules={schedules}
-          onDeleteSchedule={handleDeleteSchedule}
-          onToggleSchedule={handleToggleSchedule}
-          onCreateBackupNow={handleCreateBackupNow}
-          onRefresh={fetchSchedules}
-        />
-      )}
+        {loading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+            <CircularProgress />
+            <Typography sx={{ ml: 2 }}>Loading schedules...</Typography>
+          </Box>
+        )}
+        
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            Error: {error}
+          </Alert>
+        )}
+        
+        {!loading && !error && (
+          <ScheduleTable
+            schedules={schedules}
+            onDeleteSchedule={handleDeleteSchedule}
+            onToggleSchedule={handleToggleSchedule}
+            onCreateBackupNow={handleCreateBackupNow}
+            onRefresh={fetchSchedules}
+          />
+        )}
 
-      {showCreateModal && (
-        <CreateScheduleModal
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={() => {
-            setShowCreateModal(false);
-            fetchSchedules();
-          }}
-        />
-      )}
-    </div>
+        {showCreateModal && (
+          <CreateScheduleModal
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={() => {
+              setShowCreateModal(false);
+              fetchSchedules();
+            }}
+          />
+        )}
+      </Paper>
+    </Box>
   );
 };
 

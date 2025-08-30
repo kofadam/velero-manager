@@ -1,5 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import './UserManagement.css';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Chip,
+  Typography,
+  Box,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  IconButton,
+  CircularProgress
+} from '@mui/material';
+import { Add, Edit, Delete, Close } from '@mui/icons-material';
 
 interface User {
   username: string;
@@ -107,158 +131,262 @@ const UserManagement: React.FC = () => {
   };
 
   return (
-    <div className="user-management">
-      <div className="section-header">
-        <h3>User Management</h3>
+    <Box>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        mb: 3
+      }}>
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>
+          User Management
+        </Typography>
         {isAdmin && (
-          <button className="btn btn-primary" onClick={() => setShowAddUser(true)}>
+          <Button 
+            variant="contained"
+            onClick={() => setShowAddUser(true)}
+            startIcon={<Add />}
+          >
             Add User
-          </button>
+          </Button>
         )}
-      </div>
+      </Box>
 
       {loading ? (
-        <div>Loading users...</div>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: 200 
+        }}>
+          <CircularProgress />
+          <Typography sx={{ ml: 2 }}>Loading users...</Typography>
+        </Box>
       ) : (
-        <table className="users-table">
-          <thead>
-            <tr>
-              <th>Username</th>
-              <th>Role</th>
-              <th>Created</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(user => (
-              <tr key={user.username}>
-                <td>{user.username}</td>
-                <td>
-                  <span className={`role-badge role-${user.role}`}>
-                    {user.role}
-                  </span>
-                </td>
-                <td>{user.created || 'N/A'}</td>
-                <td>
-                  {(isAdmin || user.username === currentUser.username) && (
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => {
-                        setSelectedUser(user.username);
-                        setShowChangePassword(true);
-                      }}
-                    >
-                      Change Password
-                    </button>
-                  )}
-                  {isAdmin && user.username !== 'admin' && (
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDeleteUser(user.username)}
-                      style={{ marginLeft: '8px' }}
-                    >
-                      Delete
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <TableContainer component={Paper} elevation={2}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Username</TableCell>
+                <TableCell>Role</TableCell>
+                <TableCell>Created</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {users.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} align="center">
+                    <Box sx={{ py: 4 }}>
+                      <Typography color="text.secondary" variant="h6">
+                        No users found
+                      </Typography>
+                      <Typography color="text.secondary" variant="body2">
+                        Add your first user to get started
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                users.map(user => (
+                  <TableRow 
+                    key={user.username}
+                    hover
+                    sx={{ 
+                      '&:hover': { 
+                        backgroundColor: 'action.hover',
+                      } 
+                    }}
+                  >
+                    <TableCell>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontWeight: 600,
+                          color: 'primary.main'
+                        }}
+                      >
+                        {user.username}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={user.role}
+                        color={user.role === 'admin' ? 'error' : 'primary'}
+                        size="small"
+                        sx={{ 
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          fontSize: '0.75rem',
+                          letterSpacing: '0.5px'
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          color: 'text.secondary',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        {user.created || 'N/A'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        {(isAdmin || user.username === currentUser.username) && (
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => {
+                              setSelectedUser(user.username);
+                              setShowChangePassword(true);
+                            }}
+                            startIcon={<Edit />}
+                          >
+                            Change Password
+                          </Button>
+                        )}
+                        {isAdmin && user.username !== 'admin' && (
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            size="small"
+                            onClick={() => handleDeleteUser(user.username)}
+                            startIcon={<Delete />}
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
-      {showChangePassword && (
-        <div className="modal-overlay" onClick={() => setShowChangePassword(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h3>Change Password for {selectedUser}</h3>
+      <Dialog
+        open={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          Change Password for {selectedUser}
+          <IconButton onClick={() => setShowChangePassword(false)}>
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
             {JSON.parse(localStorage.getItem('velero_user') || '{}').username === selectedUser && (
-              <div className="form-group">
-                <label>Current Password</label>
-                <input
-                  type="password"
-                  value={passwordData.oldPassword}
-                  onChange={e => setPasswordData({...passwordData, oldPassword: e.target.value})}
-                />
-              </div>
+              <TextField
+                fullWidth
+                type="password"
+                label="Current Password"
+                value={passwordData.oldPassword}
+                onChange={e => setPasswordData({...passwordData, oldPassword: e.target.value})}
+                variant="outlined"
+              />
             )}
-            <div className="form-group">
-              <label>New Password</label>
-              <input
-                type="password"
-                value={passwordData.newPassword}
-                onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})}
-              />
-            </div>
-            <div className="form-group">
-              <label>Confirm New Password</label>
-              <input
-                type="password"
-                value={passwordData.confirmPassword}
-                onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-              />
-            </div>
-            <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setShowChangePassword(false)}>
-                Cancel
-              </button>
-              <button 
-                className="btn btn-primary" 
-                onClick={handleChangePassword}
-                disabled={!passwordData.newPassword || !passwordData.confirmPassword}
-              >
-                Change Password
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            <TextField
+              fullWidth
+              type="password"
+              label="New Password"
+              value={passwordData.newPassword}
+              onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})}
+              variant="outlined"
+              required
+            />
+            <TextField
+              fullWidth
+              type="password"
+              label="Confirm New Password"
+              value={passwordData.confirmPassword}
+              onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+              variant="outlined"
+              required
+              error={passwordData.confirmPassword !== '' && passwordData.newPassword !== passwordData.confirmPassword}
+              helperText={passwordData.confirmPassword !== '' && passwordData.newPassword !== passwordData.confirmPassword ? 'Passwords do not match' : ''}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowChangePassword(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="contained"
+            onClick={handleChangePassword}
+            disabled={!passwordData.newPassword || !passwordData.confirmPassword || passwordData.newPassword !== passwordData.confirmPassword}
+          >
+            Change Password
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-      {showAddUser && (
-        <div className="modal-overlay" onClick={() => setShowAddUser(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h3>Add New User</h3>
-            <div className="form-group">
-              <label>Username</label>
-              <input
-                type="text"
-                value={newUser.username}
-                onChange={e => setNewUser({...newUser, username: e.target.value})}
-              />
-            </div>
-            <div className="form-group">
-              <label>Password</label>
-              <input
-                type="password"
-                value={newUser.password}
-                onChange={e => setNewUser({...newUser, password: e.target.value})}
-              />
-            </div>
-            <div className="form-group">
-              <label>Role</label>
-              <select
+      <Dialog
+        open={showAddUser}
+        onClose={() => setShowAddUser(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          Add New User
+          <IconButton onClick={() => setShowAddUser(false)}>
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <TextField
+              fullWidth
+              label="Username"
+              value={newUser.username}
+              onChange={e => setNewUser({...newUser, username: e.target.value})}
+              variant="outlined"
+              required
+            />
+            <TextField
+              fullWidth
+              type="password"
+              label="Password"
+              value={newUser.password}
+              onChange={e => setNewUser({...newUser, password: e.target.value})}
+              variant="outlined"
+              required
+            />
+            <FormControl fullWidth variant="outlined">
+              <InputLabel>Role</InputLabel>
+              <Select
                 value={newUser.role}
                 onChange={e => setNewUser({...newUser, role: e.target.value})}
+                label="Role"
               >
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setShowAddUser(false)}>
-                Cancel
-              </button>
-              <button 
-                className="btn btn-primary" 
-                onClick={handleAddUser}
-                disabled={!newUser.username || !newUser.password}
-              >
-                Create User
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+                <MenuItem value="user">User</MenuItem>
+                <MenuItem value="admin">Admin</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowAddUser(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="contained"
+            onClick={handleAddUser}
+            disabled={!newUser.username || !newUser.password}
+          >
+            Create User
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 
