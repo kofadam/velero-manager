@@ -10,7 +10,6 @@ const BackupList: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [clusterFilter, setClusterFilter] = useState('all');
-
   // Get unique clusters from backups
   const availableClusters = React.useMemo(() => {
     const clusters = Array.from(new Set(backups.map(backup => backup.cluster).filter(Boolean)));
@@ -86,11 +85,11 @@ const BackupList: React.FC = () => {
         </div>
         <div className="backup-actions">
           <button
-            className="btn btn-primary"
+            className="btn btn-secondary"
             onClick={refreshBackups}
             disabled={loading}
           >
-            List Backups
+            {loading ? 'Refreshing...' : 'Refresh'}
           </button>
           <button
             className="btn btn-primary"

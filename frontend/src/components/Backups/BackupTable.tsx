@@ -112,7 +112,6 @@ const BackupTable: React.FC<BackupTableProps> = ({
               CREATED {sortField === 'created' && (sortDirection === 'asc' ? '↑' : '↓')}
             </th>
             <th>EXPIRES</th>
-            <th>STORAGE LOCATION</th>
             <th>SELECTOR</th>
             <th>ACTIONS</th>
           </tr>
@@ -139,19 +138,20 @@ const BackupTable: React.FC<BackupTableProps> = ({
                 </span>
               </td>
               <td className="number-col">
-                {backup.status.validationErrors?.length || backup.status.errors || 0}
+                <span className={backup.status.errors || backup.status.validationErrors?.length ? 'error-count' : ''}>
+                  {backup.status.validationErrors?.length || backup.status.errors || 0}
+                </span>
               </td>
               <td className="number-col">
-                {backup.status.warnings || 0}
+                <span className={backup.status.warnings ? 'warning-count' : ''}>
+                  {backup.status.warnings || 0}
+                </span>
               </td>
               <td className="date-col">
                 {formatDateShort(backup.creationTimestamp)}
               </td>
               <td className="date-col">
                 {backup.status.expiration ? formatDateShort(backup.status.expiration) : '-'}
-              </td>
-              <td>
-                {backup.spec.storageLocation || 'default'}
               </td>
               <td className="selector-col">
                 {getNamespaceDisplay(backup.spec.includedNamespaces)}

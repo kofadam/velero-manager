@@ -127,6 +127,16 @@
   letter-spacing: 0.05em;
 }
 
+.error-count {
+  color: #d32f2f;
+  font-weight: 600;
+}
+
+.warning-count {
+  color: #f57c00;
+  font-weight: 600;
+}
+
 .sortable {
   cursor: pointer;
   user-select: none;

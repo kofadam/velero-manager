@@ -78,7 +78,6 @@ const RestoreList: React.FC = () => {
   return (
     <div className="restore-list">
       <div className="restore-list-header">
-        <h1>Restores</h1>
         <div className="restore-filters">
           <input
             type="text"
@@ -99,6 +98,13 @@ const RestoreList: React.FC = () => {
           </select>
         </div>
         <div className="restore-actions">
+          <button
+            className="btn btn-secondary"
+            onClick={refreshRestores}
+            disabled={loading}
+          >
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
           <button 
             className="btn btn-primary"
             onClick={handleCreateRestore}

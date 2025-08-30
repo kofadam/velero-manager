@@ -36,13 +36,11 @@ const CreateBackupModal: React.FC<CreateBackupModalProps> = ({ onClose, onSucces
 
       await apiService.createBackup({
         name: formData.name,
-        spec: {
-          includedNamespaces: namespaces.length > 0 ? namespaces : undefined,
-          excludedNamespaces: excludedNamespaces.length > 0 ? excludedNamespaces : undefined,
-          storageLocation: formData.storageLocation,
-          ttl: formData.ttl
-        }
-      });
+        includedNamespaces: namespaces.length > 0 ? namespaces : undefined,
+        excludedNamespaces: excludedNamespaces.length > 0 ? excludedNamespaces : undefined,
+        storageLocation: formData.storageLocation,
+        ttl: formData.ttl
+      } as any);
 
       onSuccess();
     } catch (err: any) {

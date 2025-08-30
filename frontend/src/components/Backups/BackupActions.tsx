@@ -63,14 +63,14 @@ const [showRestore, setShowRestore] = useState(false);
         onClick={handleLogs}
         title="View Logs"
       >
-        Logs
+        📄 Logs
       </button>
       <button 
         className="action-btn describe-btn"
         onClick={handleDescribe}
         title="Describe Backup"
       >
-        Describe
+        📋 Describe
       </button>
       <button 
         className="action-btn delete-btn"
@@ -78,14 +78,14 @@ const [showRestore, setShowRestore] = useState(false);
         disabled={isDeleting}
         title="Delete Backup"
       >
-        {isDeleting ? '...' : 'Delete'}
+        {isDeleting ? '...' : '🗑️ Delete'}
       </button>
       <button 
         className="action-btn restore-btn"
         onClick={handleRestore}
         title="Restore Backup"
       >
-        Restore
+        🔄 Restore
       </button>
             
       {showLogs && (
