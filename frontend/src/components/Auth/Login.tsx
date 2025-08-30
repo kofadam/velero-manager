@@ -33,8 +33,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         setAuthConfig(config);
       } catch (error) {
         console.error('Failed to load auth config:', error);
-        // Fallback to legacy auth only
-        setAuthConfig({ oidcEnabled: false, legacyAuthEnabled: true });
+        // Fallback to legacy auth only - ensure users can always login
+        setAuthConfig({ 
+          oidcEnabled: false, 
+          legacyAuthEnabled: true, 
+          authenticated: false 
+        });
       }
     };
 
@@ -140,7 +144,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     {loading ? 'Redirecting...' : 'Sign in with SSO'}
                   </Button>
                   
-                  {authConfig.legacyAuthEnabled && (
+                  {(!authConfig || authConfig.legacyAuthEnabled !== false) && (
                     <Divider sx={{ my: 2 }}>
                       <Typography variant="body2" color="text.secondary">
                         or
@@ -150,8 +154,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 </Box>
               )}
 
-              {/* Legacy Login Form */}
-              {authConfig?.legacyAuthEnabled && (
+              {/* Legacy Login Form - Always available as fallback */}
+              {(!authConfig || authConfig.legacyAuthEnabled !== false) && (
                 <Box component="form" onSubmit={handleLegacySubmit} sx={{ mt: authConfig.oidcEnabled ? 0 : 3, width: '100%' }}>
                   <TextField
                     margin="normal"
