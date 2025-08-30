@@ -130,7 +130,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               )}
 
               {/* OIDC Login Button */}
-              {authConfig?.oidcEnabled && (
+              {authConfig?.oidcEnabled === true && (
                 <Box sx={{ mt: 3, width: '100%' }}>
                   <Button
                     fullWidth
@@ -156,7 +156,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
               {/* Legacy Login Form - Always available as fallback */}
               {(!authConfig || authConfig.legacyAuthEnabled !== false) && (
-                <Box component="form" onSubmit={handleLegacySubmit} sx={{ mt: authConfig.oidcEnabled ? 0 : 3, width: '100%' }}>
+                <Box component="form" onSubmit={handleLegacySubmit} sx={{ mt: authConfig?.oidcEnabled === true ? 0 : 3, width: '100%' }}>
                   <TextField
                     margin="normal"
                     required
@@ -165,7 +165,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     label="Username"
                     name="username"
                     autoComplete="username"
-                    autoFocus={!authConfig?.oidcEnabled}
+                    autoFocus={authConfig?.oidcEnabled !== true}
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     disabled={loading}
@@ -187,7 +187,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   <Button
                     type="submit"
                     fullWidth
-                    variant={authConfig?.oidcEnabled ? "outlined" : "contained"}
+                    variant={authConfig?.oidcEnabled === true ? "outlined" : "contained"}
                     sx={{ mt: 3, mb: 2 }}
                     disabled={loading}
                     startIcon={loading ? <CircularProgress size={20} /> : <LockOutlinedIcon />}
