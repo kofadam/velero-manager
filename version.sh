@@ -8,7 +8,7 @@ if [ -n "$TAG" ]; then
     VERSION="$TAG"
 else
     # Use latest tag + commit hash
-    LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v2.3.0")
+    LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v2.3.4")
     COMMIT_HASH=$(git rev-parse --short HEAD)
     VERSION="${LATEST_TAG}-${COMMIT_HASH}"
 fi
