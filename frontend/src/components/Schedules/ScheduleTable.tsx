@@ -98,6 +98,7 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
         <thead>
           <tr>
             <th>NAME</th>
+            <th>CLUSTER</th>
             <th>SCHEDULE</th>
             <th>DESCRIPTION</th>
             <th>STATUS</th>
@@ -121,6 +122,10 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
                     <span className="name-text">{schedule.name}</span>
                     {isPaused && <span className="paused-badge">PAUSED</span>}
                   </div>
+                </td>
+                
+                <td className="cluster-col">
+                  <span className="cluster-badge">{schedule.cluster || 'unknown'}</span>
                 </td>
                 
                 <td className="schedule-col">

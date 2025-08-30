@@ -41,6 +41,38 @@
   min-width: 200px;
 }
 
+.cluster-col {
+  width: 120px;
+}
+
+.cluster-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  background-color: #e0e7ff;
+  color: #3730a3;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cluster-col {
+  width: 120px;
+}
+
+.cluster-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  background-color: #e0e7ff;
+  color: #3730a3;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .schedule-name {
   display: flex;
   align-items: center;

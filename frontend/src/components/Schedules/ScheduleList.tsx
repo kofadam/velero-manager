@@ -19,7 +19,7 @@ const ScheduleList: React.FC = () => {
     setError(null);
     try {
       const response = await apiService.getSchedules();
-      setSchedules(response.schedules || []);
+      setSchedules(response.cronjobs || response.schedules || []);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Failed to fetch schedules');
       setSchedules([]);
@@ -67,11 +67,11 @@ const ScheduleList: React.FC = () => {
       <div className="schedule-header">
         <div className="schedule-actions">
           <button 
-            className="btn btn-primary"
+            className="btn btn-secondary"
             onClick={fetchSchedules}
             disabled={loading}
           >
-            📋 List Schedules
+            {loading ? 'Refreshing...' : 'Refresh'}
           </button>
           <button 
             className="btn btn-primary"

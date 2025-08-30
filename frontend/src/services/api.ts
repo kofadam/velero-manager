@@ -49,7 +49,7 @@ export const apiService = {
   },
 
   async getSchedules(): Promise<any> {
-    const response = await api.get('/schedules');
+    const response = await api.get('/cronjobs');
     return response.data;
   },
 
