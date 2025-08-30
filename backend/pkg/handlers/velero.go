@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
@@ -1391,6 +1392,205 @@ func (h *VeleroHandler) DeleteStorageLocation(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message":  "Storage location deleted successfully",
 		"location": locationName,
+	})
+}
+
+func (h *VeleroHandler) AddCluster(c *gin.Context) {
+	var request struct {
+		Name            string `json:"name" binding:"required"`
+		APIEndpoint     string `json:"apiEndpoint" binding:"required"`
+		Schedule        string `json:"schedule" binding:"required"`
+		StorageLocation string `json:"storageLocation"`
+		TTL             string `json:"ttl"`
+		Token           string `json:"token" binding:"required"`
+		CACert          string `json:"caCert" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Set defaults
+	if request.StorageLocation == "" {
+		request.StorageLocation = "default"
+	}
+	if request.TTL == "" {
+		request.TTL = "720h"
+	}
+
+	// Create Secret for cluster credentials
+	secretName := fmt.Sprintf("%s-sa-token", request.Name)
+	
+	// Token comes as plain text, needs base64 encoding
+	tokenData := base64.StdEncoding.EncodeToString([]byte(request.Token))
+	
+	// CA cert should already be base64 encoded from kubectl output
+	// Validate it's proper base64
+	if _, err := base64.StdEncoding.DecodeString(request.CACert); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid CA certificate",
+			"details": "CA certificate must be base64 encoded",
+		})
+		return
+	}
+	
+	// Encode server URL to base64
+	serverData := base64.StdEncoding.EncodeToString([]byte(request.APIEndpoint))
+	
+	secret := map[string]interface{}{
+		"apiVersion": "v1",
+		"kind":       "Secret",
+		"metadata": map[string]interface{}{
+			"name":      secretName,
+			"namespace": "velero",
+			"labels": map[string]interface{}{
+				"velero.io/cluster": request.Name,
+				"app":               "velero-manager",
+			},
+		},
+		"type": "Opaque",
+		"data": map[string]interface{}{
+			"token":  tokenData,
+			"ca.crt": request.CACert,
+			"server": serverData,
+		},
+	}
+
+	// Create the Secret
+	_, err := h.k8sClient.DynamicClient.
+		Resource(k8s.SecretGVR).
+		Namespace("velero").
+		Create(h.k8sClient.Context, &unstructured.Unstructured{Object: secret}, metav1.CreateOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to create secret",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Create CronJob for scheduled backups
+	cronJobName := fmt.Sprintf("backup-%s-daily", request.Name)
+	cronJob := map[string]interface{}{
+		"apiVersion": "batch/v1",
+		"kind":       "CronJob",
+		"metadata": map[string]interface{}{
+			"name":      cronJobName,
+			"namespace": "velero",
+			"labels": map[string]interface{}{
+				"velero.io/cluster": request.Name,
+				"app":               "velero-backup",
+			},
+		},
+		"spec": map[string]interface{}{
+			"schedule": request.Schedule,
+			"jobTemplate": map[string]interface{}{
+				"spec": map[string]interface{}{
+					"template": map[string]interface{}{
+						"spec": map[string]interface{}{
+							"serviceAccountName": "velero-manager",
+							"containers": []map[string]interface{}{
+								{
+									"name":  "trigger-backup",
+									"image": "bitnami/kubectl:latest",
+									"command": []string{
+										"/bin/sh",
+										"-c",
+										fmt.Sprintf(`kubectl --server=$SERVER --token=$TOKEN --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+create -f - <<EOF
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: %s-$(date +%%Y%%m%%d%%H%%M%%S)
+  namespace: velero
+spec:
+  ttl: %s
+  storageLocation: %s
+  includedNamespaces:
+  - "*"
+EOF`, request.Name, request.TTL, request.StorageLocation),
+									},
+									"env": []map[string]interface{}{
+										{
+											"name": "SERVER",
+											"valueFrom": map[string]interface{}{
+												"secretKeyRef": map[string]interface{}{
+													"name": secretName,
+													"key":  "server",
+												},
+											},
+										},
+										{
+											"name": "TOKEN",
+											"valueFrom": map[string]interface{}{
+												"secretKeyRef": map[string]interface{}{
+													"name": secretName,
+													"key":  "token",
+												},
+											},
+										},
+									},
+									"volumeMounts": []map[string]interface{}{
+										{
+											"name":      "ca-cert",
+											"mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+											"readOnly":  true,
+										},
+									},
+								},
+							},
+							"restartPolicy": "OnFailure",
+							"volumes": []map[string]interface{}{
+								{
+									"name": "ca-cert",
+									"secret": map[string]interface{}{
+										"secretName": secretName,
+										"items": []map[string]interface{}{
+											{
+												"key":  "ca.crt",
+												"path": "ca.crt",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create the CronJob
+	_, err = h.k8sClient.DynamicClient.
+		Resource(k8s.CronJobGVR).
+		Namespace("velero").
+		Create(h.k8sClient.Context, &unstructured.Unstructured{Object: cronJob}, metav1.CreateOptions{})
+
+	if err != nil {
+		// Try to clean up the secret if CronJob creation failed
+		h.k8sClient.DynamicClient.
+			Resource(k8s.SecretGVR).
+			Namespace("velero").
+			Delete(h.k8sClient.Context, secretName, metav1.DeleteOptions{})
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to create CronJob",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message":  "Cluster added successfully",
+		"cluster":  request.Name,
+		"secret":   secretName,
+		"cronJob":  cronJobName,
 	})
 }
 

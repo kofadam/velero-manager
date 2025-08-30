@@ -65,6 +65,7 @@ func main() {
 		api.PUT("/cronjobs/:name", veleroHandler.UpdateCronJob)
 		api.POST("/cronjobs/:name/trigger", veleroHandler.TriggerCronJob)
 		api.GET("/clusters", veleroHandler.ListClusters)
+		api.POST("/clusters", veleroHandler.AddCluster)
 		api.GET("/clusters/:cluster/backups", veleroHandler.ListBackupsByCluster)
 		api.GET("/clusters/:cluster/health", veleroHandler.GetClusterHealth)
 		api.GET("/clusters/:cluster/details", veleroHandler.GetClusterDetails)

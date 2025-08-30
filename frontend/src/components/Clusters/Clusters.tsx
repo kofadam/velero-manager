@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../../services/api.ts';
+import AddClusterModal from './AddClusterModal.tsx';
 import './Clusters.css';
 
 interface Cluster {
@@ -13,6 +14,7 @@ const Clusters: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const fetchClusters = async () => {
     setLoading(true);
@@ -74,6 +76,12 @@ const Clusters: React.FC = () => {
           >
             {loading ? 'Refreshing...' : 'Refresh'}
           </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowAddModal(true)}
+          >
+            Add Cluster
+          </button>
         </div>
 
         {loading && <div className="loading">Loading clusters...</div>}
@@ -125,6 +133,16 @@ const Clusters: React.FC = () => {
           </div>
         )}
       </div>
+      
+      {showAddModal && (
+        <AddClusterModal
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => {
+            setShowAddModal(false);
+            fetchClusters();
+          }}
+        />
+      )}
     </div>
   );
 };

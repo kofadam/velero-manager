@@ -96,8 +96,13 @@ var (
 	}
 	
 	JobGVR = schema.GroupVersionResource{
-		Group: "batch",
-		Version: "v1",
-		Resource: "jobs",
+	Group: "batch",
+	Version: "v1",
+	Resource: "jobs",
+	}
+	SecretGVR = schema.GroupVersionResource{
+	Group: "",
+	Version: "v1",
+	Resource: "secrets",
 	}
 )
