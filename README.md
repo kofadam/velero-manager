@@ -220,6 +220,7 @@ Perfect for completely isolated environments:
 - **✅ Documentation**: Complete setup guides for OIDC and monitoring
 
 ### 🚧 In Progress / TODO
+- **🔄 OIDC Configuration Management**: Make OIDC configuration through configMap and UI settings
 - **🔄 Frontend Route Integration**: Add OIDC callback route to React router
 - **🔄 Schedule Page Enhancement**: Material-UI transformation with cluster support
 - **🔄 Settings Page Redesign**: OIDC user info display and management

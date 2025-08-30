@@ -45,7 +45,13 @@ const UserManagement: React.FC = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/v1/users');
+      const token = localStorage.getItem('velero_token');
+      const response = await fetch('/api/v1/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       const data = await response.json();
       setUsers(data.users || []);
     } catch (error) {
@@ -61,9 +67,13 @@ const UserManagement: React.FC = () => {
 
   const handleAddUser = async () => {
     try {
+      const token = localStorage.getItem('velero_token');
       const response = await fetch('/api/v1/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
         body: JSON.stringify(newUser),
       });
 
@@ -84,8 +94,13 @@ const UserManagement: React.FC = () => {
     if (!window.confirm(`Delete user ${username}?`)) return;
     
     try {
+      const token = localStorage.getItem('velero_token');
       const response = await fetch(`/api/v1/users/${username}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
       if (response.ok) {
@@ -111,9 +126,13 @@ const UserManagement: React.FC = () => {
         body.oldPassword = passwordData.oldPassword;
       }
 
+      const token = localStorage.getItem('velero_token');
       const response = await fetch(`/api/v1/users/${selectedUser}/password`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
         body: JSON.stringify(body),
       });
 
