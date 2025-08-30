@@ -67,6 +67,7 @@ func main() {
 		api.GET("/clusters", veleroHandler.ListClusters)
 		api.GET("/clusters/:cluster/backups", veleroHandler.ListBackupsByCluster)
 		api.GET("/clusters/:cluster/health", veleroHandler.GetClusterHealth)
+		api.GET("/clusters/:cluster/details", veleroHandler.GetClusterDetails)
 		api.GET("/storage-locations", veleroHandler.ListStorageLocations)
 		api.POST("/storage-locations", veleroHandler.CreateStorageLocation)
 		api.DELETE("/storage-locations/:name", veleroHandler.DeleteStorageLocation)

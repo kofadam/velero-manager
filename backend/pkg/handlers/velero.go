@@ -1073,6 +1073,83 @@ func extractClusterFromRestoreName(restoreName string, restoreObj map[string]int
 	return "management"
 }
 
+func (h *VeleroHandler) GetClusterDetails(c *gin.Context) {
+	clusterName := c.Param("cluster")
+	
+	// Get CronJob for this cluster to extract configuration
+	cronJobList, err := h.k8sClient.DynamicClient.
+		Resource(k8s.CronJobGVR).
+		Namespace("velero").
+		List(h.k8sClient.Context, metav1.ListOptions{})
+	
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to get cluster details",
+			"details": err.Error(),
+		})
+		return
+	}
+	
+	// Find the CronJob for this cluster
+	var clusterCronJob map[string]interface{}
+	for _, cronJob := range cronJobList.Items {
+		if extractClusterFromCronJobName(cronJob.GetName()) == clusterName {
+			clusterCronJob = cronJob.Object
+			break
+		}
+	}
+	
+	// Extract secret name from CronJob spec if available
+	secretName := fmt.Sprintf("%s-credentials", clusterName) // Default pattern
+	if clusterCronJob != nil {
+		if spec, ok := clusterCronJob["spec"].(map[string]interface{}); ok {
+			if jobTemplate, ok := spec["jobTemplate"].(map[string]interface{}); ok {
+				if jobSpec, ok := jobTemplate["spec"].(map[string]interface{}); ok {
+					if template, ok := jobSpec["template"].(map[string]interface{}); ok {
+						if podSpec, ok := template["spec"].(map[string]interface{}); ok {
+							if volumes, ok := podSpec["volumes"].([]interface{}); ok && len(volumes) > 0 {
+								if volume, ok := volumes[0].(map[string]interface{}); ok {
+									if secret, ok := volume["secret"].(map[string]interface{}); ok {
+										if name, ok := secret["secretName"].(string); ok {
+											secretName = name
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	// Get recent backups for this cluster
+	backupList, _ := h.k8sClient.DynamicClient.
+		Resource(k8s.BackupGVR).
+		Namespace("velero").
+		List(h.k8sClient.Context, metav1.ListOptions{})
+	
+	var lastBackup interface{}
+	backupCount := 0
+	
+	for _, backup := range backupList.Items {
+		if extractClusterFromBackupName(backup.GetName()) == clusterName {
+			backupCount++
+			if lastBackup == nil {
+				lastBackup = backup.GetCreationTimestamp()
+			}
+		}
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"cluster": clusterName,
+		"secretName": secretName,
+		"backupCount": backupCount,
+		"lastBackup": lastBackup,
+		"cronJob": clusterCronJob != nil,
+	})
+}
+
 func (h *VeleroHandler) ListClusters(c *gin.Context) {
 	// Get all backups to extract cluster list
 	backupList, err := h.k8sClient.DynamicClient.
