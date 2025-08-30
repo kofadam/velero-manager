@@ -4,6 +4,8 @@ import { apiService } from '../../services/api.ts';
 import LogsModal from './LogsModal.tsx';
 import DescribeModal from './DescribeModal.tsx';
 import RestoreModal from './RestoreModal.tsx';
+import { Box, IconButton, Tooltip } from '@mui/material';
+import { Article, Description, Delete, Restore } from '@mui/icons-material';
 
 interface BackupActionsProps {
   backup: Backup;
@@ -57,36 +59,49 @@ const [showRestore, setShowRestore] = useState(false);
   };
 
   return (
-    <div className="backup-actions">
-      <button 
-        className="action-btn logs-btn"
-        onClick={handleLogs}
-        title="View Logs"
-      >
-        📄 Logs
-      </button>
-      <button 
-        className="action-btn describe-btn"
-        onClick={handleDescribe}
-        title="Describe Backup"
-      >
-        📋 Describe
-      </button>
-      <button 
-        className="action-btn delete-btn"
-        onClick={handleDelete}
-        disabled={isDeleting}
-        title="Delete Backup"
-      >
-        {isDeleting ? '...' : '🗑️ Delete'}
-      </button>
-      <button 
-        className="action-btn restore-btn"
-        onClick={handleRestore}
-        title="Restore Backup"
-      >
-        🔄 Restore
-      </button>
+    <>
+      <Box sx={{ display: 'flex', gap: 0.5 }}>
+        <Tooltip title="View Logs">
+          <IconButton 
+            size="small"
+            onClick={handleLogs}
+            sx={{ color: 'info.main' }}
+          >
+            <Article fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        
+        <Tooltip title="Describe Backup">
+          <IconButton 
+            size="small"
+            onClick={handleDescribe}
+            sx={{ color: 'info.main' }}
+          >
+            <Description fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        
+        <Tooltip title="Restore Backup">
+          <IconButton 
+            size="small"
+            onClick={handleRestore}
+            sx={{ color: 'success.main' }}
+          >
+            <Restore fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        
+        <Tooltip title="Delete Backup">
+          <IconButton 
+            size="small"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            sx={{ color: 'error.main' }}
+          >
+            <Delete fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Box>
             
       {showLogs && (
         <LogsModal
@@ -107,7 +122,7 @@ const [showRestore, setShowRestore] = useState(false);
           onRestore={handleRestoreSubmit}
         />
       )}
-    </div>
+    </>
   );
 };
 

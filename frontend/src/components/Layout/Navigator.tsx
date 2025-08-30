@@ -88,8 +88,13 @@ export default function Navigator(props: NavigatorProps) {
   return (
     <Drawer variant="permanent" {...other}>
       <List disablePadding>
-        <ListItem sx={{ ...item, ...itemCategory, fontSize: 22, color: '#fff' }}>
-          Velero Manager
+        <ListItem sx={{ ...item, ...itemCategory, fontSize: 22, color: '#fff', py: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
+            <img src="/logo-simple.svg" alt="Velero Manager" style={{ height: '32px', width: 'auto' }} />
+            <Typography variant="h6" color="inherit" fontWeight={600}>
+              Velero Manager
+            </Typography>
+          </Box>
         </ListItem>
         <ListItem sx={{ ...item, ...itemCategory }}>
           <ListItemIcon sx={{ color: '#4fc3f7' }}>

@@ -199,9 +199,12 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
                     size="small"
                     variant="outlined"
                     sx={{ 
-                      backgroundColor: 'grey.100',
+                      backgroundColor: 'background.paper',
                       color: 'text.primary',
-                      borderColor: 'grey.300'
+                      borderColor: 'divider',
+                      '&:hover': {
+                        backgroundColor: 'action.hover'
+                      }
                     }}
                   />
                 </TableCell>
@@ -211,7 +214,8 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
                     variant="body2" 
                     sx={{ 
                       fontFamily: 'monospace',
-                      backgroundColor: 'grey.100',
+                      backgroundColor: 'action.hover',
+                      color: 'text.primary',
                       px: 1,
                       py: 0.5,
                       borderRadius: 1,

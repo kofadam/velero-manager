@@ -188,9 +188,12 @@ const BackupTable: React.FC<BackupTableProps> = ({
                   size="small"
                   variant="outlined"
                   sx={{ 
-                    backgroundColor: 'grey.100',
+                    backgroundColor: 'background.paper',
                     color: 'text.primary',
-                    borderColor: 'grey.300'
+                    borderColor: 'divider',
+                    '&:hover': {
+                      backgroundColor: 'action.hover'
+                    }
                   }}
                 />
               </TableCell>

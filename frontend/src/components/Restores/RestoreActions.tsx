@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Restore } from '../../services/types.ts';
 import LogsModal from './LogsModal.tsx';
 import DescribeModal from './DescribeModal.tsx';
+import { Box, IconButton, Tooltip } from '@mui/material';
+import { Article, Description, Delete } from '@mui/icons-material';
 
 interface RestoreActionsProps {
   restore: Restore;
@@ -42,31 +44,39 @@ const RestoreActions: React.FC<RestoreActionsProps> = ({
   };
 
   return (
-    <div className="restore-actions">
-      <button
-        className="action-btn action-btn-info"
-        onClick={handleLogs}
-        title="View Logs"
-      >
-        📋 Logs
-      </button>
-      
-      <button
-        className="action-btn action-btn-secondary"
-        onClick={handleDescribe}
-        title="Describe"
-      >
-        📄 Describe
-      </button>
-      
-      <button
-        className="action-btn action-btn-danger"
-        onClick={handleDelete}
-        disabled={isDeleting}
-        title="Delete Restore"
-      >
-        {isDeleting ? '⏳' : '🗑️'} Delete
-      </button>
+    <>
+      <Box sx={{ display: 'flex', gap: 0.5 }}>
+        <Tooltip title="View Logs">
+          <IconButton 
+            size="small"
+            onClick={handleLogs}
+            sx={{ color: 'info.main' }}
+          >
+            <Article fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        
+        <Tooltip title="Describe Restore">
+          <IconButton 
+            size="small"
+            onClick={handleDescribe}
+            sx={{ color: 'info.main' }}
+          >
+            <Description fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        
+        <Tooltip title="Delete Restore">
+          <IconButton 
+            size="small"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            sx={{ color: 'error.main' }}
+          >
+            <Delete fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Box>
 
       {showLogs && (
         <LogsModal
@@ -81,7 +91,7 @@ const RestoreActions: React.FC<RestoreActionsProps> = ({
           onClose={() => setShowDescribe(false)}
         />
       )}
-    </div>
+    </>
   );
 };
 
