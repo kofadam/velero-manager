@@ -195,8 +195,8 @@ function App() {
     setUser(userData);
   };
 
-  const handleLogout = () => {
-    authService.logout();
+  const handleLogout = async () => {
+    await authService.logout();
     setUser(null);
   };
 

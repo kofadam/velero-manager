@@ -12,21 +12,32 @@ import Divider from '@mui/material/Divider';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import BusinessIcon from '@mui/icons-material/Business';
 import Container from '@mui/material/Container';
-import { useAuth } from './AuthProvider';
+import { authService } from '../../services/auth.ts';
 
 interface LoginProps {
-  // Props removed since we'll use useAuth hook
+  onLogin: (user: any) => void;
 }
 
-const Login: React.FC<LoginProps> = () => {
-  const { authConfig, legacyLogin, oidcLogin } = useAuth();
+const Login: React.FC<LoginProps> = ({ onLogin }) => {
+  const [authConfig, setAuthConfig] = useState<any>(null);
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Check for OIDC callback on component mount
+  // Load auth config on component mount
   useEffect(() => {
+    const loadAuthConfig = async () => {
+      try {
+        const config = await authService.getAuthConfig();
+        setAuthConfig(config);
+      } catch (error) {
+        console.error('Failed to load auth config:', error);
+        // Fallback to legacy auth only
+        setAuthConfig({ oidcEnabled: false, legacyAuthEnabled: true });
+      }
+    };
+
     const handleOIDCCallback = async () => {
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
@@ -35,18 +46,19 @@ const Login: React.FC<LoginProps> = () => {
       if (code && state) {
         try {
           setLoading(true);
-          // This will be handled by App.tsx or routing logic
+          const user = await authService.handleOIDCCallback(code, state);
+          onLogin(user);
           window.history.replaceState({}, document.title, window.location.pathname);
         } catch (error) {
           setError('OIDC authentication failed');
-        } finally {
           setLoading(false);
         }
       }
     };
 
+    loadAuthConfig();
     handleOIDCCallback();
-  }, []);
+  }, [onLogin]);
 
   const handleLegacySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,8 +66,8 @@ const Login: React.FC<LoginProps> = () => {
     setError('');
 
     try {
-      await legacyLogin(username, password);
-      // Navigation will be handled by App.tsx based on auth state
+      const user = await authService.legacyLogin(username, password);
+      onLogin(user);
     } catch (err) {
       setError('Invalid username or password');
     } finally {
@@ -68,7 +80,7 @@ const Login: React.FC<LoginProps> = () => {
     setError('');
 
     try {
-      const authUrl = await oidcLogin();
+      const authUrl = await authService.initiateOIDCLogin();
       window.location.href = authUrl;
     } catch (err) {
       setError('Failed to initiate SSO login');

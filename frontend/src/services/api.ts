@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { BackupsResponse, Backup, RestoresResponse, Restore } from './types.ts';
 import { API_BASE_URL } from '../utils/constants.ts';
-import { authService } from './auth';
+import { authService } from './auth.ts';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
