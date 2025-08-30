@@ -1603,12 +1603,8 @@ func (h *VeleroHandler) GetClusterHealth(c *gin.Context) {
 		return
 	}
 
-	// Check if cluster has recent backups (indicates connectivity)
-	backupList, err := h.k8sClient.DynamicClient.
-		Resource(k8s.BackupGVR).
-		Namespace("velero").
-		List(h.k8sClient.Context, metav1.ListOptions{})
-
+	// Get detailed cluster health metrics
+	health, err := h.calculateClusterHealth(clusterName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to check cluster health",
@@ -1617,27 +1613,338 @@ func (h *VeleroHandler) GetClusterHealth(c *gin.Context) {
 		return
 	}
 
-	var lastBackup interface{}
-	var backupCount int
-	
+	c.JSON(http.StatusOK, health)
+}
+
+func (h *VeleroHandler) calculateClusterHealth(clusterName string) (map[string]interface{}, error) {
+	// Get all backups for this cluster
+	backupList, err := h.k8sClient.DynamicClient.
+		Resource(k8s.BackupGVR).
+		Namespace("velero").
+		List(h.k8sClient.Context, metav1.ListOptions{})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to list backups: %w", err)
+	}
+
+	var (
+		totalBackups     int
+		successfulBackups int
+		failedBackups    int
+		lastSuccessful   interface{}
+		lastFailed       interface{}
+		recentBackups    []map[string]interface{}
+		lastBackup       interface{}
+	)
+
+	now := time.Now()
+	lastWeek := now.Add(-7 * 24 * time.Hour)
+
 	for _, backup := range backupList.Items {
-		if extractClusterFromBackupName(backup.GetName()) == clusterName {
-			backupCount++
-			if lastBackup == nil {
-				lastBackup = backup.GetCreationTimestamp()
+		if extractClusterFromBackupName(backup.GetName()) != clusterName {
+			continue
+		}
+
+		totalBackups++
+		
+		// Get backup status
+		status, found, _ := unstructured.NestedString(backup.Object, "status", "phase")
+		if !found {
+			status = "Unknown"
+		}
+
+		creationTime := backup.GetCreationTimestamp()
+		if lastBackup == nil || creationTime.After(lastBackup.(metav1.Time).Time) {
+			lastBackup = creationTime
+		}
+
+		// Count success/failure rates
+		switch status {
+		case "Completed":
+			successfulBackups++
+			if lastSuccessful == nil || creationTime.After(lastSuccessful.(metav1.Time).Time) {
+				lastSuccessful = creationTime
+			}
+		case "Failed", "FailedValidation":
+			failedBackups++
+			if lastFailed == nil || creationTime.After(lastFailed.(metav1.Time).Time) {
+				lastFailed = creationTime
+			}
+		}
+
+		// Collect recent backups (last week)
+		if creationTime.After(lastWeek) {
+			recentBackups = append(recentBackups, map[string]interface{}{
+				"name":   backup.GetName(),
+				"status": status,
+				"time":   creationTime,
+			})
+		}
+	}
+
+	// Get restore information for this cluster
+	restoreList, err := h.k8sClient.DynamicClient.
+		Resource(k8s.RestoreGVR).
+		Namespace("velero").
+		List(h.k8sClient.Context, metav1.ListOptions{})
+
+	totalRestores := 0
+	successfulRestores := 0
+	failedRestores := 0
+
+	if err == nil {
+		for _, restore := range restoreList.Items {
+			// Check if restore is from a backup of this cluster
+			backupName, found, _ := unstructured.NestedString(restore.Object, "spec", "backupName")
+			if !found || extractClusterFromBackupName(backupName) != clusterName {
+				continue
+			}
+
+			totalRestores++
+			status, found, _ := unstructured.NestedString(restore.Object, "status", "phase")
+			if found {
+				switch status {
+				case "Completed":
+					successfulRestores++
+				case "Failed":
+					failedRestores++
+				}
 			}
 		}
 	}
 
+	// Calculate health status
 	status := "healthy"
-	if backupCount == 0 {
+	if totalBackups == 0 {
 		status = "no-backups"
+	} else if failedBackups > 0 && successfulBackups == 0 {
+		status = "critical"
+	} else if float64(failedBackups)/float64(totalBackups) > 0.3 {
+		status = "warning"
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"cluster":     clusterName,
-		"status":      status,
-		"backupCount": backupCount,
-		"lastBackup":  lastBackup,
-	})
+	// Calculate success rates
+	backupSuccessRate := float64(0)
+	if totalBackups > 0 {
+		backupSuccessRate = float64(successfulBackups) / float64(totalBackups) * 100
+	}
+
+	restoreSuccessRate := float64(0)
+	if totalRestores > 0 {
+		restoreSuccessRate = float64(successfulRestores) / float64(totalRestores) * 100
+	}
+
+	return map[string]interface{}{
+		"cluster": clusterName,
+		"status":  status,
+		"backups": map[string]interface{}{
+			"total":          totalBackups,
+			"successful":     successfulBackups,
+			"failed":         failedBackups,
+			"successRate":    backupSuccessRate,
+			"lastSuccessful": lastSuccessful,
+			"lastFailed":     lastFailed,
+			"last":           lastBackup,
+		},
+		"restores": map[string]interface{}{
+			"total":       totalRestores,
+			"successful":  successfulRestores,
+			"failed":      failedRestores,
+			"successRate": restoreSuccessRate,
+		},
+		"recentActivity": recentBackups,
+		"updatedAt":      now,
+	}, nil
+}
+
+// getClusterList returns list of clusters based on CronJobs and backups
+func (h *VeleroHandler) getClusterList() ([]map[string]interface{}, error) {
+	// Get all CronJobs to identify clusters
+	cronJobList, err := h.k8sClient.DynamicClient.
+		Resource(k8s.CronJobGVR).
+		Namespace("velero").
+		List(h.k8sClient.Context, metav1.ListOptions{})
+	
+	if err != nil {
+		return nil, fmt.Errorf("failed to list cronjobs: %w", err)
+	}
+	
+	// Build cluster map from CronJobs first
+	clusterMap := make(map[string]map[string]interface{})
+	
+	for _, cronJob := range cronJobList.Items {
+		clusterName := extractClusterFromCronJobName(cronJob.GetName())
+		if clusterName != "unknown" && clusterName != "" {
+			clusterMap[clusterName] = map[string]interface{}{
+				"Name": clusterName,
+				"name": clusterName,
+				"backupCount": 0,
+				"lastBackup": nil,
+			}
+		}
+	}
+	
+	// Convert map to slice
+	clusters := make([]map[string]interface{}, 0, len(clusterMap))
+	for _, cluster := range clusterMap {
+		clusters = append(clusters, cluster)
+	}
+	
+	return clusters, nil
+}
+
+// GetDashboardMetrics provides comprehensive dashboard statistics
+func (h *VeleroHandler) GetDashboardMetrics(c *gin.Context) {
+	// Get all clusters 
+	clusters, err := h.getClusterList()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to fetch clusters",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Get health for all clusters
+	clusterHealthMap := make(map[string]interface{})
+	var totalClusters, healthyClusters, criticalClusters int
+	
+	for _, cluster := range clusters {
+		clusterName := cluster["name"].(string)
+		health, err := h.calculateClusterHealth(clusterName)
+		if err != nil {
+			continue
+		}
+		clusterHealthMap[clusterName] = health
+		totalClusters++
+		
+		switch health["status"] {
+		case "healthy":
+			healthyClusters++
+		case "critical":
+			criticalClusters++
+		}
+	}
+
+	// Get overall backup/restore statistics
+	backupList, _ := h.k8sClient.DynamicClient.
+		Resource(k8s.BackupGVR).
+		Namespace("velero").
+		List(h.k8sClient.Context, metav1.ListOptions{})
+
+	restoreList, _ := h.k8sClient.DynamicClient.
+		Resource(k8s.RestoreGVR).
+		Namespace("velero").
+		List(h.k8sClient.Context, metav1.ListOptions{})
+
+	cronJobList, _ := h.k8sClient.DynamicClient.
+		Resource(k8s.CronJobGVR).
+		Namespace("velero-manager").
+		List(h.k8sClient.Context, metav1.ListOptions{})
+
+	// Calculate overall metrics
+	now := time.Now()
+	lastWeek := now.Add(-7 * 24 * time.Hour)
+	
+	var (
+		totalBackups, successfulBackups, failedBackups     int
+		totalRestores, successfulRestores, failedRestores int
+		recentBackups, recentRestores                     []map[string]interface{}
+	)
+
+	// Process backups
+	if backupList != nil {
+		for _, backup := range backupList.Items {
+			totalBackups++
+			
+			status, _, _ := unstructured.NestedString(backup.Object, "status", "phase")
+			creationTime := backup.GetCreationTimestamp()
+			
+			switch status {
+			case "Completed":
+				successfulBackups++
+			case "Failed", "FailedValidation":
+				failedBackups++
+			}
+			
+			if creationTime.After(lastWeek) {
+				recentBackups = append(recentBackups, map[string]interface{}{
+					"name":    backup.GetName(),
+					"status":  status,
+					"time":    creationTime,
+					"cluster": extractClusterFromBackupName(backup.GetName()),
+				})
+			}
+		}
+	}
+
+	// Process restores
+	if restoreList != nil {
+		for _, restore := range restoreList.Items {
+			totalRestores++
+			
+			status, _, _ := unstructured.NestedString(restore.Object, "status", "phase")
+			creationTime := restore.GetCreationTimestamp()
+			
+			switch status {
+			case "Completed":
+				successfulRestores++
+			case "Failed":
+				failedRestores++
+			}
+			
+			if creationTime.After(lastWeek) {
+				backupName, _, _ := unstructured.NestedString(restore.Object, "spec", "backupName")
+				recentRestores = append(recentRestores, map[string]interface{}{
+					"name":       restore.GetName(),
+					"status":     status,
+					"time":       creationTime,
+					"backupName": backupName,
+					"cluster":    extractClusterFromBackupName(backupName),
+				})
+			}
+		}
+	}
+
+	// Calculate success rates
+	backupSuccessRate := float64(0)
+	if totalBackups > 0 {
+		backupSuccessRate = float64(successfulBackups) / float64(totalBackups) * 100
+	}
+
+	restoreSuccessRate := float64(0)
+	if totalRestores > 0 {
+		restoreSuccessRate = float64(successfulRestores) / float64(totalRestores) * 100
+	}
+
+	response := map[string]interface{}{
+		"clusters": map[string]interface{}{
+			"total":     totalClusters,
+			"healthy":   healthyClusters,
+			"critical":  criticalClusters,
+			"details":   clusterHealthMap,
+		},
+		"backups": map[string]interface{}{
+			"total":       totalBackups,
+			"successful":  successfulBackups,
+			"failed":      failedBackups,
+			"successRate": backupSuccessRate,
+		},
+		"restores": map[string]interface{}{
+			"total":       totalRestores,
+			"successful":  successfulRestores,
+			"failed":      failedRestores,
+			"successRate": restoreSuccessRate,
+		},
+		"schedules": map[string]interface{}{
+			"total": len(cronJobList.Items),
+		},
+		"recentActivity": map[string]interface{}{
+			"backups":  recentBackups,
+			"restores": recentRestores,
+		},
+		"updatedAt": now,
+	}
+
+	c.JSON(http.StatusOK, response)
 }

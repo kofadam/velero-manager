@@ -110,6 +110,9 @@ func main() {
 			
 			// Storage locations (read operations for all authenticated users)
 			protected.GET("/storage-locations", veleroHandler.ListStorageLocations)
+			
+			// Dashboard metrics
+			protected.GET("/dashboard/metrics", veleroHandler.GetDashboardMetrics)
 		}
 	}
 

@@ -113,4 +113,9 @@ export const apiService = {
     const response = await api.get('/cronjobs');
     return response.data;
   },
+
+  async getDashboardMetrics(): Promise<any> {
+    const response = await api.get('/dashboard/metrics');
+    return response.data;
+  },
 };
