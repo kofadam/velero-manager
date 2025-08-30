@@ -64,10 +64,13 @@ func (h *UserHandler) getUsers() (map[string]User, error) {
 	
 	// Always ensure admin exists
 	if _, ok := users["admin"]; !ok {
+		// Generate proper hash for "admin" password
+		adminHash, _ := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
 		users["admin"] = User{
 			Username: "admin",
-			Hash:     "$2a$10$YKxBqKRPNQORT8QZwLwqAuApEqeExQdVSLgWnCpTkybfUplxBHhXy",
+			Hash:     string(adminHash),
 			Role:     "admin",
+			Created:  "fallback",
 		}
 	}
 	
