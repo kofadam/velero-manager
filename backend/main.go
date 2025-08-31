@@ -105,14 +105,16 @@ func main() {
 				admin.POST("/storage-locations", veleroHandler.CreateStorageLocation)
 				admin.DELETE("/storage-locations/:name", veleroHandler.DeleteStorageLocation)
 				
-				// OIDC configuration management - admin only
-				admin.GET("/oidc/config", oidcConfigHandler.GetOIDCConfig)
+				// OIDC configuration management - admin only for modify operations
 				admin.PUT("/oidc/config", oidcConfigHandler.UpdateOIDCConfig)
 				admin.POST("/oidc/test", oidcConfigHandler.TestOIDCConnection)
 			}
 			
 			// User can change their own password
 			protected.PUT("/users/:username/password", userHandler.ChangePassword)
+			
+			// OIDC configuration view - all authenticated users can view
+			protected.GET("/oidc/config", oidcConfigHandler.GetOIDCConfig)
 			
 			// Backup operations (authenticated users)
 			protected.GET("/backups", veleroHandler.ListBackups)

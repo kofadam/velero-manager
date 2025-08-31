@@ -39,7 +39,7 @@ func NewOIDCProvider(oidcConfig *config.OIDCConfig) (*OIDCProvider, error) {
 		ClientSecret: oidcConfig.ClientSecret,
 		RedirectURL:  oidcConfig.RedirectURL,
 		Endpoint:     provider.Endpoint(),
-		Scopes:       []string{oidc.ScopeOpenID, "profile", "email", "groups"},
+		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
 	}
 
 	// Configure the ID token verifier

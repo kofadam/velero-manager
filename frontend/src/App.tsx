@@ -187,6 +187,29 @@ function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
+    // Check for OIDC callback parameters first
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const auth = urlParams.get('auth');
+    const username = urlParams.get('username');
+    const role = urlParams.get('role');
+    
+    if (token && auth === 'oidc' && username && role) {
+      // Store the token and create user session
+      localStorage.setItem('velero_token', token);
+      const userData: User = {
+        username: username,
+        role: role as 'admin' | 'user'
+      };
+      
+      // Clear URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+      
+      setUser(userData);
+      return;
+    }
+    
+    // Otherwise check for existing session
     const currentUser = authService.getCurrentUser();
     setUser(currentUser);
   }, []);

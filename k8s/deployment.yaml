@@ -20,9 +20,14 @@ spec:
         prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: velero-manager
+      # DNS resolution for local homelab services
+      hostAliases:
+      - ip: "10.100.102.110"
+        hostnames:
+        - "keycloak.homelab.local"
       containers:
       - name: velero-manager
-        image: kofadam/velero-manager:v1.4.6
+        image: localhost:32000/velero-manager:v2.3.3-fix5
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080

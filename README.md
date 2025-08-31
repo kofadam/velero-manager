@@ -88,6 +88,46 @@ http://localhost:3000
 http://localhost:9090/targets
 ```
 
+## 🚨 CRITICAL SECURITY WARNINGS
+
+### ⚠️ **KNOWN SECURITY VULNERABILITIES - DO NOT USE IN PRODUCTION**
+
+**IMMEDIATE ACTION REQUIRED**: The following critical security issues have been identified and must be resolved before production deployment:
+
+#### 1. **OIDC Role Mapping Failure**
+- **Issue**: Keycloak client roles (e.g., "admin") are not being properly mapped to application roles
+- **Impact**: Users granted admin roles in Keycloak still login as "user" role in the application
+- **Risk Level**: HIGH - Privilege escalation prevention failure
+
+#### 2. **Authorization Bypass Vulnerability** 
+- **Issue**: Removing admin roles from OIDC configuration does not revoke access for previously authenticated users
+- **Impact**: Users continue to access the system even after role/permission removal
+- **Risk Level**: CRITICAL - Complete access control bypass
+- **Attack Vector**: Persistent unauthorized access after permission revocation
+
+#### 3. **Token Persistence Issue**
+- **Issue**: JWT tokens and sessions remain valid after OIDC configuration changes
+- **Impact**: Authorization decisions cached/persisted beyond policy updates
+- **Risk Level**: HIGH - Stale authorization state
+
+### 🔧 **Immediate Mitigation Steps**
+1. **DO NOT** deploy to production environments
+2. **DO NOT** use for sensitive data or operations
+3. **Restart pods** after any OIDC configuration changes
+4. **Manually verify** user roles after login
+5. **Monitor logs** for authorization failures
+
+### 🛠️ **Required Fixes**
+- [ ] Fix OIDC token claims parsing for role extraction
+- [ ] Implement proper token invalidation on config changes  
+- [ ] Add real-time authorization verification
+- [ ] Create comprehensive security test suite
+- [ ] Implement token refresh with role re-validation
+
+**Status**: Under active investigation and resolution
+
+---
+
 ## 🔐 Authentication Setup
 
 ### OIDC / Corporate Keycloak

@@ -33,6 +33,7 @@ rules:
   - ""
   resources:
   - secrets
+  - configmaps
   - namespaces
   - pods
   - pods/log
@@ -50,3 +51,22 @@ rules:
   verbs:
   - get
   - list
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: velero-manager
+  namespace: velero-manager
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: velero-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: velero-manager
+subjects:
+- kind: ServiceAccount
+  name: velero-manager
+  namespace: velero-manager

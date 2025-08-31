@@ -36,6 +36,7 @@ const UserManagement: React.FC = () => {
   const currentUser = JSON.parse(localStorage.getItem('velero_user') || '{}');
   const isAdmin = currentUser.role === 'admin';
   const [loading, setLoading] = useState(false);
+  const [hasPermission, setHasPermission] = useState(true);
   const [showAddUser, setShowAddUser] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [selectedUser, setSelectedUser] = useState('');
@@ -52,10 +53,19 @@ const UserManagement: React.FC = () => {
           'Content-Type': 'application/json'
         }
       });
+      
+      if (response.status === 403) {
+        // User doesn't have permission to view users (likely OIDC non-admin user)
+        setHasPermission(false);
+        setUsers([]);
+        return;
+      }
+      
       const data = await response.json();
       setUsers(data.users || []);
     } catch (error) {
       console.error('Failed to fetch users:', error);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -160,7 +170,7 @@ const UserManagement: React.FC = () => {
         <Typography variant="h5" sx={{ fontWeight: 600 }}>
           User Management
         </Typography>
-        {isAdmin && (
+        {isAdmin && hasPermission && (
           <Button 
             variant="contained"
             onClick={() => setShowAddUser(true)}
@@ -197,12 +207,28 @@ const UserManagement: React.FC = () => {
                 <TableRow>
                   <TableCell colSpan={4} align="center">
                     <Box sx={{ py: 4 }}>
-                      <Typography color="text.secondary" variant="h6">
-                        No users found
-                      </Typography>
-                      <Typography color="text.secondary" variant="body2">
-                        Add your first user to get started
-                      </Typography>
+                      {!hasPermission ? (
+                        <>
+                          <Typography color="text.secondary" variant="h6">
+                            Access Restricted
+                          </Typography>
+                          <Typography color="text.secondary" variant="body2">
+                            User management is only available to administrators.
+                            {currentUser.role !== 'admin' && (
+                              <><br />OIDC users are managed through your identity provider.</>
+                            )}
+                          </Typography>
+                        </>
+                      ) : (
+                        <>
+                          <Typography color="text.secondary" variant="h6">
+                            No users found
+                          </Typography>
+                          <Typography color="text.secondary" variant="body2">
+                            Add your first user to get started
+                          </Typography>
+                        </>
+                      )}
                     </Box>
                   </TableCell>
                 </TableRow>

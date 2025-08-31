@@ -46,8 +46,8 @@ func NewAuthHandler(k8sClient *k8s.Client, oidcConfig *config.OIDCConfig) (*Auth
 // GetAuthInfo returns current authentication configuration and user info
 func (h *AuthHandler) GetAuthInfo(c *gin.Context) {
 	info := gin.H{
-		"oidc_enabled": h.oidcConfig != nil && h.oidcConfig.Enabled,
-		"legacy_auth_enabled": true, // Always available as fallback
+		"oidcEnabled": h.oidcConfig != nil && h.oidcConfig.Enabled,
+		"legacyAuthEnabled": true, // Always available as fallback
 	}
 
 	// If user is authenticated, add user info
@@ -84,8 +84,8 @@ func (h *AuthHandler) InitiateOIDCLogin(c *gin.Context) {
 	authURL := h.oidcProvider.OAuth2Config.AuthCodeURL(state, oauth2.AccessTypeOffline)
 
 	c.JSON(http.StatusOK, gin.H{
-		"auth_url": authURL,
-		"state":    state,
+		"authUrl": authURL,
+		"state":   state,
 	})
 }
 
@@ -143,19 +143,11 @@ func (h *AuthHandler) HandleOIDCCallback(c *gin.Context) {
 	sessionToken := fmt.Sprintf("oidc_session_%s_%d", userInfo.Username, time.Now().Unix())
 	middleware.StoreSession(userInfo.Username, userInfo.MappedRole, sessionToken)
 
-	c.JSON(http.StatusOK, gin.H{
-		"username":     userInfo.Username,
-		"email":        userInfo.Email,
-		"full_name":    userInfo.FullName,
-		"role":         userInfo.MappedRole,
-		"roles":        userInfo.Roles,
-		"groups":       userInfo.Groups,
-		"token":        jwtToken,
-		"sessionToken": sessionToken,
-		"tokenType":    "Bearer",
-		"authMethod":   "oidc",
-		"idToken":      rawIDToken, // For frontend to store and use
-	})
+	// Redirect to frontend with token in URL fragment (secure for SPA)
+	redirectURL := fmt.Sprintf("/?token=%s&auth=oidc&username=%s&role=%s", 
+		jwtToken, userInfo.Username, userInfo.MappedRole)
+	
+	c.Redirect(http.StatusFound, redirectURL)
 }
 
 // LegacyLogin provides the original username/password login
