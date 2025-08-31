@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../../services/api.ts';
 import UserManagement from './UserManagement.tsx';
+import OIDCSettings from './OIDCSettings.tsx';
 import {
   Box,
   TextField,
@@ -28,7 +29,7 @@ import {
   IconButton,
   Chip
 } from '@mui/material';
-import { Refresh, Add, Close, Delete, Settings as SettingsIcon, People, Storage } from '@mui/icons-material';
+import { Refresh, Add, Close, Delete, Settings as SettingsIcon, People, Storage, Security } from '@mui/icons-material';
 
 interface StorageLocation {
   name: string;
@@ -151,6 +152,12 @@ const Settings: React.FC = () => {
               label="Users" 
               value="users" 
             />
+            <Tab 
+              icon={<Security />} 
+              iconPosition="start"
+              label="OIDC / SSO" 
+              value="oidc" 
+            />
           </Tabs>
         </Box>
 
@@ -245,6 +252,10 @@ const Settings: React.FC = () => {
 
         {activeTab === 'users' && (
           <UserManagement />
+        )}
+
+        {activeTab === 'oidc' && (
+          <OIDCSettings />
         )}
 
         <Dialog

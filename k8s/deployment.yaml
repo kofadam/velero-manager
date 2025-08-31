@@ -30,6 +30,8 @@ spec:
         env:
         - name: GIN_MODE
           value: "release"
+        # ConfigMap references are not needed since we read directly from the ConfigMap
+        # The application will read the ConfigMap and Secret directly using the K8s API
         resources:
           limits:
             cpu: 500m

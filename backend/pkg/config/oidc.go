@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strings"
+	"sync"
 )
 
 // OIDCConfig holds OIDC configuration for Keycloak integration
@@ -26,8 +27,27 @@ type OIDCConfig struct {
 	FullNameClaim    string            `json:"full_name_claim"`    // Claim for full name (default: name)
 }
 
-// GetOIDCConfig loads OIDC configuration from environment variables
+var (
+	currentConfig *OIDCConfig
+	configMutex   sync.RWMutex
+)
+
+// GetOIDCConfig loads OIDC configuration from environment variables or returns cached config
 func GetOIDCConfig() *OIDCConfig {
+	configMutex.RLock()
+	if currentConfig != nil {
+		defer configMutex.RUnlock()
+		return currentConfig
+	}
+	configMutex.RUnlock()
+
+	configMutex.Lock()
+	defer configMutex.Unlock()
+	
+	// Double-check after acquiring write lock
+	if currentConfig != nil {
+		return currentConfig
+	}
 	config := &OIDCConfig{
 		Enabled:          getEnvBool("OIDC_ENABLED", false),
 		IssuerURL:        getEnv("OIDC_ISSUER_URL", ""),
@@ -46,7 +66,22 @@ func GetOIDCConfig() *OIDCConfig {
 		FullNameClaim:    getEnv("OIDC_FULL_NAME_CLAIM", "name"),
 	}
 	
+	currentConfig = config
 	return config
+}
+
+// SetOIDCConfig sets the current OIDC configuration (used when loading from ConfigMap)
+func SetOIDCConfig(config *OIDCConfig) {
+	configMutex.Lock()
+	defer configMutex.Unlock()
+	currentConfig = config
+}
+
+// ReloadOIDCConfig clears the cached configuration to force reload
+func ReloadOIDCConfig() {
+	configMutex.Lock()
+	defer configMutex.Unlock()
+	currentConfig = nil
 }
 
 // IsValidOIDCConfig checks if OIDC configuration is complete and valid

@@ -23,8 +23,16 @@ func main() {
 		log.Fatalf("Failed to create Kubernetes client: %v", err)
 	}
 
-	// Load OIDC configuration
-	oidcConfig := config.GetOIDCConfig()
+	// Try to load OIDC configuration from ConfigMap first
+	oidcConfig, err := handlers.LoadOIDCConfigFromK8s(k8sClient)
+	if err != nil {
+		log.Printf("Failed to load OIDC config from ConfigMap, using environment: %v", err)
+		oidcConfig = config.GetOIDCConfig()
+	} else {
+		// Set the loaded config as current
+		config.SetOIDCConfig(oidcConfig)
+	}
+	
 	if oidcConfig.Enabled {
 		log.Printf("OIDC authentication enabled with issuer: %s", oidcConfig.IssuerURL)
 	} else {
@@ -53,6 +61,7 @@ func main() {
 	// Initialize handlers
 	veleroHandler := handlers.NewVeleroHandler(k8sClient)
 	userHandler := handlers.NewUserHandler(k8sClient)
+	oidcConfigHandler := handlers.NewOIDCConfigHandler(k8sClient)
 	
 	// Initialize auth handler with OIDC support
 	authHandler, err := handlers.NewAuthHandler(k8sClient, oidcConfig)
@@ -95,6 +104,11 @@ func main() {
 				admin.POST("/clusters", veleroHandler.AddCluster)
 				admin.POST("/storage-locations", veleroHandler.CreateStorageLocation)
 				admin.DELETE("/storage-locations/:name", veleroHandler.DeleteStorageLocation)
+				
+				// OIDC configuration management - admin only
+				admin.GET("/oidc/config", oidcConfigHandler.GetOIDCConfig)
+				admin.PUT("/oidc/config", oidcConfigHandler.UpdateOIDCConfig)
+				admin.POST("/oidc/test", oidcConfigHandler.TestOIDCConnection)
 			}
 			
 			// User can change their own password
