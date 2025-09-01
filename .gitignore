@@ -36,3 +36,6 @@ Thumbs.db
 
 # Docker
 .dockerignore
+
+# k8s
+k8s/keycloak-external-service.yaml

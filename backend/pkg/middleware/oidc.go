@@ -2,9 +2,13 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"strings"
+	"sync"
 	"time"
 	"velero-manager/pkg/config"
 
@@ -15,11 +19,19 @@ import (
 
 // OIDCProvider holds the OIDC provider and OAuth2 configuration
 type OIDCProvider struct {
-	Provider     *oidc.Provider
-	OAuth2Config *oauth2.Config
-	Verifier     *oidc.IDTokenVerifier
-	Config       *config.OIDCConfig
+	Provider      *oidc.Provider
+	OAuth2Config  *oauth2.Config
+	Verifier      *oidc.IDTokenVerifier
+	Config        *config.OIDCConfig
+	configVersion string
+	configMutex   sync.RWMutex
 }
+
+// Global config version for tracking changes
+var (
+	globalConfigVersion string
+	configVersionMutex  sync.RWMutex
+)
 
 // NewOIDCProvider creates a new OIDC provider instance
 func NewOIDCProvider(oidcConfig *config.OIDCConfig) (*OIDCProvider, error) {
@@ -33,24 +45,38 @@ func NewOIDCProvider(oidcConfig *config.OIDCConfig) (*OIDCProvider, error) {
 		return nil, fmt.Errorf("failed to create OIDC provider: %v", err)
 	}
 
-	// Configure the OAuth2 config
+	// Configure the OAuth2 config with additional scopes for roles/groups
 	oauth2Config := &oauth2.Config{
 		ClientID:     oidcConfig.ClientID,
 		ClientSecret: oidcConfig.ClientSecret,
 		RedirectURL:  oidcConfig.RedirectURL,
 		Endpoint:     provider.Endpoint(),
-		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+		Scopes:       []string{oidc.ScopeOpenID, "profile", "email", "groups", "roles"},
 	}
 
 	// Configure the ID token verifier
 	verifier := provider.Verifier(&oidc.Config{ClientID: oidcConfig.ClientID})
 
-	return &OIDCProvider{
-		Provider:     provider,
-		OAuth2Config: oauth2Config,
-		Verifier:     verifier,
-		Config:       oidcConfig,
-	}, nil
+	oidcProvider := &OIDCProvider{
+		Provider:      provider,
+		OAuth2Config:  oauth2Config,
+		Verifier:      verifier,
+		Config:        oidcConfig,
+		configVersion: generateConfigVersion(oidcConfig),
+	}
+	
+	// Update global config version
+	configVersionMutex.Lock()
+	globalConfigVersion = oidcProvider.configVersion
+	configVersionMutex.Unlock()
+	
+	// Start config watcher
+	go oidcProvider.watchConfigChanges()
+	
+	log.Printf("OIDC Provider initialized with config version: %s", oidcProvider.configVersion)
+	log.Printf("Admin roles: %v, Admin groups: %v", oidcConfig.AdminRoles, oidcConfig.AdminGroups)
+
+	return oidcProvider, nil
 }
 
 // UserInfo represents user information extracted from OIDC token
@@ -63,40 +89,103 @@ type UserInfo struct {
 	MappedRole  string   `json:"mapped_role"`  // Role mapped for velero-manager
 }
 
-// ExtractUserInfo extracts user information from ID token
+// ExtractUserInfo extracts user information from ID token with enhanced Keycloak support
 func (p *OIDCProvider) ExtractUserInfo(idToken *oidc.IDToken) (*UserInfo, error) {
 	var claims map[string]interface{}
 	if err := idToken.Claims(&claims); err != nil {
 		return nil, fmt.Errorf("failed to get claims: %v", err)
 	}
 
+	// Debug logging for OIDC claims
+	if debugMode := os.Getenv("DEBUG_OIDC"); debugMode == "true" {
+		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
+		log.Printf("OIDC Claims received:\n%s", claimsJSON)
+	}
+
 	userInfo := &UserInfo{}
 
-	// Extract username
+	// Extract username with multiple fallbacks
 	if username, ok := claims[p.Config.UsernameClaim].(string); ok {
 		userInfo.Username = username
+	} else if preferred, ok := claims["preferred_username"].(string); ok {
+		userInfo.Username = preferred // Keycloak preferred username
+	} else if email, ok := claims["email"].(string); ok {
+		userInfo.Username = email // Fallback to email
 	} else if sub, ok := claims["sub"].(string); ok {
-		userInfo.Username = sub // Fallback to subject
+		userInfo.Username = sub // Final fallback to subject
 	}
 
 	// Extract email
 	if email, ok := claims[p.Config.EmailClaim].(string); ok {
 		userInfo.Email = email
+	} else if email, ok := claims["email"].(string); ok {
+		userInfo.Email = email // Direct email claim
 	}
 
 	// Extract full name
 	if name, ok := claims[p.Config.FullNameClaim].(string); ok {
 		userInfo.FullName = name
+	} else if name, ok := claims["name"].(string); ok {
+		userInfo.FullName = name // Direct name claim
 	}
 
-	// Extract roles from nested claims (e.g., realm_access.roles)
-	userInfo.Roles = p.extractNestedStringArray(claims, p.Config.RolesClaim)
+	// Extract ALL roles from multiple sources
+	var allRoles []string
+	
+	// 1. Extract realm roles (realm_access.roles)
+	realmRoles := p.extractNestedStringArray(claims, "realm_access.roles")
+	allRoles = append(allRoles, realmRoles...)
+	
+	// 2. Extract client roles (resource_access.CLIENT_ID.roles)
+	clientRoles := p.extractClientRoles(claims)
+	allRoles = append(allRoles, clientRoles...)
+	
+	// 3. Extract from configured claim path if different
+	if p.Config.RolesClaim != "" && 
+	   p.Config.RolesClaim != "realm_access.roles" && 
+	   !strings.HasPrefix(p.Config.RolesClaim, "resource_access.") {
+		configuredRoles := p.extractNestedStringArray(claims, p.Config.RolesClaim)
+		allRoles = append(allRoles, configuredRoles...)
+	}
+	
+	// 4. Check for direct roles claim (some OIDC providers)
+	if directRoles, ok := claims["roles"].([]interface{}); ok {
+		for _, role := range directRoles {
+			if roleStr, ok := role.(string); ok {
+				allRoles = append(allRoles, roleStr)
+			}
+		}
+	}
+	
+	userInfo.Roles = removeDuplicates(allRoles)
 
-	// Extract groups
-	userInfo.Groups = p.extractNestedStringArray(claims, p.Config.GroupsClaim)
+	// Extract groups from multiple sources
+	var allGroups []string
+	
+	// Try configured groups claim
+	if p.Config.GroupsClaim != "" {
+		allGroups = p.extractNestedStringArray(claims, p.Config.GroupsClaim)
+	}
+	
+	// Also try direct groups claim
+	if len(allGroups) == 0 {
+		if groups, ok := claims["groups"].([]interface{}); ok {
+			for _, group := range groups {
+				if groupStr, ok := group.(string); ok {
+					allGroups = append(allGroups, groupStr)
+				}
+			}
+		}
+	}
+	
+	userInfo.Groups = removeDuplicates(allGroups)
 
 	// Map to velero-manager role
 	userInfo.MappedRole = p.mapToVeleroRole(userInfo.Roles, userInfo.Groups)
+	
+	// Log the mapping result
+	log.Printf("OIDC User authenticated: %s, Roles: %v, Groups: %v, Mapped Role: %s",
+		userInfo.Username, userInfo.Roles, userInfo.Groups, userInfo.MappedRole)
 
 	return userInfo, nil
 }
@@ -105,6 +194,11 @@ func (p *OIDCProvider) ExtractUserInfo(idToken *oidc.IDToken) (*UserInfo, error)
 func (p *OIDCProvider) extractNestedStringArray(claims map[string]interface{}, claimPath string) []string {
 	if claimPath == "" {
 		return []string{}
+	}
+
+	// Special handling for Keycloak resource_access.CLIENT_ID.roles
+	if strings.HasPrefix(claimPath, "resource_access.") && strings.HasSuffix(claimPath, ".roles") {
+		return p.extractClientRoles(claims)
 	}
 
 	parts := strings.Split(claimPath, ".")
@@ -134,27 +228,77 @@ func (p *OIDCProvider) extractNestedStringArray(claims map[string]interface{}, c
 	return []string{}
 }
 
+// extractClientRoles extracts client-specific roles from Keycloak token
+func (p *OIDCProvider) extractClientRoles(claims map[string]interface{}) []string {
+	var allRoles []string
+	
+	// Check resource_access for client-specific roles
+	if resourceAccess, ok := claims["resource_access"].(map[string]interface{}); ok {
+		// Check for our specific client
+		if clientAccess, ok := resourceAccess[p.Config.ClientID].(map[string]interface{}); ok {
+			if roles, ok := clientAccess["roles"].([]interface{}); ok {
+				for _, role := range roles {
+					if roleStr, ok := role.(string); ok {
+						allRoles = append(allRoles, roleStr)
+					}
+				}
+			}
+		}
+		
+		// Also check for "account" client (common in Keycloak)
+		if accountAccess, ok := resourceAccess["account"].(map[string]interface{}); ok {
+			if roles, ok := accountAccess["roles"].([]interface{}); ok {
+				for _, role := range roles {
+					if roleStr, ok := role.(string); ok {
+						// Prefix with account: to distinguish
+						allRoles = append(allRoles, fmt.Sprintf("account:%s", roleStr))
+					}
+				}
+			}
+		}
+	}
+	
+	return allRoles
+}
+
 // mapToVeleroRole maps Keycloak roles/groups to velero-manager roles
 func (p *OIDCProvider) mapToVeleroRole(roles, groups []string) string {
-	// Check admin roles
+	// Debug log for role mapping
+	if debugMode := os.Getenv("DEBUG_OIDC"); debugMode == "true" {
+		log.Printf("Checking role mapping - User roles: %v, Admin roles: %v", roles, p.Config.AdminRoles)
+		log.Printf("Checking group mapping - User groups: %v, Admin groups: %v", groups, p.Config.AdminGroups)
+	}
+
+	// Check admin roles (case-insensitive)
 	for _, adminRole := range p.Config.AdminRoles {
+		adminRole = strings.TrimSpace(adminRole)
+		if adminRole == "" {
+			continue
+		}
 		for _, userRole := range roles {
 			if strings.EqualFold(userRole, adminRole) {
+				log.Printf("User matched admin role: %s", adminRole)
 				return "admin"
 			}
 		}
 	}
 
-	// Check admin groups
+	// Check admin groups (case-insensitive)
 	for _, adminGroup := range p.Config.AdminGroups {
+		adminGroup = strings.TrimSpace(adminGroup)
+		if adminGroup == "" {
+			continue
+		}
 		for _, userGroup := range groups {
 			if strings.EqualFold(userGroup, adminGroup) {
+				log.Printf("User matched admin group: %s", adminGroup)
 				return "admin"
 			}
 		}
 	}
 
 	// Return default role for authenticated users
+	log.Printf("User assigned default role: %s", p.Config.DefaultRole)
 	return p.Config.DefaultRole
 }
 
@@ -278,4 +422,107 @@ func GetAuthInfo(c *gin.Context) gin.H {
 	}
 
 	return info
+}
+
+// Config version management functions
+
+// generateConfigVersion generates a hash of the current configuration
+func generateConfigVersion(config *config.OIDCConfig) string {
+	// Create a version string from critical config elements
+	configStr := fmt.Sprintf("%s:%s:%s:%s",
+		strings.Join(config.AdminRoles, ","),
+		strings.Join(config.AdminGroups, ","),
+		config.RolesClaim,
+		config.GroupsClaim)
+	
+	// Simple hash - in production use crypto/sha256
+	return fmt.Sprintf("%d", hashString(configStr))
+}
+
+// Simple string hash function
+func hashString(s string) uint32 {
+	var hash uint32
+	for _, c := range s {
+		hash = hash*31 + uint32(c)
+	}
+	return hash
+}
+
+// GetConfigVersion returns the current configuration version
+func (p *OIDCProvider) GetConfigVersion() string {
+	p.configMutex.RLock()
+	defer p.configMutex.RUnlock()
+	return p.configVersion
+}
+
+// watchConfigChanges monitors for configuration changes
+func (p *OIDCProvider) watchConfigChanges() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	
+	for range ticker.C {
+		// Re-read config from environment
+		currentAdminRoles := strings.Split(os.Getenv("OIDC_ADMIN_ROLES"), ",")
+		currentAdminGroups := strings.Split(os.Getenv("OIDC_ADMIN_GROUPS"), ",")
+		
+		// Clean up whitespace
+		for i := range currentAdminRoles {
+			currentAdminRoles[i] = strings.TrimSpace(currentAdminRoles[i])
+		}
+		for i := range currentAdminGroups {
+			currentAdminGroups[i] = strings.TrimSpace(currentAdminGroups[i])
+		}
+		
+		// Check if config changed
+		configChanged := false
+		if !stringSlicesEqual(p.Config.AdminRoles, currentAdminRoles) {
+			p.Config.AdminRoles = currentAdminRoles
+			configChanged = true
+		}
+		if !stringSlicesEqual(p.Config.AdminGroups, currentAdminGroups) {
+			p.Config.AdminGroups = currentAdminGroups
+			configChanged = true
+		}
+		
+		if configChanged {
+			p.configMutex.Lock()
+			p.configVersion = generateConfigVersion(p.Config)
+			p.configMutex.Unlock()
+			
+			configVersionMutex.Lock()
+			globalConfigVersion = p.configVersion
+			configVersionMutex.Unlock()
+			
+			log.Printf("OIDC configuration changed. New version: %s", p.configVersion)
+			log.Printf("Admin roles: %v, Admin groups: %v", p.Config.AdminRoles, p.Config.AdminGroups)
+		}
+	}
+}
+
+// Helper functions
+
+// stringSlicesEqual compares two string slices
+func stringSlicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// removeDuplicates removes duplicate strings from a slice
+func removeDuplicates(strings []string) []string {
+	seen := make(map[string]bool)
+	result := []string{}
+	for _, str := range strings {
+		if !seen[str] {
+			seen[str] = true
+			result = append(result, str)
+		}
+	}
+	return result
 }

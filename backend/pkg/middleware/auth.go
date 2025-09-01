@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -28,6 +29,12 @@ var (
 	sessionMutex = sync.RWMutex{}
 )
 
+// RevokedTokens stores revoked session IDs
+var (
+	revokedSessions = make(map[string]time.Time)
+	revokeMutex     = sync.RWMutex{}
+)
+
 // Generate secure random token
 func generateSecureToken() string {
 	bytes := make([]byte, 32)
@@ -35,19 +42,32 @@ func generateSecureToken() string {
 	return hex.EncodeToString(bytes)
 }
 
-// JWT Claims structure
+// JWT Claims structure with enhanced tracking
 type Claims struct {
-	Username string `json:"username"`
-	Role     string `json:"role"`
+	Username      string `json:"username"`
+	Role          string `json:"role"`
+	ConfigVersion string `json:"config_version,omitempty"` // Track config version
+	SessionID     string `json:"session_id,omitempty"`     // Track session for revocation
+	AuthMethod    string `json:"auth_method,omitempty"`    // oidc or legacy
 	jwt.RegisteredClaims
 }
 
-// Create JWT token
+// Create JWT token (legacy compatibility)
 func CreateJWTToken(username, role string) (string, error) {
+	return CreateJWTTokenWithConfig(username, role, "", "legacy")
+}
+
+// CreateJWTTokenWithConfig creates JWT with additional options
+func CreateJWTTokenWithConfig(username, role, configVersion, authMethod string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour) // 24 hour expiry
+	sessionID := generateSecureToken()[:16] // Shorter session ID
+	
 	claims := &Claims{
-		Username: username,
-		Role:     role,
+		Username:      username,
+		Role:          role,
+		ConfigVersion: configVersion,
+		SessionID:     sessionID,
+		AuthMethod:    authMethod,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -55,10 +75,17 @@ func CreateJWTToken(username, role string) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
+	tokenString, err := token.SignedString(jwtSecret)
+	
+	if err == nil && authMethod == "oidc" {
+		log.Printf("Created JWT for OIDC user %s with role %s, session %s, config %s", 
+			username, role, sessionID, configVersion)
+	}
+	
+	return tokenString, err
 }
 
-// Validate JWT token
+// Validate JWT token with enhanced validation
 func ValidateJWTToken(tokenString string) (*Claims, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
@@ -72,8 +99,48 @@ func ValidateJWTToken(tokenString string) (*Claims, error) {
 	if !token.Valid {
 		return nil, fmt.Errorf("invalid token")
 	}
+	
+	// Check if session was revoked
+	if claims.SessionID != "" && IsSessionRevoked(claims.SessionID) {
+		return nil, fmt.Errorf("session has been revoked")
+	}
+	
+	// For OIDC tokens, validate config version if available
+	if claims.AuthMethod == "oidc" && claims.ConfigVersion != "" {
+		// Check against global config version
+		if !CheckConfigVersion(claims.ConfigVersion) {
+			return nil, fmt.Errorf("configuration changed, please re-authenticate")
+		}
+	}
 
 	return claims, nil
+}
+
+// RevokeSession adds a session to the revocation list
+func RevokeSession(sessionID string) {
+	revokeMutex.Lock()
+	defer revokeMutex.Unlock()
+	revokedSessions[sessionID] = time.Now().Add(25 * time.Hour) // Keep longer than token expiry
+	log.Printf("Session %s has been revoked", sessionID)
+}
+
+// IsSessionRevoked checks if a session has been revoked
+func IsSessionRevoked(sessionID string) bool {
+	revokeMutex.RLock()
+	defer revokeMutex.RUnlock()
+	
+	expiry, exists := revokedSessions[sessionID]
+	if !exists {
+		return false
+	}
+	
+	// Clean up if expired
+	if time.Now().After(expiry) {
+		delete(revokedSessions, sessionID)
+		return false
+	}
+	
+	return true
 }
 
 // Store session (fallback for non-JWT clients)
@@ -95,6 +162,15 @@ func CleanExpiredSessions() {
 	for token, session := range userSessions {
 		if now.After(session.Expiry) {
 			delete(userSessions, token)
+		}
+	}
+	
+	// Also clean expired revocations
+	revokeMutex.Lock()
+	defer revokeMutex.Unlock()
+	for sessionID, expiry := range revokedSessions {
+		if now.After(expiry) {
+			delete(revokedSessions, sessionID)
 		}
 	}
 }
@@ -131,8 +207,30 @@ func RequireAuth() gin.HandlerFunc {
 		if claims, err := ValidateJWTToken(token); err == nil {
 			c.Set("username", claims.Username)
 			c.Set("role", claims.Role)
+			c.Set("auth_method", claims.AuthMethod)
+			c.Set("session_id", claims.SessionID)
+			c.Set("config_version", claims.ConfigVersion)
 			c.Next()
 			return
+		} else if err != nil {
+			// Log specific validation errors for debugging
+			if strings.Contains(err.Error(), "configuration changed") {
+				log.Printf("Token validation failed for config change: %v", err)
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"error": "Configuration changed, please re-authenticate",
+					"needs_refresh": true,
+				})
+				c.Abort()
+				return
+			} else if strings.Contains(err.Error(), "revoked") {
+				log.Printf("Token validation failed - session revoked: %v", err)
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"error": "Session has been revoked",
+					"needs_refresh": true,
+				})
+				c.Abort()
+				return
+			}
 		}
 		
 		// Fallback to session tokens
@@ -158,6 +256,7 @@ func RequireAuth() gin.HandlerFunc {
 		
 		c.Set("username", session.Username)
 		c.Set("role", session.Role)
+		c.Set("auth_method", "session")
 		c.Next()
 	}
 }
@@ -212,4 +311,23 @@ func RequireAdmin() gin.HandlerFunc {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 		c.Abort()
 	}
+}
+
+// Global OIDC provider reference for config validation
+var globalOIDCProvider interface {
+	GetConfigVersion() string
+}
+
+// SetOIDCProvider sets the global OIDC provider for config validation
+func SetOIDCProvider(provider interface{ GetConfigVersion() string }) {
+	globalOIDCProvider = provider
+}
+
+// CheckConfigVersion validates config version against current
+func CheckConfigVersion(version string) bool {
+	if globalOIDCProvider == nil {
+		return true // If no OIDC provider, always valid
+	}
+	currentVersion := globalOIDCProvider.GetConfigVersion()
+	return version == currentVersion
 }
