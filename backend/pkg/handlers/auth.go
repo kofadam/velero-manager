@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -17,10 +18,10 @@ import (
 
 // AuthHandler handles authentication operations for both legacy and OIDC
 type AuthHandler struct {
-	k8sClient     *k8s.Client
-	userHandler   *UserHandler
-	oidcProvider  *middleware.OIDCProvider
-	oidcConfig    *config.OIDCConfig
+	k8sClient    *k8s.Client
+	userHandler  *UserHandler
+	oidcProvider *middleware.OIDCProvider
+	oidcConfig   *config.OIDCConfig
 }
 
 // NewAuthHandler creates a new auth handler with optional OIDC support
@@ -46,7 +47,7 @@ func NewAuthHandler(k8sClient *k8s.Client, oidcConfig *config.OIDCConfig) (*Auth
 // GetAuthInfo returns current authentication configuration and user info
 func (h *AuthHandler) GetAuthInfo(c *gin.Context) {
 	info := gin.H{
-		"oidcEnabled": h.oidcConfig != nil && h.oidcConfig.Enabled,
+		"oidcEnabled":       h.oidcConfig != nil && h.oidcConfig.Enabled,
 		"legacyAuthEnabled": true, // Always available as fallback
 	}
 
@@ -99,7 +100,7 @@ func (h *AuthHandler) HandleOIDCCallback(c *gin.Context) {
 	// Get authorization code and state from query parameters
 	code := c.Query("code")
 	state := c.Query("state")
-	
+
 	if code == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Authorization code not provided"})
 		return
@@ -132,6 +133,21 @@ func (h *AuthHandler) HandleOIDCCallback(c *gin.Context) {
 		return
 	}
 
+	// SECURITY: Block users without proper roles
+	if userInfo.MappedRole == "no-access" || userInfo.MappedRole == "" {
+		log.Printf("Access denied for user %s - no valid role assigned (roles: %v, groups: %v)",
+			userInfo.Username, userInfo.Roles, userInfo.Groups)
+
+		// Redirect to login page with error message
+		errorMsg := "Access denied. You need velero-user or velero-admin role in Keycloak."
+		redirectURL := fmt.Sprintf("/login?error=%s", errorMsg)
+		c.Redirect(http.StatusFound, redirectURL)
+		return
+	}
+
+	// Log successful authentication
+	log.Printf("User %s authenticated successfully with role: %s", userInfo.Username, userInfo.MappedRole)
+
 	// Create JWT token for client
 	jwtToken, err := middleware.CreateJWTToken(userInfo.Username, userInfo.MappedRole)
 	if err != nil {
@@ -144,9 +160,9 @@ func (h *AuthHandler) HandleOIDCCallback(c *gin.Context) {
 	middleware.StoreSession(userInfo.Username, userInfo.MappedRole, sessionToken)
 
 	// Redirect to frontend with token in URL fragment (secure for SPA)
-	redirectURL := fmt.Sprintf("/?token=%s&auth=oidc&username=%s&role=%s", 
+	redirectURL := fmt.Sprintf("/?token=%s&auth=oidc&username=%s&role=%s",
 		jwtToken, userInfo.Username, userInfo.MappedRole)
-	
+
 	c.Redirect(http.StatusFound, redirectURL)
 }
 
@@ -162,7 +178,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	if token == "" {
 		token = c.GetHeader("X-Auth-Token")
 	}
-	
+
 	if strings.HasPrefix(token, "Bearer ") {
 		token = strings.TrimPrefix(token, "Bearer ")
 	}
@@ -174,11 +190,15 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 
 	// If OIDC is enabled, provide logout URL
 	response := gin.H{"message": "Logged out successfully"}
-	
+
 	if h.oidcProvider != nil && h.oidcConfig.Enabled {
-		// Construct Keycloak logout URL
-		logoutURL := fmt.Sprintf("%s/protocol/openid-connect/logout", 
-			strings.TrimSuffix(h.oidcConfig.IssuerURL, "/auth/realms/your-realm"))
+		// Construct Keycloak logout URL properly
+		issuerURL := h.oidcConfig.IssuerURL
+		// Remove trailing slash if present
+		issuerURL = strings.TrimSuffix(issuerURL, "/")
+
+		// Keycloak logout URL format
+		logoutURL := fmt.Sprintf("%s/protocol/openid-connect/logout", issuerURL)
 		response["oidc_logout_url"] = logoutURL
 	}
 
@@ -200,7 +220,7 @@ var stateStore = make(map[string]time.Time)
 func storeState(c *gin.Context, state string) {
 	// Store with expiration (10 minutes)
 	stateStore[state] = time.Now().Add(10 * time.Minute)
-	
+
 	// Clean expired states
 	go func() {
 		now := time.Now()
@@ -216,17 +236,17 @@ func verifyState(c *gin.Context, state string) bool {
 	if state == "" {
 		return false
 	}
-	
+
 	expiry, exists := stateStore[state]
 	if !exists {
 		return false
 	}
-	
+
 	if time.Now().After(expiry) {
 		delete(stateStore, state)
 		return false
 	}
-	
+
 	// Remove state after verification (single use)
 	delete(stateStore, state)
 	return true

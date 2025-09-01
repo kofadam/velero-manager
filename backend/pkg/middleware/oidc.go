@@ -64,15 +64,15 @@ func NewOIDCProvider(oidcConfig *config.OIDCConfig) (*OIDCProvider, error) {
 		Config:        oidcConfig,
 		configVersion: generateConfigVersion(oidcConfig),
 	}
-	
+
 	// Update global config version
 	configVersionMutex.Lock()
 	globalConfigVersion = oidcProvider.configVersion
 	configVersionMutex.Unlock()
-	
+
 	// Start config watcher
 	go oidcProvider.watchConfigChanges()
-	
+
 	log.Printf("OIDC Provider initialized with config version: %s", oidcProvider.configVersion)
 	log.Printf("Admin roles: %v, Admin groups: %v", oidcConfig.AdminRoles, oidcConfig.AdminGroups)
 
@@ -81,12 +81,12 @@ func NewOIDCProvider(oidcConfig *config.OIDCConfig) (*OIDCProvider, error) {
 
 // UserInfo represents user information extracted from OIDC token
 type UserInfo struct {
-	Username    string   `json:"username"`
-	Email       string   `json:"email"`
-	FullName    string   `json:"full_name"`
-	Roles       []string `json:"roles"`
-	Groups      []string `json:"groups"`
-	MappedRole  string   `json:"mapped_role"`  // Role mapped for velero-manager
+	Username   string   `json:"username"`
+	Email      string   `json:"email"`
+	FullName   string   `json:"full_name"`
+	Roles      []string `json:"roles"`
+	Groups     []string `json:"groups"`
+	MappedRole string   `json:"mapped_role"` // Role mapped for velero-manager
 }
 
 // ExtractUserInfo extracts user information from ID token with enhanced Keycloak support
@@ -131,23 +131,23 @@ func (p *OIDCProvider) ExtractUserInfo(idToken *oidc.IDToken) (*UserInfo, error)
 
 	// Extract ALL roles from multiple sources
 	var allRoles []string
-	
+
 	// 1. Extract realm roles (realm_access.roles)
 	realmRoles := p.extractNestedStringArray(claims, "realm_access.roles")
 	allRoles = append(allRoles, realmRoles...)
-	
+
 	// 2. Extract client roles (resource_access.CLIENT_ID.roles)
 	clientRoles := p.extractClientRoles(claims)
 	allRoles = append(allRoles, clientRoles...)
-	
+
 	// 3. Extract from configured claim path if different
-	if p.Config.RolesClaim != "" && 
-	   p.Config.RolesClaim != "realm_access.roles" && 
-	   !strings.HasPrefix(p.Config.RolesClaim, "resource_access.") {
+	if p.Config.RolesClaim != "" &&
+		p.Config.RolesClaim != "realm_access.roles" &&
+		!strings.HasPrefix(p.Config.RolesClaim, "resource_access.") {
 		configuredRoles := p.extractNestedStringArray(claims, p.Config.RolesClaim)
 		allRoles = append(allRoles, configuredRoles...)
 	}
-	
+
 	// 4. Check for direct roles claim (some OIDC providers)
 	if directRoles, ok := claims["roles"].([]interface{}); ok {
 		for _, role := range directRoles {
@@ -156,17 +156,17 @@ func (p *OIDCProvider) ExtractUserInfo(idToken *oidc.IDToken) (*UserInfo, error)
 			}
 		}
 	}
-	
+
 	userInfo.Roles = removeDuplicates(allRoles)
 
 	// Extract groups from multiple sources
 	var allGroups []string
-	
+
 	// Try configured groups claim
 	if p.Config.GroupsClaim != "" {
 		allGroups = p.extractNestedStringArray(claims, p.Config.GroupsClaim)
 	}
-	
+
 	// Also try direct groups claim
 	if len(allGroups) == 0 {
 		if groups, ok := claims["groups"].([]interface{}); ok {
@@ -177,12 +177,12 @@ func (p *OIDCProvider) ExtractUserInfo(idToken *oidc.IDToken) (*UserInfo, error)
 			}
 		}
 	}
-	
+
 	userInfo.Groups = removeDuplicates(allGroups)
 
 	// Map to velero-manager role
 	userInfo.MappedRole = p.mapToVeleroRole(userInfo.Roles, userInfo.Groups)
-	
+
 	// Log the mapping result
 	log.Printf("OIDC User authenticated: %s, Roles: %v, Groups: %v, Mapped Role: %s",
 		userInfo.Username, userInfo.Roles, userInfo.Groups, userInfo.MappedRole)
@@ -231,7 +231,7 @@ func (p *OIDCProvider) extractNestedStringArray(claims map[string]interface{}, c
 // extractClientRoles extracts client-specific roles from Keycloak token
 func (p *OIDCProvider) extractClientRoles(claims map[string]interface{}) []string {
 	var allRoles []string
-	
+
 	// Check resource_access for client-specific roles
 	if resourceAccess, ok := claims["resource_access"].(map[string]interface{}); ok {
 		// Check for our specific client
@@ -244,7 +244,7 @@ func (p *OIDCProvider) extractClientRoles(claims map[string]interface{}) []strin
 				}
 			}
 		}
-		
+
 		// Also check for "account" client (common in Keycloak)
 		if accountAccess, ok := resourceAccess["account"].(map[string]interface{}); ok {
 			if roles, ok := accountAccess["roles"].([]interface{}); ok {
@@ -257,49 +257,42 @@ func (p *OIDCProvider) extractClientRoles(claims map[string]interface{}) []strin
 			}
 		}
 	}
-	
+
 	return allRoles
 }
 
 // mapToVeleroRole maps Keycloak roles/groups to velero-manager roles
 func (p *OIDCProvider) mapToVeleroRole(roles, groups []string) string {
-	// Debug log for role mapping
-	if debugMode := os.Getenv("DEBUG_OIDC"); debugMode == "true" {
-		log.Printf("Checking role mapping - User roles: %v, Admin roles: %v", roles, p.Config.AdminRoles)
-		log.Printf("Checking group mapping - User groups: %v, Admin groups: %v", groups, p.Config.AdminGroups)
-	}
-
-	// Check admin roles (case-insensitive)
+	// Check admin roles
 	for _, adminRole := range p.Config.AdminRoles {
-		adminRole = strings.TrimSpace(adminRole)
-		if adminRole == "" {
-			continue
-		}
 		for _, userRole := range roles {
 			if strings.EqualFold(userRole, adminRole) {
-				log.Printf("User matched admin role: %s", adminRole)
 				return "admin"
 			}
 		}
 	}
 
-	// Check admin groups (case-insensitive)
+	// Check admin groups
 	for _, adminGroup := range p.Config.AdminGroups {
-		adminGroup = strings.TrimSpace(adminGroup)
-		if adminGroup == "" {
-			continue
-		}
 		for _, userGroup := range groups {
 			if strings.EqualFold(userGroup, adminGroup) {
-				log.Printf("User matched admin group: %s", adminGroup)
 				return "admin"
 			}
 		}
 	}
 
-	// Return default role for authenticated users
-	log.Printf("User assigned default role: %s", p.Config.DefaultRole)
-	return p.Config.DefaultRole
+	// Check if user has basic user role (e.g., velero-user)
+	userRoles := []string{"velero-user", "velero-viewer"} // Define allowed user roles
+	for _, allowedRole := range userRoles {
+		for _, userRole := range roles {
+			if strings.EqualFold(userRole, allowedRole) {
+				return "user"
+			}
+		}
+	}
+
+	// No matching role - deny access
+	return "no-access"
 }
 
 // ValidateOIDCToken validates an OIDC ID token and returns user info
@@ -323,23 +316,23 @@ func RequireOIDCAuth(oidcProvider *OIDCProvider) gin.HandlerFunc {
 
 		// Clean expired sessions periodically
 		go CleanExpiredSessions()
-		
+
 		token := c.GetHeader("Authorization")
 		if token == "" {
 			token = c.GetHeader("X-Auth-Token")
 		}
-		
+
 		if token == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "No authentication token provided"})
 			c.Abort()
 			return
 		}
-		
+
 		// Remove "Bearer " prefix if present
 		if strings.HasPrefix(token, "Bearer ") {
 			token = strings.TrimPrefix(token, "Bearer ")
 		}
-		
+
 		// Try OIDC token first if OIDC is enabled
 		if oidcProvider != nil && oidcProvider.Config.Enabled {
 			if userInfo, err := oidcProvider.ValidateOIDCToken(token); err == nil {
@@ -354,7 +347,7 @@ func RequireOIDCAuth(oidcProvider *OIDCProvider) gin.HandlerFunc {
 				return
 			}
 		}
-		
+
 		// Try JWT token (legacy)
 		if claims, err := ValidateJWTToken(token); err == nil {
 			c.Set("username", claims.Username)
@@ -363,18 +356,18 @@ func RequireOIDCAuth(oidcProvider *OIDCProvider) gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		
+
 		// Fallback to session tokens (legacy)
 		sessionMutex.RLock()
 		session, exists := userSessions[token]
 		sessionMutex.RUnlock()
-		
+
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
 		}
-		
+
 		// Check if session is expired
 		if time.Now().After(session.Expiry) {
 			sessionMutex.Lock()
@@ -384,7 +377,7 @@ func RequireOIDCAuth(oidcProvider *OIDCProvider) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		c.Set("username", session.Username)
 		c.Set("role", session.Role)
 		c.Set("auth_method", "session")
@@ -434,7 +427,7 @@ func generateConfigVersion(config *config.OIDCConfig) string {
 		strings.Join(config.AdminGroups, ","),
 		config.RolesClaim,
 		config.GroupsClaim)
-	
+
 	// Simple hash - in production use crypto/sha256
 	return fmt.Sprintf("%d", hashString(configStr))
 }
@@ -459,12 +452,12 @@ func (p *OIDCProvider) GetConfigVersion() string {
 func (p *OIDCProvider) watchConfigChanges() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		// Re-read config from environment
 		currentAdminRoles := strings.Split(os.Getenv("OIDC_ADMIN_ROLES"), ",")
 		currentAdminGroups := strings.Split(os.Getenv("OIDC_ADMIN_GROUPS"), ",")
-		
+
 		// Clean up whitespace
 		for i := range currentAdminRoles {
 			currentAdminRoles[i] = strings.TrimSpace(currentAdminRoles[i])
@@ -472,7 +465,7 @@ func (p *OIDCProvider) watchConfigChanges() {
 		for i := range currentAdminGroups {
 			currentAdminGroups[i] = strings.TrimSpace(currentAdminGroups[i])
 		}
-		
+
 		// Check if config changed
 		configChanged := false
 		if !stringSlicesEqual(p.Config.AdminRoles, currentAdminRoles) {
@@ -483,16 +476,16 @@ func (p *OIDCProvider) watchConfigChanges() {
 			p.Config.AdminGroups = currentAdminGroups
 			configChanged = true
 		}
-		
+
 		if configChanged {
 			p.configMutex.Lock()
 			p.configVersion = generateConfigVersion(p.Config)
 			p.configMutex.Unlock()
-			
+
 			configVersionMutex.Lock()
 			globalConfigVersion = p.configVersion
 			configVersionMutex.Unlock()
-			
+
 			log.Printf("OIDC configuration changed. New version: %s", p.configVersion)
 			log.Printf("Admin roles: %v, Admin groups: %v", p.Config.AdminRoles, p.Config.AdminGroups)
 		}

@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"velero-manager/pkg/config"
@@ -100,10 +101,16 @@ func (h *OIDCConfigHandler) GetOIDCConfig(c *gin.Context) {
 
 	// Parse JSON arrays
 	if adminRolesStr := configMap.Data["adminRoles"]; adminRolesStr != "" {
-		json.Unmarshal([]byte(adminRolesStr), &config.AdminRoles)
+		if err := json.Unmarshal([]byte(adminRolesStr), &config.AdminRoles); err != nil {
+			log.Printf("Failed to parse adminRoles: %v, using defaults", err)
+			config.AdminRoles = []string{"velero-admin", "admin"}
+		}
 	}
 	if adminGroupsStr := configMap.Data["adminGroups"]; adminGroupsStr != "" {
-		json.Unmarshal([]byte(adminGroupsStr), &config.AdminGroups)
+		if err := json.Unmarshal([]byte(adminGroupsStr), &config.AdminGroups); err != nil {
+			log.Printf("Failed to parse adminGroups: %v, using defaults", err)
+			config.AdminGroups = []string{"velero-administrators", "administrators"}
+		}
 	}
 
 	// Get client secret from Secret
