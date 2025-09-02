@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 	"velero-manager/pkg/k8s"
+	"velero-manager/pkg/metrics"
 
 	"github.com/gin-gonic/gin"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,11 +16,13 @@ import (
 
 type VeleroHandler struct {
 	k8sClient *k8s.Client
+	metrics   *metrics.VeleroMetrics
 }
 
-func NewVeleroHandler(k8sClient *k8s.Client) *VeleroHandler {
+func NewVeleroHandler(k8sClient *k8s.Client, veleroMetrics *metrics.VeleroMetrics) *VeleroHandler {
 	return &VeleroHandler{
 		k8sClient: k8sClient,
+		metrics:   veleroMetrics,
 	}
 }
 
@@ -1947,4 +1950,30 @@ func (h *VeleroHandler) GetDashboardMetrics(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// GenerateTestData populates metrics with mock data for testing
+func (h *VeleroHandler) GenerateTestData(c *gin.Context) {
+	if h.metrics == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Metrics not initialized",
+		})
+		return
+	}
+
+	// Generate mock data
+	h.metrics.GenerateMockData()
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Mock data generated successfully",
+		"note":    "Check /metrics endpoint and Grafana dashboards to see the test data",
+		"clusters": []string{"core-cl1", "staging-cl2", "dev-cl3"},
+		"data_types": []string{
+			"cluster_health_status",
+			"backup_success_rates", 
+			"restore_operations",
+			"backup_schedules",
+			"api_request_metrics",
+		},
+	})
 }

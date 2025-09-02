@@ -1,0 +1,291 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy
+  namespace: observability
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: alloy
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  - pods/log
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs: ["get"]
+- apiGroups: [""]
+  resources:
+  - namespaces
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: alloy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: alloy
+subjects:
+- kind: ServiceAccount
+  name: alloy
+  namespace: observability
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: observability
+data:
+  config.alloy: |
+    // ============================================
+    // METRICS COLLECTION
+    // ============================================
+    
+    // Scrape Velero Manager application metrics
+    prometheus.scrape "velero_manager" {
+      targets = [
+        {
+          "__address__" = "velero-manager.velero-manager.svc.cluster.local:80",
+          "__metrics_path__" = "/metrics",
+          "job" = "velero-manager",
+        },
+      ]
+      forward_to = [prometheus.remote_write.local.receiver]
+      scrape_interval = "30s"
+    }
+
+    // Remote write metrics to local Prometheus
+    prometheus.remote_write "local" {
+      endpoint {
+        url = "http://prometheus:9090/api/v1/write"
+      }
+    }
+
+    // ============================================
+    // LOG COLLECTION
+    // ============================================
+    
+    // Discover all pods in specific namespaces
+    discovery.kubernetes "pods" {
+      role = "pod"
+      namespaces {
+        names = ["velero-manager", "velero", "default"]
+      }
+    }
+
+    // Add labels to discovered pods
+    discovery.relabel "pods" {
+      targets = discovery.kubernetes.pods.targets
+
+      // Add namespace label
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label = "namespace"
+      }
+
+      // Add pod name label
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label = "pod"
+      }
+
+      // Add container name label
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        target_label = "container"
+      }
+
+      // Add app label
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app"]
+        target_label = "app"
+      }
+
+      // Set log path
+      rule {
+        source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+        target_label = "__path__"
+        separator = "/"
+        replacement = "/var/log/pods/*$1/*.log"
+      }
+    }
+
+    // Collect logs from Kubernetes pods
+    loki.source.kubernetes "pods" {
+      targets    = discovery.relabel.pods.output
+      forward_to = [loki.process.json.receiver]
+    }
+
+    // Process JSON logs (for structured logging)
+    loki.process "json" {
+      forward_to = [loki.process.add_labels.receiver]
+
+      // Try to parse as JSON
+      stage.json {
+        expressions = {
+          timestamp = "time",
+          level = "level", 
+          msg = "msg",
+          message = "message",
+          method = "method",
+          path = "path",
+          status = "status",
+          duration = "duration",
+          error = "error",
+        }
+      }
+
+      // Extract level from log line if not in JSON
+      stage.regex {
+        expression = `(?P<extracted_level>(ERROR|WARN|INFO|DEBUG|TRACE|error|warn|info|debug|trace))`
+      }
+
+      // Add extracted fields as labels
+      stage.labels {
+        values = {
+          level = "",
+          extracted_level = "",
+          method = "",
+          status = "",
+        }
+      }
+
+      // Parse timestamp if found
+      stage.timestamp {
+        source = "timestamp"
+        format = "RFC3339"
+        fallback_formats = ["UnixMs", "Unix"]
+        action_on_failure = "skip"
+      }
+    }
+
+    // Add static labels to all logs
+    loki.process "add_labels" {
+      forward_to = [loki.write.default.receiver]
+
+      stage.static_labels {
+        values = {
+          cluster = "homelab",
+          environment = "development",
+        }
+      }
+    }
+
+    // Write logs to Loki
+    loki.write "default" {
+      endpoint {
+        url = "http://loki:3100/loki/api/v1/push"
+      }
+      external_labels = {}
+    }
+
+    // ============================================
+    // SELF-MONITORING
+    // ============================================
+    
+    prometheus.exporter.self "alloy" {}
+    
+    prometheus.scrape "alloy_self" {
+      targets = prometheus.exporter.self.alloy.targets
+      forward_to = [prometheus.remote_write.local.receiver]
+      scrape_interval = "60s"
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: alloy
+  namespace: observability
+  labels:
+    app: alloy
+spec:
+  selector:
+    matchLabels:
+      app: alloy
+  template:
+    metadata:
+      labels:
+        app: alloy
+    spec:
+      serviceAccountName: alloy
+      hostPID: true
+      hostNetwork: false
+      dnsPolicy: ClusterFirst
+      containers:
+      - name: alloy
+        image: grafana/alloy:v1.4.2
+        args:
+          - run
+          - /etc/alloy/config.alloy
+          - --server.http.listen-addr=0.0.0.0:12345
+          - --storage.path=/var/lib/alloy
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        ports:
+        - containerPort: 12345
+          name: http-metrics
+        volumeMounts:
+        - name: config
+          mountPath: /etc/alloy
+        - name: varlog
+          mountPath: /var/log
+          readOnly: true
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+        - name: data
+          mountPath: /var/lib/alloy
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+          limits:
+            cpu: 500m
+            memory: 500Mi
+        securityContext:
+          runAsUser: 0
+          privileged: true
+      volumes:
+      - name: config
+        configMap:
+          name: alloy-config
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+      - name: data
+        hostPath:
+          path: /var/lib/alloy
+          type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alloy
+  namespace: observability
+  labels:
+    app: alloy
+spec:
+  type: ClusterIP
+  ports:
+  - port: 12345
+    targetPort: 12345
+    protocol: TCP
+    name: http-metrics
+  selector:
+    app: alloy

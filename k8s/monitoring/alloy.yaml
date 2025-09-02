@@ -1,0 +1,450 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: alloy
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  - pods/log
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs: ["get"]
+- apiGroups: [""]
+  resources:
+  - namespaces
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: alloy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: alloy
+subjects:
+- kind: ServiceAccount
+  name: alloy
+  namespace: monitoring
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: monitoring
+data:
+  config.alloy: |
+    // ============================================
+    // METRICS COLLECTION FOR VELERO-MANAGER
+    // ============================================
+    
+    // Scrape Velero Manager metrics
+    prometheus.scrape "velero_manager" {
+      targets = [
+        {
+          "__address__" = "velero-manager.velero-manager.svc.cluster.local:80",
+          "__metrics_path__" = "/metrics",
+          "job" = "velero-manager",
+        },
+      ]
+      forward_to = [prometheus.remote_write.prometheus.receiver]
+      scrape_interval = "30s"
+    }
+
+    // Send metrics to Prometheus in monitoring namespace
+    // This will work with standard prometheus-operator deployments
+    prometheus.remote_write "prometheus" {
+      endpoint {
+        url = "http://kube-prom-stack-kube-prome-prometheus.observability.svc.cluster.local:9090/api/v1/write"
+        
+        // If your Prometheus requires auth, uncomment and configure:
+        // basic_auth {
+        //   username = "prometheus"
+        //   password = "your-password"
+        // }
+      }
+    }
+
+    // ============================================
+    // LOG COLLECTION FOR VELERO-MANAGER
+    // ============================================
+    
+    // Discover pods in velero (PRIMARY) and velero-manager namespaces
+    discovery.kubernetes "pods" {
+      role = "pod"
+      namespaces {
+        names = ["velero", "velero-manager"]
+      }
+    }
+    
+    // Separate discovery for Velero system pods (higher priority)
+    discovery.kubernetes "velero_system" {
+      role = "pod"
+      namespaces {
+        names = ["velero"]
+      }
+    }
+
+    // Add labels to discovered pods
+    discovery.relabel "pods" {
+      targets = discovery.kubernetes.pods.targets
+
+      // Add namespace label
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label = "namespace"
+      }
+
+      // Add pod name label
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label = "pod"
+      }
+
+      // Add container name label
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        target_label = "container"
+      }
+
+      // Add app label
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app"]
+        target_label = "app"
+      }
+
+      // Set log path for container runtime
+      rule {
+        source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+        target_label = "__path__"
+        separator = "/"
+        replacement = "/var/log/pods/*$1/*.log"
+      }
+    }
+
+    // Collect logs from all pods
+    loki.source.kubernetes "pods" {
+      targets    = discovery.relabel.pods.output
+      forward_to = [loki.process.route_logs.receiver]
+    }
+
+    // Route logs based on namespace for different processing
+    loki.process "route_logs" {
+      forward_to = [loki.process.velero_system.receiver, loki.process.velero_manager.receiver]
+
+      // Route Velero namespace logs differently
+      stage.match {
+        selector = '{namespace="velero"}'
+        stages = [
+          stage.output {
+            source = "velero_system"
+          }
+        ]
+      }
+
+      // Route velero-manager logs 
+      stage.match {
+        selector = '{namespace="velero-manager"}'
+        stages = [
+          stage.output {
+            source = "velero_manager"
+          }
+        ]
+      }
+    }
+
+    // Process Velero system logs (backup/restore operations)
+    loki.process "velero_system" {
+      forward_to = [loki.write.loki.receiver]
+
+      // Parse Velero structured logs
+      // Example: time="2024-01-01T10:00:00Z" level=info msg="Starting backup" backup=my-backup
+      stage.regex {
+        expression = `time="(?P<timestamp>[^"]+)"\s+level=(?P<level>\w+)\s+msg="(?P<message>[^"]+)"(?P<additional>.*)`
+      }
+
+      // Parse backup/restore specific patterns
+      stage.regex {
+        expression = `(?P<operation>backup|restore)=(?P<operation_name>\w+)`
+      }
+
+      stage.regex {
+        expression = `(?P<backup_status>Completed|Failed|InProgress|New|FailedValidation|PartiallyFailed)`
+      }
+
+      // Add Velero-specific labels
+      stage.labels {
+        values = {
+          level = "",
+          operation = "",
+          operation_name = "",
+          backup_status = "",
+          component = "velero-system",
+        }
+      }
+
+      // Parse timestamp
+      stage.timestamp {
+        source = "timestamp"
+        format = "RFC3339"
+        action_on_failure = "skip"
+      }
+
+      // Set priority based on log content
+      stage.match {
+        selector = '{level="error"}'
+        stages = [
+          stage.static_labels {
+            values = {
+              priority = "critical",
+              severity = "error",
+            }
+          }
+        ]
+      }
+
+      stage.match {
+        selector = '{backup_status=~"Failed|PartiallyFailed"}'
+        stages = [
+          stage.static_labels {
+            values = {
+              priority = "high",
+              severity = "error",
+            }
+          }
+        ]
+      }
+
+      stage.match {
+        selector = '{backup_status="Completed"}'
+        stages = [
+          stage.static_labels {
+            values = {
+              priority = "normal",
+              severity = "info",
+            }
+          }
+        ]
+      }
+
+      // Add static labels
+      stage.static_labels {
+        values = {
+          job = "velero-system-logs",
+        }
+      }
+    }
+
+    // Process Velero Manager logs (API/Web UI)
+    loki.process "velero_manager" {
+      forward_to = [loki.write.loki.receiver]
+
+      // Parse Gin framework logs
+      // Example: [GIN] 2025/08/31 - 21:30:57 | 403 | 1.409309ms | 10.100.102.110 | GET "/api/v1/users"
+      stage.regex {
+        expression = `\[GIN\]\s+(?P<timestamp>\d{4}/\d{2}/\d{2}\s+-\s+\d{2}:\d{2}:\d{2})\s+\|\s+(?P<status_code>\d{3})\s+\|\s+(?P<duration>[^\s]+)\s+\|\s+(?P<client_ip>[^\s]+)\s+\|\s+(?P<method>\w+)\s+"(?P<path>[^"]+)"`
+      }
+
+      // Try to parse as JSON for structured logs
+      stage.json {
+        expressions = {
+          level = "level",
+          msg = "msg",
+          message = "message",
+          error = "error",
+          username = "username",
+          role = "role",
+        }
+      }
+
+      // Extract log level from various patterns
+      stage.regex {
+        expression = `(?P<detected_level>(ERROR|WARN|INFO|DEBUG|CRITICAL|error|warn|info|debug|403|401|500|404))`
+      }
+
+      // Add extracted fields as labels
+      stage.labels {
+        values = {
+          level = "",
+          detected_level = "",
+          method = "",
+          status_code = "",
+          path = "",
+          username = "",
+          role = "",
+        }
+      }
+
+      // Set severity based on status code
+      stage.match {
+        selector = '{status_code=~"5.."}'
+        stages = [
+          stage.static_labels {
+            values = {
+              severity = "error",
+            }
+          }
+        ]
+      }
+
+      stage.match {
+        selector = '{status_code=~"4.."}'
+        stages = [
+          stage.static_labels {
+            values = {
+              severity = "warning",
+            }
+          }
+        ]
+      }
+
+      stage.match {
+        selector = '{status_code=~"2.."}'
+        stages = [
+          stage.static_labels {
+            values = {
+              severity = "info",
+            }
+          }
+        ]
+      }
+
+      // Add static labels
+      stage.static_labels {
+        values = {
+          job = "velero-manager-logs",
+        }
+      }
+    }
+
+    // Write logs to Loki in monitoring namespace
+    loki.write "loki" {
+      endpoint {
+        url = "http://loki.observability.svc.cluster.local:3100/loki/api/v1/push"
+        
+        // If your Loki requires auth, uncomment and configure:
+        // basic_auth {
+        //   username = "loki"
+        //   password = "your-password"
+        // }
+      }
+      external_labels = {
+        cluster = env("CLUSTER_NAME"),
+      }
+    }
+
+    // ============================================
+    // SELF-MONITORING
+    // ============================================
+    
+    prometheus.exporter.self "alloy" {}
+    
+    prometheus.scrape "alloy_self" {
+      targets = prometheus.exporter.self.alloy.targets
+      forward_to = [prometheus.remote_write.prometheus.receiver]
+      scrape_interval = "60s"
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: alloy
+  namespace: monitoring
+  labels:
+    app: alloy
+spec:
+  selector:
+    matchLabels:
+      app: alloy
+  template:
+    metadata:
+      labels:
+        app: alloy
+    spec:
+      serviceAccountName: alloy
+      hostPID: true
+      hostNetwork: false
+      dnsPolicy: ClusterFirst
+      containers:
+      - name: alloy
+        image: grafana/alloy:v1.4.2
+        args:
+          - run
+          - /etc/alloy/config.alloy
+          - --server.http.listen-addr=0.0.0.0:12345
+          - --storage.path=/var/lib/alloy
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: CLUSTER_NAME
+          value: "production"  # Change this for each cluster
+        ports:
+        - containerPort: 12345
+          name: http-metrics
+        volumeMounts:
+        - name: config
+          mountPath: /etc/alloy
+        - name: varlog
+          mountPath: /var/log
+          readOnly: true
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+        - name: data
+          mountPath: /var/lib/alloy
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+          limits:
+            cpu: 500m
+            memory: 500Mi
+        securityContext:
+          runAsUser: 0
+          privileged: true
+      volumes:
+      - name: config
+        configMap:
+          name: alloy-config
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+      - name: data
+        hostPath:
+          path: /var/lib/alloy
+          type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alloy
+  namespace: monitoring
+  labels:
+    app: alloy
+spec:
+  type: ClusterIP
+  ports:
+  - port: 12345
+    targetPort: 12345
+    protocol: TCP
+    name: http-metrics
+  selector:
+    app: alloy

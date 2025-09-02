@@ -59,7 +59,7 @@ func main() {
 	router.Use(veleroMetrics.PrometheusMiddleware())
 
 	// Initialize handlers
-	veleroHandler := handlers.NewVeleroHandler(k8sClient)
+	veleroHandler := handlers.NewVeleroHandler(k8sClient, veleroMetrics)
 	userHandler := handlers.NewUserHandler(k8sClient)
 	oidcConfigHandler := handlers.NewOIDCConfigHandler(k8sClient)
 	
@@ -79,6 +79,9 @@ func main() {
 		api.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 		})
+		
+		// Test endpoint for generating mock metrics data
+		api.POST("/test/generate-mock-data", veleroHandler.GenerateTestData)
 		
 		// Auth endpoints
 		auth := api.Group("/auth")

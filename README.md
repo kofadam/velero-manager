@@ -88,43 +88,43 @@ http://localhost:3000
 http://localhost:9090/targets
 ```
 
-## 🚨 CRITICAL SECURITY WARNINGS
+## 📊 Observability Stack
 
-### ⚠️ **KNOWN SECURITY VULNERABILITIES - DO NOT USE IN PRODUCTION**
+### Integrated Monitoring Solution
+Velero Manager includes a complete observability stack with Grafana Alloy, Prometheus, and Loki for comprehensive monitoring:
 
-**IMMEDIATE ACTION REQUIRED**: The following critical security issues have been identified and must be resolved before production deployment:
+- **Metrics Collection**: Automated scraping of Velero and backup operation metrics
+- **Log Aggregation**: Centralized logging from both velero and velero-manager namespaces
+- **Real-time Dashboards**: Pre-configured Grafana dashboards for operational insights
+- **Alerting**: PrometheusRule configurations for backup failures and SLA violations
 
-#### 1. **OIDC Role Mapping Failure**
-- **Issue**: Keycloak client roles (e.g., "admin") are not being properly mapped to application roles
-- **Impact**: Users granted admin roles in Keycloak still login as "user" role in the application
-- **Risk Level**: HIGH - Privilege escalation prevention failure
+**📋 Complete Setup Guide**: [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md)
 
-#### 2. **Authorization Bypass Vulnerability** 
-- **Issue**: Removing admin roles from OIDC configuration does not revoke access for previously authenticated users
-- **Impact**: Users continue to access the system even after role/permission removal
-- **Risk Level**: CRITICAL - Complete access control bypass
-- **Attack Vector**: Persistent unauthorized access after permission revocation
+### Available Dashboards
 
-#### 3. **Token Persistence Issue**
-- **Issue**: JWT tokens and sessions remain valid after OIDC configuration changes
-- **Impact**: Authorization decisions cached/persisted beyond policy updates
-- **Risk Level**: HIGH - Stale authorization state
+#### Daily Backup Overview Dashboard
+Perfect for morning checks with at-a-glance status:
+- 24-hour backup success rate across all clusters
+- Failed backups requiring immediate attention
+- Clusters without recent backups
+- Backup schedule status and compliance
+- Recent failure logs with actionable details
 
-### 🔧 **Immediate Mitigation Steps**
-1. **DO NOT** deploy to production environments
-2. **DO NOT** use for sensitive data or operations
-3. **Restart pods** after any OIDC configuration changes
-4. **Manually verify** user roles after login
-5. **Monitor logs** for authorization failures
+#### Velero Operations Dashboard
+Comprehensive operational monitoring:
+- Cluster health status with color-coded indicators
+- Backup and restore success rates by cluster
+- Backup status distribution (pie charts)
+- Storage and infrastructure issue tracking
+- Historical trends and performance metrics
 
-### 🛠️ **Required Fixes**
-- [ ] Fix OIDC token claims parsing for role extraction
-- [ ] Implement proper token invalidation on config changes  
-- [ ] Add real-time authorization verification
-- [ ] Create comprehensive security test suite
-- [ ] Implement token refresh with role re-validation
-
-**Status**: Under active investigation and resolution
+### Alerts Configuration
+Pre-configured alerts for critical events:
+- **VeleroBackupFailed**: Immediate notification of backup failures
+- **VeleroNoRecentBackup**: Alert when cluster hasn't been backed up in 24 hours
+- **VeleroBackupSuccessRateLow**: Warning when success rate drops below 85%
+- **VeleroDailyBackupMissing**: SLA violation for missing daily backups
+- **VeleroStorageLocationUnavailable**: Critical alert for storage issues
 
 ---
 
@@ -176,6 +176,11 @@ curl http://localhost:8080/metrics
 velero_cluster_health_status{cluster="cluster-name"}
 velero_cluster_backup_success_rate{cluster="cluster-name"}
 velero_cluster_last_backup_timestamp{cluster="cluster-name"}
+velero_backup_total{namespace="namespace",schedule="schedule-name"}
+velero_restore_success_rate{cluster="cluster-name"}
+
+# Generate test metrics data (development)
+curl -X POST http://localhost:8080/api/v1/test/generate-mock-data
 ```
 
 ## 📡 API Endpoints
@@ -227,17 +232,24 @@ services:
 
 ### Kubernetes (Production)
 ```bash
-# Deploy observability stack
-kubectl apply -f k8s/observability/
+# Deploy observability stack (monitoring namespace)
+kubectl create namespace monitoring
+kubectl apply -f k8s/monitoring/
 
 # Deploy main application with OIDC
+kubectl create namespace velero-manager
 kubectl create secret generic oidc-secret \
-  --from-literal=OIDC_CLIENT_SECRET=your-secret
+  --from-literal=OIDC_CLIENT_SECRET=your-secret \
+  -n velero-manager
 
-kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/
+
+# Deploy Prometheus alerts
+kubectl apply -f k8s/monitoring/prometheus-alerts.yaml
 
 # Verify deployment
 kubectl get pods -n velero-manager
+kubectl get pods -n monitoring | grep alloy
 ```
 
 ### Air-Gap Deployment
@@ -282,8 +294,9 @@ Perfect for completely isolated environments:
 
 ## 📚 Documentation
 
+- **[Observability Setup Guide](docs/OBSERVABILITY.md)** - Complete monitoring stack deployment
 - **[OIDC Setup Guide](docs/OIDC_SETUP.md)** - Complete Keycloak integration setup
-- **[Grafana Dashboard Guide](docs/GRAFANA_DASHBOARD.md)** - Monitoring and alerting setup
+- **[Grafana Dashboard Guide](docs/GRAFANA_DASHBOARD.md)** - Dashboard import and customization
 - **[Environment Configuration](.env.example)** - Configuration template with examples
 
 ## 🧪 Testing

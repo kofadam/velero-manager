@@ -27,7 +27,7 @@ spec:
         - "keycloak.homelab.local"
       containers:
       - name: velero-manager
-        image: localhost:32000/velero-manager:v2.3.3-fix5
+        image: localhost:32000/velero-manager:v2.3.3-fix6
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080

@@ -1,0 +1,183 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: velero-alerts
+  namespace: monitoring
+  labels:
+    prometheus: kube-prometheus
+    role: alert-rules
+data:
+  velero.rules.yaml: |
+    groups:
+    - name: velero.rules
+      interval: 30s
+      rules:
+      
+      # Critical: Backup failures
+      - alert: VeleroBackupFailed
+        expr: increase(velero_backup_failure_total[1h]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: velero
+        annotations:
+          summary: "Velero backup failed in namespace {{ $labels.exported_namespace }}"
+          description: "Backup '{{ $labels.schedule }}' has failed in namespace '{{ $labels.exported_namespace }}' using storage '{{ $labels.storage_location }}'"
+          
+      # Warning: Low backup success rate
+      - alert: VeleroBackupSuccessRateLow
+        expr: velero_cluster_backup_success_rate < 85
+        for: 15m
+        labels:
+          severity: warning
+          component: velero
+        annotations:
+          summary: "Low backup success rate for cluster {{ $labels.cluster }}"
+          description: "Cluster '{{ $labels.cluster }}' has a backup success rate of {{ $value }}%, which is below the threshold of 85%"
+          
+      # Critical: No recent backups
+      - alert: VeleroNoRecentBackup
+        expr: (time() - velero_cluster_last_backup_timestamp) > 86400
+        for: 30m
+        labels:
+          severity: critical
+          component: velero
+        annotations:
+          summary: "No recent backup for cluster {{ $labels.cluster }}"
+          description: "Cluster '{{ $labels.cluster }}' hasn't had a successful backup in over 24 hours"
+          
+      # Critical: Velero not available
+      - alert: VeleroNotAvailable
+        expr: up{job="velero-manager"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: velero
+        annotations:
+          summary: "Velero Manager is down"
+          description: "Velero Manager has been unavailable for more than 5 minutes"
+          
+      # Warning: Backup schedule paused
+      - alert: VeleroSchedulePaused
+        expr: velero_schedule_paused > 0
+        for: 1h
+        labels:
+          severity: warning
+          component: velero
+        annotations:
+          summary: "Backup schedule is paused"
+          description: "Backup schedule '{{ $labels.schedule }}' in namespace '{{ $labels.exported_namespace }}' has been paused for over 1 hour"
+          
+      # Critical: Restore failed
+      - alert: VeleroRestoreFailed
+        expr: increase(velero_restore_failure_total[1h]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: velero
+        annotations:
+          summary: "Velero restore failed"
+          description: "A restore operation has failed in namespace '{{ $labels.exported_namespace }}'"
+          
+      # Warning: High number of backup warnings
+      - alert: VeleroBackupWarningsHigh
+        expr: velero_backup_warnings > 10
+        for: 30m
+        labels:
+          severity: warning
+          component: velero
+        annotations:
+          summary: "High number of backup warnings"
+          description: "Backup '{{ $labels.backup_name }}' has {{ $value }} warnings"
+          
+      # Critical: Backup storage location unavailable
+      - alert: VeleroStorageLocationUnavailable
+        expr: velero_backup_storage_location_available == 0
+        for: 10m
+        labels:
+          severity: critical
+          component: velero
+        annotations:
+          summary: "Backup storage location unavailable"
+          description: "Backup storage location '{{ $labels.storage_location }}' is unavailable"
+
+    - name: velero-sla.rules
+      interval: 5m
+      rules:
+      
+      # SLA: Daily backup requirement
+      - alert: VeleroDailyBackupMissing
+        expr: |
+          (
+            count by (cluster) (
+              increase(velero_backup_success_total{schedule=~".*daily.*"}[25h]) == 0
+            )
+          ) > 0
+        for: 30m
+        labels:
+          severity: warning
+          component: velero
+          sla: daily
+        annotations:
+          summary: "Daily backup SLA violation for cluster {{ $labels.cluster }}"
+          description: "No successful daily backup completed in the last 25 hours for cluster '{{ $labels.cluster }}'"
+          
+      # SLA: Backup success rate below 95%
+      - alert: VeleroBackupSLAViolation
+        expr: velero_cluster_backup_success_rate < 95
+        for: 1h
+        labels:
+          severity: warning
+          component: velero
+          sla: success_rate
+        annotations:
+          summary: "Backup SLA violation for cluster {{ $labels.cluster }}"
+          description: "Cluster '{{ $labels.cluster }}' backup success rate is {{ $value }}%, below SLA requirement of 95%"
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: velero-alerts
+  namespace: monitoring
+  labels:
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+  - name: velero.rules
+    interval: 30s
+    rules:
+    
+    # Critical: Backup failures
+    - alert: VeleroBackupFailed
+      expr: increase(velero_backup_failure_total[1h]) > 0
+      for: 5m
+      labels:
+        severity: critical
+        component: velero
+      annotations:
+        summary: "Velero backup failed in namespace {{ $labels.exported_namespace }}"
+        description: "Backup '{{ $labels.schedule }}' has failed in namespace '{{ $labels.exported_namespace }}' using storage '{{ $labels.storage_location }}'"
+        
+    # Warning: Low backup success rate
+    - alert: VeleroBackupSuccessRateLow
+      expr: velero_cluster_backup_success_rate < 85
+      for: 15m
+      labels:
+        severity: warning
+        component: velero
+      annotations:
+        summary: "Low backup success rate for cluster {{ $labels.cluster }}"
+        description: "Cluster '{{ $labels.cluster }}' has a backup success rate of {{ $value }}%, which is below the threshold of 85%"
+        
+    # Critical: No recent backups
+    - alert: VeleroNoRecentBackup
+      expr: (time() - velero_cluster_last_backup_timestamp) > 86400
+      for: 30m
+      labels:
+        severity: critical
+        component: velero
+      annotations:
+        summary: "No recent backup for cluster {{ $labels.cluster }}"
+        description: "Cluster '{{ $labels.cluster }}' hasn't had a successful backup in over 24 hours"
