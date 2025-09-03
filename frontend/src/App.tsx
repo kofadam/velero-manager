@@ -1,3 +1,4 @@
+// fixed OIDC login issues and improved session handling
 import React, { useState, useEffect } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
