@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: alloy
-  namespace: observability
+  namespace: monitoring
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -38,13 +38,13 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: alloy
-  namespace: observability
+  namespace: monitoring
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: alloy-config
-  namespace: observability
+  namespace: monitoring
 data:
   config.alloy: |
     // Scrape Velero Manager metrics
@@ -63,7 +63,7 @@ data:
     // Send metrics to Prometheus
     prometheus.remote_write "prometheus" {
       endpoint {
-        url = "http://kube-prom-stack-kube-prome-prometheus.observability.svc.cluster.local:9090/api/v1/write"
+        url = "http://kube-prom-stack-kube-prome-prometheus.monitoring.svc.cluster.local:9090/api/v1/write"
       }
     }
 
@@ -122,7 +122,17 @@ data:
         expression = `\[GIN\].*\|\s+(?P<status_code>\d{3})\s+\|.*\|\s+(?P<method>\w+)\s+"`
       }
 
-      // Add labels
+      // Extract cluster name from backup names (remove -centralized-* or -daily-backup-*)
+      stage.regex {
+        expression = `(?P<cluster_from_backup>(?:[a-zA-Z0-9-]+))(?:-centralized-|-daily-backup-)`
+      }
+
+      // Extract cluster name from various log patterns
+      stage.regex {
+        expression = `backup[=:]?\s*"?(?P<cluster_from_log>(?:[a-zA-Z0-9-]+))(?:-centralized|-daily)`
+      }
+
+      // Add labels from regex extraction
       stage.labels {
         values = {
           level = "",
@@ -131,19 +141,35 @@ data:
         }
       }
 
+      // Set cluster label to extracted value or remove if empty
+      stage.template {
+        source = "cluster"
+        template = `{{ if .cluster_from_backup }}{{ .cluster_from_backup }}{{ else if .cluster_from_log }}{{ .cluster_from_log }}{{ end }}`
+      }
+
+      // Remove temporary extraction labels and empty cluster labels
+      stage.label_drop {
+        values = ["cluster_from_backup", "cluster_from_log", "cluster"]
+      }
+
+      // Re-add cluster label only if it has a value
+      stage.labels {
+        values = {
+          cluster = "",
+        }
+      }
+
       // Add static labels
       stage.static_labels {
         values = {
-          cluster = "microk8s-test",
           job = "velero-logs",
         }
       }
     }
-
     // Write logs to Loki
     loki.write "loki" {
       endpoint {
-        url = "http://loki.observability.svc.cluster.local:3100/loki/api/v1/push"
+        url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
       }
     }
 
@@ -160,7 +186,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: alloy
-  namespace: observability
+  namespace: monitoring
   labels:
     app: alloy
 spec:
@@ -219,7 +245,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: alloy
-  namespace: observability
+  namespace: monitoring
   labels:
     app: alloy
 spec:

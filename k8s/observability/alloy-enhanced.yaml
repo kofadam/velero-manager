@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: alloy
-  namespace: observability
+  namespace: monitoring
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -38,13 +38,13 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: alloy
-  namespace: observability
+  namespace: monitoring
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: alloy-config
-  namespace: observability
+  namespace: monitoring
 data:
   config.alloy: |
     // ============================================
@@ -128,7 +128,7 @@ data:
 
     // Process JSON logs (for structured logging)
     loki.process "json" {
-      forward_to = [loki.process.add_labels.receiver]
+      forward_to = [loki.process.extract_cluster.receiver]
 
       // Try to parse as JSON
       stage.json {
@@ -169,15 +169,56 @@ data:
       }
     }
 
-    // Add static labels to all logs
+    // Extract cluster name from backup names in logs
+    loki.process "extract_cluster" {
+      forward_to = [loki.process.add_labels.receiver]
+
+      // Extract cluster name from backup names (remove -centralized-* or -daily-backup-*)
+      stage.regex {
+        expression = `(?P<cluster_from_backup>(?:[a-zA-Z0-9-]+))(?:-centralized-|-daily-backup-)`
+      }
+
+      // Extract cluster name from various log patterns
+      stage.regex {
+        expression = `backup[=:]?\s*"?(?P<cluster_from_log>(?:[a-zA-Z0-9-]+))(?:-centralized|-daily)`
+      }
+
+      // Set cluster label from extracted value
+      stage.labels {
+        values = {
+          cluster_from_backup = "",
+          cluster_from_log = "",
+        }
+      }
+    }
+
+    // Add dynamic cluster label only if found
     loki.process "add_labels" {
       forward_to = [loki.write.default.receiver]
 
+      // Only add cluster label if we found one
+      stage.template {
+        source = "cluster_dynamic"
+        template = `{{ if .cluster_from_backup }}{{ .cluster_from_backup }}{{ else if .cluster_from_log }}{{ .cluster_from_log }}{{ end }}`
+      }
+
       stage.static_labels {
         values = {
-          cluster = "homelab",
           environment = "development",
         }
+      }
+
+      // Only add cluster label if cluster_dynamic has a value
+      stage.labels {
+        values = {
+          cluster = "cluster_dynamic",
+        }
+      }
+
+      // Remove empty cluster labels
+      stage.label_drop {
+        values = ["cluster"]
+        expression = `^$`
       }
     }
 
@@ -205,7 +246,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: alloy
-  namespace: observability
+  namespace: monitoring
   labels:
     app: alloy
 spec:
@@ -277,7 +318,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: alloy
-  namespace: observability
+  namespace: monitoring
   labels:
     app: alloy
 spec:

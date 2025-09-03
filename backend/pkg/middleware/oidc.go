@@ -261,10 +261,11 @@ func (p *OIDCProvider) extractClientRoles(claims map[string]interface{}) []strin
 	return allRoles
 }
 
-// mapToVeleroRole maps Keycloak roles/groups to velero-manager roles
+// mapToVeleroRole maps Keycloak roles to velero-manager roles
 func (p *OIDCProvider) mapToVeleroRole(roles, groups []string) string {
 	// Check admin roles
-	for _, adminRole := range p.Config.AdminRoles {
+	adminRoles := []string{"velero-admin", "admin"}
+	for _, adminRole := range adminRoles {
 		for _, userRole := range roles {
 			if strings.EqualFold(userRole, adminRole) {
 				return "admin"
@@ -272,17 +273,8 @@ func (p *OIDCProvider) mapToVeleroRole(roles, groups []string) string {
 		}
 	}
 
-	// Check admin groups
-	for _, adminGroup := range p.Config.AdminGroups {
-		for _, userGroup := range groups {
-			if strings.EqualFold(userGroup, adminGroup) {
-				return "admin"
-			}
-		}
-	}
-
-	// Check if user has basic user role (e.g., velero-user)
-	userRoles := []string{"velero-user", "velero-viewer"} // Define allowed user roles
+	// Check basic user roles
+	userRoles := []string{"velero-user", "velero-viewer"}
 	for _, allowedRole := range userRoles {
 		for _, userRole := range roles {
 			if strings.EqualFold(userRole, allowedRole) {

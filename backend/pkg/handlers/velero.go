@@ -58,7 +58,7 @@ func (h *VeleroHandler) ListBackups(c *gin.Context) {
 	for _, backup := range backupList.Items {
 		backupName := backup.GetName()
 		clusterName := extractClusterFromBackupName(backupName)
-		
+
 		backupData := map[string]interface{}{
 			"name":              backupName,
 			"cluster":           clusterName,
@@ -179,73 +179,73 @@ func (h *VeleroHandler) CreateBackup(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-                "message": "Backup created successfully",
-                "backup":  result.GetName(),
-                "status":  "created",
-        })
+		"message": "Backup created successfully",
+		"backup":  result.GetName(),
+		"status":  "created",
+	})
 }
 
 // DeleteRestore deletes a restore
 func (h *VeleroHandler) DeleteRestore(c *gin.Context) {
-        name := c.Param("name")
-        
-        err := h.k8sClient.DynamicClient.
-                Resource(k8s.RestoreGVR).
-                Namespace("velero").
-                Delete(h.k8sClient.Context, name, metav1.DeleteOptions{})
-        
-        if err != nil {
-                c.JSON(http.StatusInternalServerError, gin.H{
-                        "error":   "Failed to delete restore",
-                        "details": err.Error(),
-                        "restore": name,
-                })
-                return
-        }
+	name := c.Param("name")
 
-        c.JSON(http.StatusOK, gin.H{
-                "message": "Restore deleted successfully",
-                "restore": name,
-        })
+	err := h.k8sClient.DynamicClient.
+		Resource(k8s.RestoreGVR).
+		Namespace("velero").
+		Delete(h.k8sClient.Context, name, metav1.DeleteOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to delete restore",
+			"details": err.Error(),
+			"restore": name,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Restore deleted successfully",
+		"restore": name,
+	})
 }
 
 // GetRestoreLogs returns logs for a restore
 func (h *VeleroHandler) GetRestoreLogs(c *gin.Context) {
-        name := c.Param("name")
-        
-        // For now, return a placeholder response
-        // In a full implementation, this would fetch actual Velero restore logs
-        c.JSON(http.StatusOK, gin.H{
-                "logs": fmt.Sprintf("Restore logs for '%s' would be retrieved from Velero here.\\n\\nThis is a placeholder implementation. In production, this would:\\n1. Connect to the Velero pod\\n2. Fetch restore logs using 'velero restore logs %s'\\n3. Return the actual log content", name, name),
-                "restore": name,
-        })
+	name := c.Param("name")
+
+	// For now, return a placeholder response
+	// In a full implementation, this would fetch actual Velero restore logs
+	c.JSON(http.StatusOK, gin.H{
+		"logs":    fmt.Sprintf("Restore logs for '%s' would be retrieved from Velero here.\\n\\nThis is a placeholder implementation. In production, this would:\\n1. Connect to the Velero pod\\n2. Fetch restore logs using 'velero restore logs %s'\\n3. Return the actual log content", name, name),
+		"restore": name,
+	})
 }
 
 // DescribeRestore returns detailed information about a restore
 func (h *VeleroHandler) DescribeRestore(c *gin.Context) {
-        name := c.Param("name")
-        
-        restore, err := h.k8sClient.DynamicClient.
-                Resource(k8s.RestoreGVR).
-                Namespace("velero").
-                Get(h.k8sClient.Context, name, metav1.GetOptions{})
-        
-        if err != nil {
-                c.JSON(http.StatusNotFound, gin.H{
-                        "error":   "Restore not found",
-                        "details": err.Error(),
-                        "restore": name,
-                })
-                return
-        }
+	name := c.Param("name")
 
-        c.JSON(http.StatusOK, gin.H{
-                "name":      restore.GetName(),
-                "namespace": restore.GetNamespace(),
-                "metadata":  restore.Object["metadata"],
-                "spec":      restore.Object["spec"],
-                "status":    restore.Object["status"],
-        })
+	restore, err := h.k8sClient.DynamicClient.
+		Resource(k8s.RestoreGVR).
+		Namespace("velero").
+		Get(h.k8sClient.Context, name, metav1.GetOptions{})
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error":   "Restore not found",
+			"details": err.Error(),
+			"restore": name,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"name":      restore.GetName(),
+		"namespace": restore.GetNamespace(),
+		"metadata":  restore.Object["metadata"],
+		"spec":      restore.Object["spec"],
+		"status":    restore.Object["status"],
+	})
 }
 func (h *VeleroHandler) CreateRestore(c *gin.Context) {
 	var request struct {
@@ -272,7 +272,7 @@ func (h *VeleroHandler) CreateRestore(c *gin.Context) {
 	if request.TargetCluster != "" {
 		labels["velero.io/target-cluster"] = request.TargetCluster
 	}
-	
+
 	metadata := map[string]interface{}{
 		"name":      request.Name,
 		"namespace": "velero",
@@ -280,7 +280,7 @@ func (h *VeleroHandler) CreateRestore(c *gin.Context) {
 	if len(labels) > 0 {
 		metadata["labels"] = labels
 	}
-	
+
 	restore := map[string]interface{}{
 		"apiVersion": "velero.io/v1",
 		"kind":       "Restore",
@@ -363,7 +363,7 @@ func (h *VeleroHandler) ListRestores(c *gin.Context) {
 	for _, restore := range restoreList.Items {
 		restoreName := restore.GetName()
 		clusterName := extractClusterFromRestoreName(restoreName, restore.Object)
-		
+
 		restoreData := map[string]interface{}{
 			"name":              restoreName,
 			"cluster":           clusterName,
@@ -838,7 +838,7 @@ func (h *VeleroHandler) ListCronJobs(c *gin.Context) {
 	for _, cronJob := range cronJobList.Items {
 		cronJobName := cronJob.GetName()
 		clusterName := extractClusterFromCronJobName(cronJobName)
-		
+
 		cronJobData := map[string]interface{}{
 			"name":              cronJobName,
 			"cluster":           clusterName,
@@ -981,10 +981,10 @@ func (h *VeleroHandler) TriggerCronJob(c *gin.Context) {
 
 	// Extract cluster name for the backup
 	clusterName := extractClusterFromCronJobName(cronJobName)
-	
+
 	// Create a Job from the CronJob template
 	jobName := fmt.Sprintf("%s-manual-%d", cronJobName, time.Now().Unix())
-	
+
 	// Get job template from CronJob spec
 	spec, _ := cronJob.Object["spec"].(map[string]interface{})
 	jobTemplate, _ := spec["jobTemplate"].(map[string]interface{})
@@ -1037,7 +1037,7 @@ func extractClusterFromCronJobName(cronJobName string) string {
 		clusterPart = strings.TrimSuffix(clusterPart, "-daily")
 		return clusterPart
 	}
-	
+
 	return "unknown"
 }
 
@@ -1048,7 +1048,7 @@ func extractClusterFromBackupName(backupName string) string {
 	if len(parts) >= 2 {
 		return parts[0]
 	}
-	
+
 	// Fallback for other naming patterns
 	if strings.Contains(backupName, "-centralized-") {
 		parts = strings.Split(backupName, "-centralized-")
@@ -1056,7 +1056,7 @@ func extractClusterFromBackupName(backupName string) string {
 			return parts[0]
 		}
 	}
-	
+
 	return "unknown"
 }
 
@@ -1066,34 +1066,59 @@ func extractClusterFromRestoreName(restoreName string, restoreObj map[string]int
 	if cluster := extractClusterFromBackupName(restoreName); cluster != "management" && cluster != "unknown" {
 		return cluster
 	}
-	
+
 	// Try extracting from backup name in spec
 	if spec, found := restoreObj["spec"].(map[string]interface{}); found {
 		if backupName, found := spec["backupName"].(string); found {
 			return extractClusterFromBackupName(backupName)
 		}
 	}
-	
+
 	return "management"
+}
+
+// isOnlySMBStorageFailure checks if all errors are related to missing SMB storage class
+func (h *VeleroHandler) isOnlySMBStorageFailure(backupObj map[string]interface{}) bool {
+	// Extract errors from backup status
+	errors, found, _ := unstructured.NestedSlice(backupObj, "status", "errors")
+	if !found || len(errors) == 0 {
+		return true // No errors means successful
+	}
+
+	// Check each error to ensure it's only SMB storage class issues
+	for _, errorItem := range errors {
+		if errorMap, ok := errorItem.(map[string]interface{}); ok {
+			if message, exists := errorMap["message"]; exists {
+				msgStr := fmt.Sprintf("%v", message)
+
+				// Must be storage class error AND specifically SMB
+				if !strings.Contains(msgStr, `storageclasses.storage.k8s.io "smb" not found`) {
+					return false // This is a real error, not just SMB
+				}
+			}
+		}
+	}
+
+	return true // All errors are SMB storage class issues
 }
 
 func (h *VeleroHandler) GetClusterDetails(c *gin.Context) {
 	clusterName := c.Param("cluster")
-	
+
 	// Get CronJob for this cluster to extract configuration
 	cronJobList, err := h.k8sClient.DynamicClient.
 		Resource(k8s.CronJobGVR).
 		Namespace("velero").
 		List(h.k8sClient.Context, metav1.ListOptions{})
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get cluster details",
+			"error":   "Failed to get cluster details",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	// Find the CronJob for this cluster
 	var clusterCronJob map[string]interface{}
 	for _, cronJob := range cronJobList.Items {
@@ -1102,7 +1127,7 @@ func (h *VeleroHandler) GetClusterDetails(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	// Extract secret name from CronJob spec if available
 	secretName := fmt.Sprintf("%s-credentials", clusterName) // Default pattern
 	if clusterCronJob != nil {
@@ -1126,16 +1151,16 @@ func (h *VeleroHandler) GetClusterDetails(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// Get recent backups for this cluster
 	backupList, _ := h.k8sClient.DynamicClient.
 		Resource(k8s.BackupGVR).
 		Namespace("velero").
 		List(h.k8sClient.Context, metav1.ListOptions{})
-	
+
 	var lastBackup interface{}
 	backupCount := 0
-	
+
 	for _, backup := range backupList.Items {
 		if extractClusterFromBackupName(backup.GetName()) == clusterName {
 			backupCount++
@@ -1144,13 +1169,13 @@ func (h *VeleroHandler) GetClusterDetails(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
-		"cluster": clusterName,
-		"secretName": secretName,
+		"cluster":     clusterName,
+		"secretName":  secretName,
 		"backupCount": backupCount,
-		"lastBackup": lastBackup,
-		"cronJob": clusterCronJob != nil,
+		"lastBackup":  lastBackup,
+		"cronJob":     clusterCronJob != nil,
 	})
 }
 
@@ -1160,43 +1185,43 @@ func (h *VeleroHandler) ListClusters(c *gin.Context) {
 		Resource(k8s.CronJobGVR).
 		Namespace("velero").
 		List(h.k8sClient.Context, metav1.ListOptions{})
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to list cronjobs",
+			"error":   "Failed to list cronjobs",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	// Build cluster map from CronJobs first
 	clusterMap := make(map[string]map[string]interface{})
-	
+
 	for _, cronJob := range cronJobList.Items {
 		clusterName := extractClusterFromCronJobName(cronJob.GetName())
 		if clusterName != "unknown" && clusterName != "" {
 			clusterMap[clusterName] = map[string]interface{}{
-				"name": clusterName,
+				"name":        clusterName,
 				"backupCount": 0,
-				"lastBackup": nil,
+				"lastBackup":  nil,
 			}
 		}
 	}
-	
+
 	// Try to get backups (but don't fail if they don't exist)
 	backupList, err := h.k8sClient.DynamicClient.
 		Resource(k8s.BackupGVR).
 		Namespace("velero").
 		List(h.k8sClient.Context, metav1.ListOptions{})
-	
+
 	if err == nil {
-	
-	// Add backup counts and last backup times
+
+		// Add backup counts and last backup times
 		for _, backup := range backupList.Items {
 			clusterName := extractClusterFromBackupName(backup.GetName())
 			if cluster, exists := clusterMap[clusterName]; exists {
 				cluster["backupCount"] = cluster["backupCount"].(int) + 1
-				
+
 				backupTime := backup.GetCreationTimestamp()
 				if cluster["lastBackup"] == nil || backupTime.After(cluster["lastBackup"].(metav1.Time).Time) {
 					cluster["lastBackup"] = backupTime
@@ -1204,16 +1229,16 @@ func (h *VeleroHandler) ListClusters(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// Convert map to slice
 	clusters := make([]map[string]interface{}, 0, len(clusterMap))
 	for _, cluster := range clusterMap {
 		clusters = append(clusters, cluster)
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"clusters": clusters,
-		"count": len(clusters),
+		"count":    len(clusters),
 	})
 }
 
@@ -1304,12 +1329,12 @@ func (h *VeleroHandler) ListStorageLocations(c *gin.Context) {
 
 func (h *VeleroHandler) CreateStorageLocation(c *gin.Context) {
 	var request struct {
-		Name       string `json:"name" binding:"required"`
-		Provider   string `json:"provider" binding:"required"`
-		Bucket     string `json:"bucket" binding:"required"`
-		Region     string `json:"region,omitempty"`
-		Prefix     string `json:"prefix,omitempty"`
-		Config     map[string]string `json:"config,omitempty"`
+		Name     string            `json:"name" binding:"required"`
+		Provider string            `json:"provider" binding:"required"`
+		Bucket   string            `json:"bucket" binding:"required"`
+		Region   string            `json:"region,omitempty"`
+		Prefix   string            `json:"prefix,omitempty"`
+		Config   map[string]string `json:"config,omitempty"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -1427,10 +1452,10 @@ func (h *VeleroHandler) AddCluster(c *gin.Context) {
 
 	// Create Secret for cluster credentials
 	secretName := fmt.Sprintf("%s-sa-token", request.Name)
-	
+
 	// Token comes as plain text, needs base64 encoding
 	tokenData := base64.StdEncoding.EncodeToString([]byte(request.Token))
-	
+
 	// CA cert should already be base64 encoded from kubectl output
 	// Validate it's proper base64
 	if _, err := base64.StdEncoding.DecodeString(request.CACert); err != nil {
@@ -1440,10 +1465,10 @@ func (h *VeleroHandler) AddCluster(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Encode server URL to base64
 	serverData := base64.StdEncoding.EncodeToString([]byte(request.APIEndpoint))
-	
+
 	secret := map[string]interface{}{
 		"apiVersion": "v1",
 		"kind":       "Secret",
@@ -1590,10 +1615,10 @@ EOF`, request.Name, request.TTL, request.StorageLocation),
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message":  "Cluster added successfully",
-		"cluster":  request.Name,
-		"secret":   secretName,
-		"cronJob":  cronJobName,
+		"message": "Cluster added successfully",
+		"cluster": request.Name,
+		"secret":  secretName,
+		"cronJob": cronJobName,
 	})
 }
 
@@ -1631,13 +1656,13 @@ func (h *VeleroHandler) calculateClusterHealth(clusterName string) (map[string]i
 	}
 
 	var (
-		totalBackups     int
+		totalBackups      int
 		successfulBackups int
-		failedBackups    int
-		lastSuccessful   interface{}
-		lastFailed       interface{}
-		recentBackups    []map[string]interface{}
-		lastBackup       interface{}
+		failedBackups     int
+		lastSuccessful    interface{}
+		lastFailed        interface{}
+		recentBackups     []map[string]interface{}
+		lastBackup        interface{}
 	)
 
 	now := time.Now()
@@ -1649,7 +1674,7 @@ func (h *VeleroHandler) calculateClusterHealth(clusterName string) (map[string]i
 		}
 
 		totalBackups++
-		
+
 		// Get backup status
 		status, found, _ := unstructured.NestedString(backup.Object, "status", "phase")
 		if !found {
@@ -1667,6 +1692,19 @@ func (h *VeleroHandler) calculateClusterHealth(clusterName string) (map[string]i
 			successfulBackups++
 			if lastSuccessful == nil || creationTime.After(lastSuccessful.(metav1.Time).Time) {
 				lastSuccessful = creationTime
+			}
+		case "PartiallyFailed":
+			// Check if failures are only SMB storage class issues
+			if h.isOnlySMBStorageFailure(backup.Object) {
+				successfulBackups++
+				if lastSuccessful == nil || creationTime.After(lastSuccessful.(metav1.Time).Time) {
+					lastSuccessful = creationTime
+				}
+			} else {
+				failedBackups++
+				if lastFailed == nil || creationTime.After(lastFailed.(metav1.Time).Time) {
+					lastFailed = creationTime
+				}
 			}
 		case "Failed", "FailedValidation":
 			failedBackups++
@@ -1767,38 +1805,38 @@ func (h *VeleroHandler) getClusterList() ([]map[string]interface{}, error) {
 		Resource(k8s.CronJobGVR).
 		Namespace("velero").
 		List(h.k8sClient.Context, metav1.ListOptions{})
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to list cronjobs: %w", err)
 	}
-	
+
 	// Build cluster map from CronJobs first
 	clusterMap := make(map[string]map[string]interface{})
-	
+
 	for _, cronJob := range cronJobList.Items {
 		clusterName := extractClusterFromCronJobName(cronJob.GetName())
 		if clusterName != "unknown" && clusterName != "" {
 			clusterMap[clusterName] = map[string]interface{}{
-				"Name": clusterName,
-				"name": clusterName,
+				"Name":        clusterName,
+				"name":        clusterName,
 				"backupCount": 0,
-				"lastBackup": nil,
+				"lastBackup":  nil,
 			}
 		}
 	}
-	
+
 	// Convert map to slice
 	clusters := make([]map[string]interface{}, 0, len(clusterMap))
 	for _, cluster := range clusterMap {
 		clusters = append(clusters, cluster)
 	}
-	
+
 	return clusters, nil
 }
 
 // GetDashboardMetrics provides comprehensive dashboard statistics
 func (h *VeleroHandler) GetDashboardMetrics(c *gin.Context) {
-	// Get all clusters 
+	// Get all clusters
 	clusters, err := h.getClusterList()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -1811,7 +1849,7 @@ func (h *VeleroHandler) GetDashboardMetrics(c *gin.Context) {
 	// Get health for all clusters
 	clusterHealthMap := make(map[string]interface{})
 	var totalClusters, healthyClusters, criticalClusters int
-	
+
 	for _, cluster := range clusters {
 		clusterName := cluster["name"].(string)
 		health, err := h.calculateClusterHealth(clusterName)
@@ -1820,7 +1858,7 @@ func (h *VeleroHandler) GetDashboardMetrics(c *gin.Context) {
 		}
 		clusterHealthMap[clusterName] = health
 		totalClusters++
-		
+
 		switch health["status"] {
 		case "healthy":
 			healthyClusters++
@@ -1848,9 +1886,9 @@ func (h *VeleroHandler) GetDashboardMetrics(c *gin.Context) {
 	// Calculate overall metrics
 	now := time.Now()
 	lastWeek := now.Add(-7 * 24 * time.Hour)
-	
+
 	var (
-		totalBackups, successfulBackups, failedBackups     int
+		totalBackups, successfulBackups, failedBackups    int
 		totalRestores, successfulRestores, failedRestores int
 		recentBackups, recentRestores                     []map[string]interface{}
 	)
@@ -1859,17 +1897,17 @@ func (h *VeleroHandler) GetDashboardMetrics(c *gin.Context) {
 	if backupList != nil {
 		for _, backup := range backupList.Items {
 			totalBackups++
-			
+
 			status, _, _ := unstructured.NestedString(backup.Object, "status", "phase")
 			creationTime := backup.GetCreationTimestamp()
-			
+
 			switch status {
 			case "Completed":
 				successfulBackups++
 			case "Failed", "FailedValidation":
 				failedBackups++
 			}
-			
+
 			if creationTime.After(lastWeek) {
 				recentBackups = append(recentBackups, map[string]interface{}{
 					"name":    backup.GetName(),
@@ -1885,17 +1923,17 @@ func (h *VeleroHandler) GetDashboardMetrics(c *gin.Context) {
 	if restoreList != nil {
 		for _, restore := range restoreList.Items {
 			totalRestores++
-			
+
 			status, _, _ := unstructured.NestedString(restore.Object, "status", "phase")
 			creationTime := restore.GetCreationTimestamp()
-			
+
 			switch status {
 			case "Completed":
 				successfulRestores++
 			case "Failed":
 				failedRestores++
 			}
-			
+
 			if creationTime.After(lastWeek) {
 				backupName, _, _ := unstructured.NestedString(restore.Object, "spec", "backupName")
 				recentRestores = append(recentRestores, map[string]interface{}{
@@ -1922,10 +1960,10 @@ func (h *VeleroHandler) GetDashboardMetrics(c *gin.Context) {
 
 	response := map[string]interface{}{
 		"clusters": map[string]interface{}{
-			"total":     totalClusters,
-			"healthy":   healthyClusters,
-			"critical":  criticalClusters,
-			"details":   clusterHealthMap,
+			"total":    totalClusters,
+			"healthy":  healthyClusters,
+			"critical": criticalClusters,
+			"details":  clusterHealthMap,
 		},
 		"backups": map[string]interface{}{
 			"total":       totalBackups,
@@ -1965,12 +2003,12 @@ func (h *VeleroHandler) GenerateTestData(c *gin.Context) {
 	h.metrics.GenerateMockData()
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Mock data generated successfully",
-		"note":    "Check /metrics endpoint and Grafana dashboards to see the test data",
+		"message":  "Mock data generated successfully",
+		"note":     "Check /metrics endpoint and Grafana dashboards to see the test data",
 		"clusters": []string{"core-cl1", "staging-cl2", "dev-cl3"},
 		"data_types": []string{
 			"cluster_health_status",
-			"backup_success_rates", 
+			"backup_success_rates",
 			"restore_operations",
 			"backup_schedules",
 			"api_request_metrics",
