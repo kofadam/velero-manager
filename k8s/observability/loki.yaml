@@ -6,11 +6,11 @@ metadata:
 data:
   loki.yaml: |
     auth_enabled: false
-    
+
     server:
       http_listen_port: 3100
       grpc_listen_port: 9096
-    
+
     common:
       path_prefix: /tmp/loki
       storage:
@@ -22,7 +22,7 @@ data:
         instance_addr: 127.0.0.1
         kvstore:
           store: inmemory
-    
+
     schema_config:
       configs:
         - from: 2024-01-01
@@ -32,13 +32,13 @@ data:
           index:
             prefix: index_
             period: 24h
-    
+
     ruler:
       alertmanager_url: http://localhost:9093
-    
+
     analytics:
       reporting_enabled: false
-    
+
     limits_config:
       retention_period: 720h
       max_query_series: 5000
@@ -49,7 +49,7 @@ data:
       per_stream_rate_limit_burst: 20MB
       reject_old_samples: true
       reject_old_samples_max_age: 168h
-      
+
     compactor:
       working_directory: /tmp/loki/compactor
       retention_enabled: true
@@ -80,49 +80,49 @@ spec:
         runAsNonRoot: true
         runAsUser: 10001
       containers:
-      - name: loki
-        image: grafana/loki:3.0.0
-        args:
-          - -config.file=/etc/loki/loki.yaml
-        ports:
-        - containerPort: 3100
-          name: http
-        - containerPort: 9096
-          name: grpc
-        volumeMounts:
+        - name: loki
+          image: grafana/loki:3.0.0
+          args:
+            - -config.file=/etc/loki/loki.yaml
+          ports:
+            - containerPort: 3100
+              name: http
+            - containerPort: 9096
+              name: grpc
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki
+            - name: storage
+              mountPath: /tmp/loki
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 45
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 45
+      volumes:
         - name: config
-          mountPath: /etc/loki
-        - name: storage
-          mountPath: /tmp/loki
+          configMap:
+            name: loki-config
+  volumeClaimTemplates:
+    - metadata:
+        name: storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            cpu: 250m
-            memory: 256Mi
-          limits:
-            cpu: 1000m
-            memory: 1Gi
-        livenessProbe:
-          httpGet:
-            path: /ready
-            port: http
-          initialDelaySeconds: 45
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: http
-          initialDelaySeconds: 45
-      volumes:
-      - name: config
-        configMap:
-          name: loki-config
-  volumeClaimTemplates:
-  - metadata:
-      name: storage
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      resources:
-        requests:
-          storage: 10Gi
+            storage: 10Gi
 ---
 apiVersion: v1
 kind: Service
@@ -134,13 +134,13 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 3100
-    targetPort: 3100
-    protocol: TCP
-    name: http
-  - port: 9096
-    targetPort: 9096
-    protocol: TCP
-    name: grpc
+    - port: 3100
+      targetPort: 3100
+      protocol: TCP
+      name: http
+    - port: 9096
+      targetPort: 9096
+      protocol: TCP
+      name: grpc
   selector:
     app: loki

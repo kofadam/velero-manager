@@ -47,14 +47,14 @@ type VeleroMetrics struct {
 	VeleroAvailable    prometheus.Gauge
 	APIRequestsTotal   prometheus.CounterVec
 	APIRequestDuration prometheus.HistogramVec
-	
+
 	// Cluster-based metrics
-	ClusterHealthStatus      prometheus.GaugeVec
-	ClusterBackupSuccessRate prometheus.GaugeVec
+	ClusterHealthStatus       prometheus.GaugeVec
+	ClusterBackupSuccessRate  prometheus.GaugeVec
 	ClusterRestoreSuccessRate prometheus.GaugeVec
-	ClusterLastBackupTime    prometheus.GaugeVec
-	ClusterBackupTotal       prometheus.GaugeVec
-	ClusterRestoreTotal      prometheus.GaugeVec
+	ClusterLastBackupTime     prometheus.GaugeVec
+	ClusterBackupTotal        prometheus.GaugeVec
+	ClusterRestoreTotal       prometheus.GaugeVec
 }
 
 func NewVeleroMetrics(k8sClient *k8s.Client) *VeleroMetrics {
@@ -187,33 +187,33 @@ func NewVeleroMetrics(k8sClient *k8s.Client) *VeleroMetrics {
 			Help:    "Duration of API requests to Velero Manager",
 			Buckets: prometheus.DefBuckets,
 		}, []string{"method", "endpoint"}),
-		
+
 		// Cluster-based metrics
 		ClusterHealthStatus: *promauto.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "velero_cluster_health_status",
 			Help: "Health status of clusters (0=critical, 1=no-backups, 2=warning, 3=healthy)",
 		}, []string{"cluster"}),
-		
+
 		ClusterBackupSuccessRate: *promauto.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "velero_cluster_backup_success_rate",
 			Help: "Backup success rate percentage per cluster",
 		}, []string{"cluster"}),
-		
+
 		ClusterRestoreSuccessRate: *promauto.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "velero_cluster_restore_success_rate",
 			Help: "Restore success rate percentage per cluster",
 		}, []string{"cluster"}),
-		
+
 		ClusterLastBackupTime: *promauto.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "velero_cluster_last_backup_timestamp",
 			Help: "Timestamp of last backup per cluster",
 		}, []string{"cluster"}),
-		
+
 		ClusterBackupTotal: *promauto.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "velero_cluster_backup_total",
 			Help: "Total number of backups per cluster",
 		}, []string{"cluster", "status"}),
-		
+
 		ClusterRestoreTotal: *promauto.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "velero_cluster_restore_total",
 			Help: "Total number of restores per cluster",
@@ -540,7 +540,7 @@ func extractClusterFromBackupName(backupName string) string {
 	if len(parts) >= 2 {
 		return parts[0]
 	}
-	
+
 	// Fallback for other naming patterns
 	if strings.Contains(backupName, "-centralized-") {
 		parts = strings.Split(backupName, "-centralized-")
@@ -548,7 +548,7 @@ func extractClusterFromBackupName(backupName string) string {
 			return parts[0]
 		}
 	}
-	
+
 	return "unknown"
 }
 
@@ -572,21 +572,21 @@ func (vm *VeleroMetrics) updateClusterMetrics() error {
 
 	// Reset cluster metrics
 	vm.ClusterHealthStatus.Reset()
-	vm.ClusterBackupSuccessRate.Reset() 
+	vm.ClusterBackupSuccessRate.Reset()
 	vm.ClusterRestoreSuccessRate.Reset()
 	vm.ClusterLastBackupTime.Reset()
 	vm.ClusterBackupTotal.Reset()
 	vm.ClusterRestoreTotal.Reset()
 
 	// Build cluster statistics
-	clusterStats := make(map[string]struct{
-		totalBackups     int
-		successfulBackups int
-		failedBackups    int
-		lastBackup       time.Time
-		totalRestores    int
+	clusterStats := make(map[string]struct {
+		totalBackups       int
+		successfulBackups  int
+		failedBackups      int
+		lastBackup         time.Time
+		totalRestores      int
 		successfulRestores int
-		failedRestores   int
+		failedRestores     int
 	})
 
 	// Process backups

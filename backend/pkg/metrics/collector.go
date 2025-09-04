@@ -8,28 +8,28 @@ import (
 
 // MetricsCollector handles periodic collection of Velero metrics
 type MetricsCollector struct {
-	metrics        *VeleroMetrics
+	metrics         *VeleroMetrics
 	collectInterval time.Duration
-	ctx            context.Context
-	cancel         context.CancelFunc
+	ctx             context.Context
+	cancel          context.CancelFunc
 }
 
 // NewMetricsCollector creates a new metrics collector
 func NewMetricsCollector(metrics *VeleroMetrics, collectInterval time.Duration) *MetricsCollector {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	return &MetricsCollector{
 		metrics:         metrics,
 		collectInterval: collectInterval,
-		ctx:            ctx,
-		cancel:         cancel,
+		ctx:             ctx,
+		cancel:          cancel,
 	}
 }
 
 // Start begins the metrics collection loop
 func (mc *MetricsCollector) Start() {
 	log.Println("📊 Starting Velero metrics collector...")
-	
+
 	// Collect metrics immediately on start
 	if err := mc.metrics.UpdateVeleroMetrics(); err != nil {
 		log.Printf("⚠️  Failed to collect initial metrics: %v", err)

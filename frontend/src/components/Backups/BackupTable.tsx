@@ -15,7 +15,7 @@ import {
   Chip,
   Typography,
   Box,
-  TableSortLabel
+  TableSortLabel,
 } from '@mui/material';
 
 interface BackupTableProps {
@@ -36,11 +36,11 @@ const BackupTable: React.FC<BackupTableProps> = ({
   onSelectBackup,
   onSelectAll,
   onDeleteBackup,
-  onRefresh
+  onRefresh,
 }) => {
   const [sortField, setSortField] = React.useState<SortField>('created');
   const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
-  
+
   const allSelected = backups.length > 0 && selectedBackups.length === backups.length;
   const someSelected = selectedBackups.length > 0 && selectedBackups.length < backups.length;
 
@@ -76,7 +76,7 @@ const BackupTable: React.FC<BackupTableProps> = ({
 
   const sortedBackups = [...backups].sort((a, b) => {
     let comparison = 0;
-    
+
     switch (sortField) {
       case 'name':
         comparison = a.name.localeCompare(b.name);
@@ -88,10 +88,11 @@ const BackupTable: React.FC<BackupTableProps> = ({
         comparison = a.status.phase.localeCompare(b.status.phase);
         break;
       case 'created':
-        comparison = new Date(a.creationTimestamp).getTime() - new Date(b.creationTimestamp).getTime();
+        comparison =
+          new Date(a.creationTimestamp).getTime() - new Date(b.creationTimestamp).getTime();
         break;
     }
-    
+
     return sortDirection === 'asc' ? comparison : -comparison;
   });
 
@@ -153,13 +154,13 @@ const BackupTable: React.FC<BackupTableProps> = ({
         </TableHead>
         <TableBody>
           {sortedBackups.map((backup) => (
-            <TableRow 
+            <TableRow
               key={backup.name}
               hover
-              sx={{ 
-                '&:hover': { 
+              sx={{
+                '&:hover': {
                   backgroundColor: 'action.hover',
-                } 
+                },
               }}
             >
               <TableCell padding="checkbox">
@@ -170,125 +171,126 @@ const BackupTable: React.FC<BackupTableProps> = ({
                 />
               </TableCell>
               <TableCell>
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
+                <Typography
+                  variant="body2"
+                  sx={{
                     fontWeight: 600,
                     color: 'primary.main',
                     maxWidth: 200,
-                    wordBreak: 'break-word'
+                    wordBreak: 'break-word',
                   }}
                 >
                   {backup.name}
                 </Typography>
               </TableCell>
               <TableCell>
-                <Chip 
-                  label={backup.cluster} 
+                <Chip
+                  label={backup.cluster}
                   size="small"
                   variant="outlined"
-                  sx={{ 
+                  sx={{
                     backgroundColor: 'background.paper',
                     color: 'text.primary',
                     borderColor: 'divider',
                     '&:hover': {
-                      backgroundColor: 'action.hover'
-                    }
+                      backgroundColor: 'action.hover',
+                    },
                   }}
                 />
               </TableCell>
               <TableCell>
-                <Chip 
+                <Chip
                   label={backup.status.phase}
                   color={getStatusColor(backup.status.phase)}
                   size="small"
-                  sx={{ 
+                  sx={{
                     fontWeight: 600,
                     textTransform: 'uppercase',
                     fontSize: '0.75rem',
-                    letterSpacing: '0.5px'
+                    letterSpacing: '0.5px',
                   }}
                 />
               </TableCell>
               <TableCell align="center">
-                <Typography 
+                <Typography
                   variant="body2"
-                  sx={{ 
+                  sx={{
                     fontWeight: 600,
-                    color: (backup.status.validationErrors?.length || backup.status.errors || 0) > 0 ? 'error.main' : 'text.secondary'
+                    color:
+                      (backup.status.validationErrors?.length || backup.status.errors || 0) > 0
+                        ? 'error.main'
+                        : 'text.secondary',
                   }}
                 >
                   {backup.status.validationErrors?.length || backup.status.errors || 0}
                 </Typography>
               </TableCell>
               <TableCell align="center">
-                <Typography 
+                <Typography
                   variant="body2"
-                  sx={{ 
+                  sx={{
                     fontWeight: 600,
-                    color: (backup.status.warnings || 0) > 0 ? 'warning.main' : 'text.secondary'
+                    color: (backup.status.warnings || 0) > 0 ? 'warning.main' : 'text.secondary',
                   }}
                 >
                   {backup.status.warnings || 0}
                 </Typography>
               </TableCell>
               <TableCell>
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
+                <Typography
+                  variant="body2"
+                  sx={{
                     color: 'text.secondary',
                     fontSize: '0.875rem',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {formatDateShort(backup.creationTimestamp)}
                 </Typography>
               </TableCell>
               <TableCell>
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
+                <Typography
+                  variant="body2"
+                  sx={{
                     color: 'text.secondary',
                     fontSize: '0.875rem',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {backup.status.expiration ? formatDateShort(backup.status.expiration) : '-'}
                 </Typography>
               </TableCell>
               <TableCell>
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
+                <Typography
+                  variant="body2"
+                  sx={{
                     color: 'text.secondary',
                     maxWidth: 150,
                     overflow: 'hidden',
-                    textOverflow: 'ellipsis'
+                    textOverflow: 'ellipsis',
                   }}
                 >
                   {getNamespaceDisplay(backup.spec.includedNamespaces)}
                 </Typography>
               </TableCell>
               <TableCell>
-                <BackupActions
-                  backup={backup}
-                  onDelete={onDeleteBackup}
-                  onRefresh={onRefresh}
-                />
+                <BackupActions backup={backup} onDelete={onDeleteBackup} onRefresh={onRefresh} />
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-      
+
       {backups.length === 0 && (
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: 200,
-          flexDirection: 'column'
-        }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: 200,
+            flexDirection: 'column',
+          }}
+        >
           <Typography color="text.secondary" variant="h6">
             No backups found
           </Typography>

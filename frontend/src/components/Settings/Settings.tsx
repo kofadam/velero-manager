@@ -27,9 +27,18 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
-  Chip
+  Chip,
 } from '@mui/material';
-import { Refresh, Add, Close, Delete, Settings as SettingsIcon, People, Storage, Security } from '@mui/icons-material';
+import {
+  Refresh,
+  Add,
+  Close,
+  Delete,
+  Settings as SettingsIcon,
+  People,
+  Storage,
+  Security,
+} from '@mui/icons-material';
 
 interface StorageLocation {
   name: string;
@@ -62,7 +71,7 @@ const Settings: React.FC = () => {
     prefix: '',
     s3Url: '',
     region: 'minio',
-    s3ForcePathStyle: 'true'
+    s3ForcePathStyle: 'true',
   });
 
   useEffect(() => {
@@ -87,9 +96,9 @@ const Settings: React.FC = () => {
     try {
       const config: Record<string, string> = {
         region: formData.region,
-        s3ForcePathStyle: formData.s3ForcePathStyle
+        s3ForcePathStyle: formData.s3ForcePathStyle,
       };
-      
+
       if (formData.s3Url) {
         config.s3Url = formData.s3Url;
       }
@@ -99,9 +108,9 @@ const Settings: React.FC = () => {
         provider: formData.provider,
         bucket: formData.bucket,
         prefix: formData.prefix,
-        config
+        config,
       });
-      
+
       setShowCreateModal(false);
       setFormData({
         name: '',
@@ -110,7 +119,7 @@ const Settings: React.FC = () => {
         prefix: '',
         s3Url: '',
         region: 'minio',
-        s3ForcePathStyle: 'true'
+        s3ForcePathStyle: 'true',
       });
       fetchStorageLocations();
     } catch (err: any) {
@@ -135,29 +144,19 @@ const Settings: React.FC = () => {
           <Typography variant="h4" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <SettingsIcon /> Settings
           </Typography>
-          <Tabs 
-            value={activeTab} 
+          <Tabs
+            value={activeTab}
             onChange={(e, newValue) => setActiveTab(newValue)}
             aria-label="settings tabs"
           >
-            <Tab 
-              icon={<Storage />} 
+            <Tab
+              icon={<Storage />}
               iconPosition="start"
-              label="Storage Locations" 
-              value="storage" 
+              label="Storage Locations"
+              value="storage"
             />
-            <Tab 
-              icon={<People />} 
-              iconPosition="start"
-              label="Users" 
-              value="users" 
-            />
-            <Tab 
-              icon={<Security />} 
-              iconPosition="start"
-              label="OIDC / SSO" 
-              value="oidc" 
-            />
+            <Tab icon={<People />} iconPosition="start" label="Users" value="users" />
+            <Tab icon={<Security />} iconPosition="start" label="OIDC / SSO" value="oidc" />
           </Tabs>
         </Box>
 
@@ -169,9 +168,9 @@ const Settings: React.FC = () => {
             <Typography color="text.secondary" sx={{ mb: 3 }}>
               Manage backup storage locations for your Velero backups.
             </Typography>
-          
+
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mb: 3 }}>
-              <Button 
+              <Button
                 variant="outlined"
                 onClick={fetchStorageLocations}
                 disabled={loading}
@@ -179,7 +178,7 @@ const Settings: React.FC = () => {
               >
                 {loading ? 'Refreshing...' : 'Refresh'}
               </Button>
-              <Button 
+              <Button
                 variant="contained"
                 onClick={() => setShowCreateModal(true)}
                 startIcon={<Add />}
@@ -189,18 +188,25 @@ const Settings: React.FC = () => {
             </Box>
 
             {loading && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: 200,
+                }}
+              >
                 <CircularProgress />
                 <Typography sx={{ ml: 2 }}>Loading storage locations...</Typography>
               </Box>
             )}
-            
+
             {error && (
               <Alert severity="error" sx={{ mb: 2 }}>
                 Error: {error}
               </Alert>
             )}
-            
+
             {!loading && !error && (
               <TableContainer>
                 <Table>
@@ -221,7 +227,7 @@ const Settings: React.FC = () => {
                         <TableCell>{location.spec.provider}</TableCell>
                         <TableCell>{location.spec.objectStorage.bucket}</TableCell>
                         <TableCell>
-                          <Chip 
+                          <Chip
                             label={location.status?.phase || 'Unknown'}
                             color={location.status?.phase === 'Available' ? 'success' : 'error'}
                             size="small"
@@ -230,7 +236,7 @@ const Settings: React.FC = () => {
                         <TableCell>{location.spec.default ? '✓' : '-'}</TableCell>
                         <TableCell>
                           {location.name !== 'default' && (
-                            <Button 
+                            <Button
                               variant="outlined"
                               color="error"
                               size="small"
@@ -250,13 +256,9 @@ const Settings: React.FC = () => {
           </Box>
         )}
 
-        {activeTab === 'users' && (
-          <UserManagement />
-        )}
+        {activeTab === 'users' && <UserManagement />}
 
-        {activeTab === 'oidc' && (
-          <OIDCSettings />
-        )}
+        {activeTab === 'oidc' && <OIDCSettings />}
 
         <Dialog
           open={showCreateModal}
@@ -264,7 +266,9 @@ const Settings: React.FC = () => {
           maxWidth="sm"
           fullWidth
         >
-          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <DialogTitle
+            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+          >
             Create Backup Location
             <IconButton onClick={() => setShowCreateModal(false)}>
               <Close />
@@ -276,17 +280,17 @@ const Settings: React.FC = () => {
                 fullWidth
                 label="Location Name *"
                 value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g., dept3-storage"
                 required
                 sx={{ mb: 2 }}
               />
-              
+
               <FormControl fullWidth required sx={{ mb: 2 }}>
                 <InputLabel>Provider *</InputLabel>
-                <Select 
+                <Select
                   value={formData.provider}
-                  onChange={(e) => setFormData({...formData, provider: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
                   label="Provider *"
                 >
                   <MenuItem value="aws">AWS S3 / MinIO</MenuItem>
@@ -299,7 +303,7 @@ const Settings: React.FC = () => {
                 fullWidth
                 label="Bucket Name *"
                 value={formData.bucket}
-                onChange={(e) => setFormData({...formData, bucket: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, bucket: e.target.value })}
                 placeholder="e.g., dept3-backups"
                 required
                 sx={{ mb: 2 }}
@@ -309,7 +313,7 @@ const Settings: React.FC = () => {
                 fullWidth
                 label="S3 URL (for MinIO)"
                 value={formData.s3Url}
-                onChange={(e) => setFormData({...formData, s3Url: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, s3Url: e.target.value })}
                 placeholder="http://10.100.102.110:9000"
                 sx={{ mb: 2 }}
               />
@@ -318,20 +322,15 @@ const Settings: React.FC = () => {
                 fullWidth
                 label="Prefix (optional)"
                 value={formData.prefix}
-                onChange={(e) => setFormData({...formData, prefix: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, prefix: e.target.value })}
                 placeholder="e.g., velero/"
                 sx={{ mb: 2 }}
               />
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setShowCreateModal(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleCreateLocation}
-              variant="contained"
-            >
+            <Button onClick={() => setShowCreateModal(false)}>Cancel</Button>
+            <Button onClick={handleCreateLocation} variant="contained">
               Create Location
             </Button>
           </DialogActions>

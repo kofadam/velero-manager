@@ -100,7 +100,7 @@ export const apiService = {
   async createBackupFromSchedule(scheduleName: string): Promise<any> {
     const response = await api.post(`/cronjobs/${scheduleName}/trigger`);
     return response.data;
-  },  
+  },
 
   async getHealth(): Promise<{ status: string }> {
     const response = await api.get('/health');

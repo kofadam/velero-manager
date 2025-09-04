@@ -2,14 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ScheduleTable from './ScheduleTable.tsx';
 import CreateScheduleModal from './CreateScheduleModal.tsx';
 import { apiService } from '../../services/api.ts';
-import {
-  Box,
-  Button,
-  CircularProgress,
-  Alert,
-  Paper,
-  Typography
-} from '@mui/material';
+import { Box, Button, CircularProgress, Alert, Paper, Typography } from '@mui/material';
 import { Refresh, Add } from '@mui/icons-material';
 
 const ScheduleList: React.FC = () => {
@@ -41,7 +34,8 @@ const ScheduleList: React.FC = () => {
       await apiService.deleteSchedule(scheduleName);
       await fetchSchedules(); // Refresh list
     } catch (err: any) {
-      const errorMessage = err.response?.data?.details || err.message || 'Failed to delete schedule';
+      const errorMessage =
+        err.response?.data?.details || err.message || 'Failed to delete schedule';
       alert(`❌ Failed to delete schedule:\n\n${errorMessage}`);
     }
   };
@@ -51,20 +45,28 @@ const ScheduleList: React.FC = () => {
       await apiService.updateSchedule(scheduleName, { suspend: paused });
       await fetchSchedules(); // Refresh list
     } catch (err: any) {
-      const errorMessage = err.response?.data?.details || err.message || 'Failed to update schedule';
+      const errorMessage =
+        err.response?.data?.details || err.message || 'Failed to update schedule';
       alert(`❌ Failed to update schedule:\n\n${errorMessage}`);
     }
   };
 
   const handleCreateBackupNow = async (scheduleName: string) => {
-    if (window.confirm(`Create a backup now using schedule "${scheduleName}"?\n\nThis will create a manual backup using the schedule's configuration.`)) {
+    if (
+      window.confirm(
+        `Create a backup now using schedule "${scheduleName}"?\n\nThis will create a manual backup using the schedule's configuration.`
+      )
+    ) {
       try {
         const result = await apiService.createBackupFromSchedule(scheduleName);
-        alert(`✅ Manual backup created successfully!\n\n📦 Backup: ${result.backup}\n📋 Schedule: ${result.schedule}\n\nThe backup is now running in the background.`);
+        alert(
+          `✅ Manual backup created successfully!\n\n📦 Backup: ${result.backup}\n📋 Schedule: ${result.schedule}\n\nThe backup is now running in the background.`
+        );
         // Optionally refresh the list to show activity
         await fetchSchedules();
       } catch (err: any) {
-        const errorMessage = err.response?.data?.details || err.message || 'Failed to create backup from schedule';
+        const errorMessage =
+          err.response?.data?.details || err.message || 'Failed to create backup from schedule';
         alert(`❌ Failed to create backup:\n\n${errorMessage}`);
       }
     }
@@ -73,14 +75,16 @@ const ScheduleList: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Paper sx={{ p: 3 }}>
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'flex-end',
-          alignItems: 'center',
-          gap: 1,
-          mb: 3
-        }}>
-          <Button 
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            gap: 1,
+            mb: 3,
+          }}
+        >
+          <Button
             variant="outlined"
             onClick={fetchSchedules}
             disabled={loading}
@@ -88,28 +92,26 @@ const ScheduleList: React.FC = () => {
           >
             {loading ? 'Refreshing...' : 'Refresh'}
           </Button>
-          <Button 
-            variant="contained"
-            onClick={() => setShowCreateModal(true)}
-            startIcon={<Add />}
-          >
+          <Button variant="contained" onClick={() => setShowCreateModal(true)} startIcon={<Add />}>
             Create Schedule
           </Button>
         </Box>
 
         {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+          <Box
+            sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}
+          >
             <CircularProgress />
             <Typography sx={{ ml: 2 }}>Loading schedules...</Typography>
           </Box>
         )}
-        
+
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             Error: {error}
           </Alert>
         )}
-        
+
         {!loading && !error && (
           <ScheduleTable
             schedules={schedules}

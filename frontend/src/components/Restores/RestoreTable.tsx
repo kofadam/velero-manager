@@ -13,7 +13,7 @@ import {
   Chip,
   Typography,
   Box,
-  TableSortLabel
+  TableSortLabel,
 } from '@mui/material';
 
 type SortField = 'name' | 'cluster' | 'creationTimestamp' | 'status';
@@ -60,7 +60,7 @@ const RestoreTable: React.FC<RestoreTableProps> = ({
 
   const sortedRestores = [...restores].sort((a, b) => {
     let comparison = 0;
-    
+
     switch (sortField) {
       case 'name':
         comparison = a.name.localeCompare(b.name);
@@ -72,10 +72,11 @@ const RestoreTable: React.FC<RestoreTableProps> = ({
         comparison = (a.cluster || '').localeCompare(b.cluster || '');
         break;
       case 'creationTimestamp':
-        comparison = new Date(a.creationTimestamp).getTime() - new Date(b.creationTimestamp).getTime();
+        comparison =
+          new Date(a.creationTimestamp).getTime() - new Date(b.creationTimestamp).getTime();
         break;
     }
-    
+
     return sortDirection === 'asc' ? comparison : -comparison;
   });
 
@@ -148,13 +149,13 @@ const RestoreTable: React.FC<RestoreTableProps> = ({
         </TableHead>
         <TableBody>
           {sortedRestores.map((restore) => (
-            <TableRow 
+            <TableRow
               key={restore.name}
               hover
-              sx={{ 
-                '&:hover': { 
+              sx={{
+                '&:hover': {
                   backgroundColor: 'action.hover',
-                } 
+                },
               }}
             >
               <TableCell padding="checkbox">
@@ -165,94 +166,94 @@ const RestoreTable: React.FC<RestoreTableProps> = ({
                 />
               </TableCell>
               <TableCell>
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
+                <Typography
+                  variant="body2"
+                  sx={{
                     fontWeight: 600,
                     color: 'primary.main',
                     maxWidth: 200,
-                    wordBreak: 'break-word'
+                    wordBreak: 'break-word',
                   }}
                 >
                   {restore.name}
                 </Typography>
               </TableCell>
               <TableCell>
-                <Chip 
-                  label={restore.cluster || 'UNKNOWN'} 
+                <Chip
+                  label={restore.cluster || 'UNKNOWN'}
                   size="small"
                   variant="outlined"
-                  sx={{ 
+                  sx={{
                     backgroundColor: 'background.paper',
                     color: 'text.primary',
                     borderColor: 'divider',
                     '&:hover': {
-                      backgroundColor: 'action.hover'
-                    }
+                      backgroundColor: 'action.hover',
+                    },
                   }}
                 />
               </TableCell>
               <TableCell>
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
+                <Typography
+                  variant="body2"
+                  sx={{
                     fontFamily: 'monospace',
                     fontSize: '0.875rem',
-                    color: 'text.secondary'
+                    color: 'text.secondary',
                   }}
                 >
                   {restore.spec.backupName}
                 </Typography>
               </TableCell>
               <TableCell>
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
+                <Typography
+                  variant="body2"
+                  sx={{
                     color: 'text.secondary',
                     fontSize: '0.875rem',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {formatTimestamp(restore.creationTimestamp)}
                 </Typography>
               </TableCell>
               <TableCell>
-                <Chip 
+                <Chip
                   label={restore.status.phase}
                   color={getStatusColor(restore.status.phase)}
                   size="small"
-                  sx={{ 
+                  sx={{
                     fontWeight: 600,
                     textTransform: 'uppercase',
                     fontSize: '0.75rem',
-                    letterSpacing: '0.5px'
+                    letterSpacing: '0.5px',
                   }}
                 />
               </TableCell>
               <TableCell align="center">
-                <Typography 
+                <Typography
                   variant="body2"
-                  sx={{ 
+                  sx={{
                     fontWeight: 600,
-                    color: (restore.status.errors || 0) > 0 ? 'error.main' : 'text.secondary'
+                    color: (restore.status.errors || 0) > 0 ? 'error.main' : 'text.secondary',
                   }}
                 >
                   {restore.status.errors || 0}
                 </Typography>
               </TableCell>
               <TableCell align="center">
-                <Typography 
+                <Typography
                   variant="body2"
-                  sx={{ 
+                  sx={{
                     fontWeight: 600,
-                    color: (restore.status.warnings || 0) > 0 ? 'warning.main' : 'text.secondary'
+                    color: (restore.status.warnings || 0) > 0 ? 'warning.main' : 'text.secondary',
                   }}
                 >
                   {restore.status.warnings || 0}
                 </Typography>
               </TableCell>
               <TableCell>
-                <RestoreActions 
+                <RestoreActions
                   restore={restore}
                   onDelete={onDeleteRestore}
                   onRefresh={onRefresh}
@@ -262,15 +263,17 @@ const RestoreTable: React.FC<RestoreTableProps> = ({
           ))}
         </TableBody>
       </Table>
-      
+
       {restores.length === 0 && (
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: 200,
-          flexDirection: 'column'
-        }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: 200,
+            flexDirection: 'column',
+          }}
+        >
           <Typography color="text.secondary" variant="h6">
             No restores found
           </Typography>

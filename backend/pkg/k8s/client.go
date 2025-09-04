@@ -2,15 +2,15 @@ package k8s
 
 import (
 	"context"
-	"path/filepath"
 	"os"
+	"path/filepath"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 )
 
 type Client struct {
@@ -55,7 +55,7 @@ func getKubeConfig() (*rest.Config, error) {
 	if home := homedir.HomeDir(); home != "" {
 		kubeconfig = filepath.Join(home, ".kube", "config")
 	}
-	
+
 	if envKubeconfig := os.Getenv("KUBECONFIG"); envKubeconfig != "" {
 		kubeconfig = envKubeconfig
 	}
@@ -70,39 +70,39 @@ var (
 		Version:  "v1",
 		Resource: "backups",
 	}
-	
+
 	ScheduleGVR = schema.GroupVersionResource{
 		Group:    "velero.io",
 		Version:  "v1",
 		Resource: "schedules",
 	}
-	
+
 	RestoreGVR = schema.GroupVersionResource{
-		Group: "velero.io",
-		Version: "v1",
+		Group:    "velero.io",
+		Version:  "v1",
 		Resource: "restores",
 	}
-	
+
 	BackupStorageLocationGVR = schema.GroupVersionResource{
-		Group: "velero.io",
-		Version: "v1",
+		Group:    "velero.io",
+		Version:  "v1",
 		Resource: "backupstoragelocations",
 	}
-	
+
 	CronJobGVR = schema.GroupVersionResource{
-		Group: "batch",
-		Version: "v1",
+		Group:    "batch",
+		Version:  "v1",
 		Resource: "cronjobs",
 	}
-	
+
 	JobGVR = schema.GroupVersionResource{
-	Group: "batch",
-	Version: "v1",
-	Resource: "jobs",
+		Group:    "batch",
+		Version:  "v1",
+		Resource: "jobs",
 	}
 	SecretGVR = schema.GroupVersionResource{
-	Group: "",
-	Version: "v1",
-	Resource: "secrets",
+		Group:    "",
+		Version:  "v1",
+		Resource: "secrets",
 	}
 )

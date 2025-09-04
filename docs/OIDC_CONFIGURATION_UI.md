@@ -7,7 +7,7 @@ Velero Manager now supports managing OIDC/SSO configuration directly through the
 ## Features
 
 - **UI-based Configuration**: Configure OIDC settings through the Settings page
-- **Secure Storage**: 
+- **Secure Storage**:
   - Non-sensitive configuration stored in Kubernetes ConfigMap
   - Client secret stored in Kubernetes Secret
 - **Live Configuration Testing**: Test OIDC provider connectivity before saving
@@ -19,6 +19,7 @@ Velero Manager now supports managing OIDC/SSO configuration directly through the
 ### Storage Components
 
 1. **ConfigMap**: `velero-manager-oidc-config`
+
    - Stores all non-sensitive OIDC configuration
    - Includes issuer URL, client ID, claim mappings, role mappings
 
@@ -59,30 +60,32 @@ kubectl apply -f k8s/oidc-secret.yaml
 ### 3. Configure via UI
 
 1. **Navigate to Settings**
+
    - Log in to Velero Manager as admin
    - Go to Settings → OIDC / SSO tab
 
 2. **Enable OIDC**
+
    - Toggle "Enable OIDC Authentication" switch
 
 3. **Configure Identity Provider**
+
    - **Issuer URL**: Your OIDC provider's issuer URL
      - Keycloak: `https://keycloak.company.com/auth/realms/company`
      - Auth0: `https://company.auth0.com/`
      - Okta: `https://company.okta.com`
-   
    - **Client ID**: The OAuth2 client ID for Velero Manager
-   
    - **Client Secret**: The OAuth2 client secret (stored securely)
-   
    - **Redirect URL**: Callback URL (auto-populated)
      - Default: `https://your-domain/api/v1/auth/oidc/callback`
 
 4. **Test Connection**
+
    - Click "Test Connection" to verify OIDC provider connectivity
    - Ensures the issuer URL is reachable and valid
 
 5. **Configure Claim Mappings** (Optional)
+
    - **Username Claim**: JWT claim for username (default: `preferred_username`)
    - **Email Claim**: JWT claim for email (default: `email`)
    - **Full Name Claim**: JWT claim for display name (default: `name`)
@@ -90,6 +93,7 @@ kubectl apply -f k8s/oidc-secret.yaml
    - **Groups Claim**: JWT claim for groups (default: `groups`)
 
 6. **Configure Admin Role Mapping**
+
    - **Admin Roles**: OIDC roles that grant admin access
      - Add roles like `velero-admin`, `platform-admin`
    - **Admin Groups**: OIDC groups that grant admin access
@@ -105,6 +109,7 @@ kubectl apply -f k8s/oidc-secret.yaml
 ### Keycloak Configuration
 
 1. Create a new client in your Keycloak realm:
+
    ```
    Client ID: velero-manager
    Client Protocol: openid-connect
@@ -113,12 +118,14 @@ kubectl apply -f k8s/oidc-secret.yaml
    ```
 
 2. Configure client scopes:
+
    - `openid` (required)
    - `email` (recommended)
    - `profile` (recommended)
    - `groups` (if using group-based access)
 
 3. Create roles:
+
    - `velero-admin` - For administrator access
    - `velero-user` - For standard user access
 
@@ -141,12 +148,14 @@ kubectl apply -f k8s/oidc-secret.yaml
 The following endpoints are available for OIDC configuration management:
 
 ### Get Current Configuration
+
 ```http
 GET /api/v1/oidc/config
 Authorization: Bearer <admin-token>
 ```
 
 Response:
+
 ```json
 {
   "enabled": false,
@@ -166,6 +175,7 @@ Response:
 ```
 
 ### Update Configuration
+
 ```http
 PUT /api/v1/oidc/config
 Authorization: Bearer <admin-token>
@@ -181,6 +191,7 @@ Content-Type: application/json
 ```
 
 ### Test Connection
+
 ```http
 POST /api/v1/oidc/test
 Authorization: Bearer <admin-token>
@@ -196,11 +207,13 @@ Content-Type: application/json
 ## Security Considerations
 
 1. **Secret Management**
+
    - Client secrets are stored in Kubernetes Secrets
    - Never exposed in ConfigMaps or logs
    - Transmitted encrypted over HTTPS
 
 2. **Access Control**
+
    - Only admin users can modify OIDC configuration
    - Configuration changes are audited in Kubernetes events
 
@@ -213,11 +226,13 @@ Content-Type: application/json
 ### OIDC Not Working After Configuration
 
 1. **Check ConfigMap**:
+
    ```bash
    kubectl get configmap velero-manager-oidc-config -n velero-manager -o yaml
    ```
 
 2. **Check Secret**:
+
    ```bash
    kubectl get secret velero-manager-oidc-secret -n velero-manager -o yaml
    ```
@@ -230,10 +245,12 @@ Content-Type: application/json
 ### Connection Test Fails
 
 1. **Network Issues**:
+
    - Ensure OIDC provider is reachable from the cluster
    - Check firewall rules and network policies
 
 2. **Invalid Issuer URL**:
+
    - Verify the issuer URL is correct
    - Try accessing `<issuer-url>/.well-known/openid-configuration` directly
 
@@ -244,6 +261,7 @@ Content-Type: application/json
 ### Users Can't Login
 
 1. **Role Mapping**:
+
    - Verify users have the correct roles/groups in OIDC provider
    - Check admin roles/groups configuration in Velero Manager
 
@@ -272,6 +290,7 @@ If you're currently using environment variables for OIDC configuration:
 ## Support
 
 For issues or questions about OIDC configuration:
+
 1. Check the troubleshooting section above
 2. Review application logs
 3. Open an issue on GitHub with:

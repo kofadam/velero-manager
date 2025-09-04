@@ -139,7 +139,8 @@
   background-color: white;
 }
 
-.loading, .error {
+.loading,
+.error {
   padding: 20px;
   text-align: center;
 }

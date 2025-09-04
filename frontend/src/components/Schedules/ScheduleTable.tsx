@@ -13,15 +13,9 @@ import {
   Typography,
   Box,
   IconButton,
-  Tooltip
+  Tooltip,
 } from '@mui/material';
-import { 
-  PlayArrow, 
-  Pause, 
-  Edit, 
-  Delete, 
-  FlashOn 
-} from '@mui/icons-material';
+import { PlayArrow, Pause, Edit, Delete, FlashOn } from '@mui/icons-material';
 
 interface ScheduleTableProps {
   schedules: any[];
@@ -36,7 +30,7 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
   onDeleteSchedule,
   onToggleSchedule,
   onCreateBackupNow,
-  onRefresh
+  onRefresh,
 }) => {
   const getNextRunTime = (cronExpression: string): string => {
     // This is a simplified calculation - in real implementation you'd use a proper cron library
@@ -44,10 +38,12 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
     return 'Next run: TBD';
   };
 
-  const getScheduleStatus = (schedule: any): { status: string; color: 'success' | 'info' | 'error' | 'warning' | 'default' } => {
+  const getScheduleStatus = (
+    schedule: any
+  ): { status: string; color: 'success' | 'info' | 'error' | 'warning' | 'default' } => {
     const isSuspended = schedule.spec?.suspend === true;
     const hasValidationErrors = schedule.status?.validationErrors?.length > 0;
-    
+
     if (hasValidationErrors) {
       return { status: 'Error', color: 'error' };
     }
@@ -60,7 +56,7 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
   const getLastBackupInfo = (schedule: any): string => {
     const lastBackup = schedule.status?.lastBackup;
     if (!lastBackup) return 'No backups yet';
-    
+
     try {
       const date = new Date(lastBackup);
       return formatDateShort(date.toISOString());
@@ -70,7 +66,11 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
   };
 
   const handleDelete = async (scheduleName: string) => {
-    if (window.confirm(`Are you sure you want to delete schedule "${scheduleName}"?\n\nThis will stop all future automated backups for this schedule.`)) {
+    if (
+      window.confirm(
+        `Are you sure you want to delete schedule "${scheduleName}"?\n\nThis will stop all future automated backups for this schedule.`
+      )
+    ) {
       try {
         await onDeleteSchedule(scheduleName);
         onRefresh();
@@ -95,15 +95,19 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
   if (schedules.length === 0) {
     return (
       <TableContainer component={Paper} elevation={2}>
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: 400,
-          flexDirection: 'column',
-          p: 4
-        }}>
-          <Typography variant="h2" sx={{ mb: 2, opacity: 0.5 }}>⏰</Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: 400,
+            flexDirection: 'column',
+            p: 4,
+          }}
+        >
+          <Typography variant="h2" sx={{ mb: 2, opacity: 0.5 }}>
+            ⏰
+          </Typography>
           <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
             No Backup Schedules
           </Typography>
@@ -161,143 +165,143 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
             const cronDescription = translateCronExpression(cronExpression);
 
             return (
-              <TableRow 
+              <TableRow
                 key={schedule.name}
                 hover
-                sx={{ 
-                  '&:hover': { 
+                sx={{
+                  '&:hover': {
                     backgroundColor: 'action.hover',
-                  } 
+                  },
                 }}
               >
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
+                    <Typography
+                      variant="body2"
+                      sx={{
                         fontWeight: 600,
-                        color: 'primary.main'
+                        color: 'primary.main',
                       }}
                     >
                       {schedule.name}
                     </Typography>
                     {isSuspended && (
-                      <Chip 
-                        label="PAUSED" 
-                        size="small" 
-                        color="warning" 
+                      <Chip
+                        label="PAUSED"
+                        size="small"
+                        color="warning"
                         variant="outlined"
                         sx={{ fontSize: '0.625rem', height: '20px' }}
                       />
                     )}
                   </Box>
                 </TableCell>
-                
+
                 <TableCell>
-                  <Chip 
-                    label={schedule.cluster || 'unknown'} 
+                  <Chip
+                    label={schedule.cluster || 'unknown'}
                     size="small"
                     variant="outlined"
-                    sx={{ 
+                    sx={{
                       backgroundColor: 'background.paper',
                       color: 'text.primary',
                       borderColor: 'divider',
                       '&:hover': {
-                        backgroundColor: 'action.hover'
-                      }
+                        backgroundColor: 'action.hover',
+                      },
                     }}
                   />
                 </TableCell>
-                
+
                 <TableCell>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
+                  <Typography
+                    variant="body2"
+                    sx={{
                       fontFamily: 'monospace',
                       backgroundColor: 'action.hover',
                       color: 'text.primary',
                       px: 1,
                       py: 0.5,
                       borderRadius: 1,
-                      fontSize: '0.75rem'
+                      fontSize: '0.75rem',
                     }}
                   >
                     {cronExpression}
                   </Typography>
                 </TableCell>
-                
+
                 <TableCell>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
+                  <Typography
+                    variant="body2"
+                    sx={{
                       color: 'text.secondary',
                       maxWidth: 200,
                       overflow: 'hidden',
-                      textOverflow: 'ellipsis'
+                      textOverflow: 'ellipsis',
                     }}
                   >
                     {cronDescription}
                   </Typography>
                 </TableCell>
-                
+
                 <TableCell>
-                  <Chip 
+                  <Chip
                     label={statusInfo.status}
                     color={statusInfo.color}
                     size="small"
-                    sx={{ 
+                    sx={{
                       fontWeight: 600,
                       textTransform: 'uppercase',
                       fontSize: '0.75rem',
-                      letterSpacing: '0.5px'
+                      letterSpacing: '0.5px',
                     }}
                   />
                 </TableCell>
-                
+
                 <TableCell>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
+                  <Typography
+                    variant="body2"
+                    sx={{
                       color: 'text.secondary',
                       fontSize: '0.875rem',
-                      whiteSpace: 'nowrap'
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     {getLastBackupInfo(schedule)}
                   </Typography>
                 </TableCell>
-                
+
                 <TableCell>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
+                  <Typography
+                    variant="body2"
+                    sx={{
                       color: 'text.secondary',
                       maxWidth: 150,
                       overflow: 'hidden',
-                      textOverflow: 'ellipsis'
+                      textOverflow: 'ellipsis',
                     }}
                   >
                     {schedule.spec?.template?.includedNamespaces?.join(', ') || 'All namespaces'}
                   </Typography>
                 </TableCell>
-                
+
                 <TableCell>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
+                  <Typography
+                    variant="body2"
+                    sx={{
                       color: 'text.secondary',
                       fontSize: '0.875rem',
-                      whiteSpace: 'nowrap'
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     {formatDateShort(schedule.creationTimestamp)}
                   </Typography>
                 </TableCell>
-                
+
                 <TableCell>
                   <Box sx={{ display: 'flex', gap: 0.5 }}>
                     <Tooltip title="Create Backup Now">
-                      <IconButton 
+                      <IconButton
                         size="small"
                         onClick={() => onCreateBackupNow(schedule.name)}
                         sx={{ color: 'warning.main' }}
@@ -305,9 +309,9 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
                         <FlashOn fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    
+
                     <Tooltip title={isSuspended ? 'Resume Schedule' : 'Pause Schedule'}>
-                      <IconButton 
+                      <IconButton
                         size="small"
                         onClick={() => handleToggle(schedule.name, isSuspended)}
                         sx={{ color: isSuspended ? 'success.main' : 'warning.main' }}
@@ -315,9 +319,9 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
                         {isSuspended ? <PlayArrow fontSize="small" /> : <Pause fontSize="small" />}
                       </IconButton>
                     </Tooltip>
-                    
+
                     <Tooltip title="Edit Schedule">
-                      <IconButton 
+                      <IconButton
                         size="small"
                         onClick={() => alert('Edit functionality coming soon!')}
                         sx={{ color: 'info.main' }}
@@ -325,9 +329,9 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
                         <Edit fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    
+
                     <Tooltip title="Delete Schedule">
-                      <IconButton 
+                      <IconButton
                         size="small"
                         onClick={() => handleDelete(schedule.name)}
                         sx={{ color: 'error.main' }}

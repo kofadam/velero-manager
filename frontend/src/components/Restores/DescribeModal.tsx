@@ -75,9 +75,11 @@ const DescribeModal: React.FC<DescribeModalProps> = ({ restoreName, onClose }) =
       <div className="describe-modal">
         <div className="describe-modal-header">
           <h3>Restore Details: {restoreName}</h3>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <button className="close-btn" onClick={onClose}>
+            ×
+          </button>
         </div>
-        
+
         <div className="describe-modal-content">
           {loading ? (
             <div className="describe-loading">Loading restore details...</div>
@@ -91,7 +93,7 @@ const DescribeModal: React.FC<DescribeModalProps> = ({ restoreName, onClose }) =
             </div>
           )}
         </div>
-        
+
         <div className="describe-modal-footer">
           <button className="btn btn-secondary" onClick={onClose}>
             Close

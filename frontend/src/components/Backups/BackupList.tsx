@@ -23,9 +23,9 @@ const BackupList: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [clusterFilter, setClusterFilter] = useState('all');
-  
+
   const availableClusters = React.useMemo(() => {
-    const clusters = Array.from(new Set(backups.map(backup => backup.cluster).filter(Boolean)));
+    const clusters = Array.from(new Set(backups.map((backup) => backup.cluster).filter(Boolean)));
     return clusters.sort();
   }, [backups]);
 
@@ -33,13 +33,13 @@ const BackupList: React.FC = () => {
     if (selected) {
       setSelectedBackups([...selectedBackups, backupName]);
     } else {
-      setSelectedBackups(selectedBackups.filter(name => name !== backupName));
+      setSelectedBackups(selectedBackups.filter((name) => name !== backupName));
     }
   };
 
   const handleSelectAll = (selected: boolean) => {
     if (selected) {
-      setSelectedBackups(backups.map(b => b.name));
+      setSelectedBackups(backups.map((b) => b.name));
     } else {
       setSelectedBackups([]);
     }
@@ -59,15 +59,17 @@ const BackupList: React.FC = () => {
     }
   };
 
-  const filteredBackups = backups.filter(backup => {
-    const matchesSearch = backup.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
+  const filteredBackups = backups.filter((backup) => {
+    const matchesSearch =
+      backup.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
       backup.status.phase.toLowerCase().includes(searchFilter.toLowerCase()) ||
-      (backup.spec.includedNamespaces && backup.spec.includedNamespaces.some(ns => 
-        ns.toLowerCase().includes(searchFilter.toLowerCase())
-      ));
-    
+      (backup.spec.includedNamespaces &&
+        backup.spec.includedNamespaces.some((ns) =>
+          ns.toLowerCase().includes(searchFilter.toLowerCase())
+        ));
+
     const matchesCluster = clusterFilter === 'all' || backup.cluster === clusterFilter;
-    
+
     return matchesSearch && matchesCluster;
   });
 
@@ -106,8 +108,10 @@ const BackupList: React.FC = () => {
               onChange={(e) => setClusterFilter(e.target.value)}
             >
               <MenuItem value="all">All Clusters</MenuItem>
-              {availableClusters.map(cluster => (
-                <MenuItem key={cluster} value={cluster}>{cluster}</MenuItem>
+              {availableClusters.map((cluster) => (
+                <MenuItem key={cluster} value={cluster}>
+                  {cluster}
+                </MenuItem>
               ))}
             </Select>
           </FormControl>

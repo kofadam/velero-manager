@@ -5,18 +5,15 @@ interface LoadingSpinnerProps {
   color?: string;
 }
 
-const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
-  size = 'medium', 
-  color = '#2563eb' 
-}) => {
+const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'medium', color = '#2563eb' }) => {
   const sizeClass = {
     small: '16px',
     medium: '24px',
-    large: '32px'
+    large: '32px',
   }[size];
 
   return (
-    <div 
+    <div
       className="loading-spinner"
       style={{
         width: sizeClass,
@@ -24,7 +21,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
         border: `2px solid #f3f4f6`,
         borderTop: `2px solid ${color}`,
         borderRadius: '50%',
-        animation: 'spin 1s linear infinite'
+        animation: 'spin 1s linear infinite',
       }}
     />
   );

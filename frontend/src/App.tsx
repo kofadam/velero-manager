@@ -194,22 +194,26 @@ function App() {
     const auth = urlParams.get('auth');
     const username = urlParams.get('username');
     const role = urlParams.get('role');
-    
+
     if (token && auth === 'oidc' && username && role) {
       // Store the token and create user session
       localStorage.setItem('velero_token', token);
       const userData: User = {
         username: username,
-        role: role as 'admin' | 'user'
+        role: role as 'admin' | 'user',
       };
-      
+
       // Clear URL parameters
-      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
-      
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname + window.location.hash
+      );
+
       setUser(userData);
       return;
     }
-    
+
     // Otherwise check for existing session
     const currentUser = authService.getCurrentUser();
     setUser(currentUser);
@@ -265,10 +269,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <Box sx={{ display: 'flex', minHeight: '100vh' }}>
         <CssBaseline />
-        <Box
-          component="nav"
-          sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-        >
+        <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
           {/* Mobile drawer */}
           <Navigator
             PaperProps={{ style: { width: drawerWidth } }}

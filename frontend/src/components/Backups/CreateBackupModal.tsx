@@ -13,7 +13,7 @@ const CreateBackupModal: React.FC<CreateBackupModalProps> = ({ onClose, onSucces
     includedNamespaces: '',
     excludedNamespaces: '',
     storageLocation: 'default',
-    ttl: '720h0m0s'
+    ttl: '720h0m0s',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -26,20 +26,20 @@ const CreateBackupModal: React.FC<CreateBackupModalProps> = ({ onClose, onSucces
     try {
       const namespaces = formData.includedNamespaces
         .split(',')
-        .map(ns => ns.trim())
-        .filter(ns => ns.length > 0);
+        .map((ns) => ns.trim())
+        .filter((ns) => ns.length > 0);
 
       const excludedNamespaces = formData.excludedNamespaces
         .split(',')
-        .map(ns => ns.trim())
-        .filter(ns => ns.length > 0);
+        .map((ns) => ns.trim())
+        .filter((ns) => ns.length > 0);
 
       await apiService.createBackup({
         name: formData.name,
         includedNamespaces: namespaces.length > 0 ? namespaces : undefined,
         excludedNamespaces: excludedNamespaces.length > 0 ? excludedNamespaces : undefined,
         storageLocation: formData.storageLocation,
-        ttl: formData.ttl
+        ttl: formData.ttl,
       } as any);
 
       onSuccess();
@@ -51,7 +51,7 @@ const CreateBackupModal: React.FC<CreateBackupModalProps> = ({ onClose, onSucces
   };
 
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (

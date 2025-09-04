@@ -25,7 +25,7 @@ const CreateRestoreModal: React.FC<CreateRestoreModalProps> = ({ onClose }) => {
     const fetchBackups = async () => {
       try {
         const response = await apiService.getBackups();
-        const backupNames = response.backups?.map(b => b.name) || [];
+        const backupNames = response.backups?.map((b) => b.name) || [];
         setAvailableBackups(backupNames);
       } catch (err) {
         console.error('Failed to fetch backups:', err);
@@ -45,10 +45,10 @@ const CreateRestoreModal: React.FC<CreateRestoreModalProps> = ({ onClose }) => {
         name: formData.name,
         backupName: formData.backupName,
         includedNamespaces: formData.includedNamespaces
-          ? formData.includedNamespaces.split(',').map(s => s.trim())
+          ? formData.includedNamespaces.split(',').map((s) => s.trim())
           : undefined,
         excludedNamespaces: formData.excludedNamespaces
-          ? formData.excludedNamespaces.split(',').map(s => s.trim())
+          ? formData.excludedNamespaces.split(',').map((s) => s.trim())
           : undefined,
         namespaceMapping: formData.namespaceMapping
           ? JSON.parse(formData.namespaceMapping)
@@ -66,13 +66,15 @@ const CreateRestoreModal: React.FC<CreateRestoreModalProps> = ({ onClose }) => {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
     const { name, value, type } = e.target;
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
+      setFormData((prev) => ({ ...prev, [name]: checked }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
@@ -87,16 +89,14 @@ const CreateRestoreModal: React.FC<CreateRestoreModalProps> = ({ onClose }) => {
       <div className="create-restore-modal">
         <div className="create-restore-modal-header">
           <h3>Create New Restore</h3>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <button className="close-btn" onClick={onClose}>
+            ×
+          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="create-restore-modal-content">
-            {error && (
-              <div className="error-message">
-                {error}
-              </div>
-            )}
+            {error && <div className="error-message">{error}</div>}
 
             <div className="form-group">
               <label htmlFor="name">Restore Name *</label>
@@ -121,8 +121,10 @@ const CreateRestoreModal: React.FC<CreateRestoreModalProps> = ({ onClose }) => {
                 required
               >
                 <option value="">Select a backup...</option>
-                {availableBackups.map(backup => (
-                  <option key={backup} value={backup}>{backup}</option>
+                {availableBackups.map((backup) => (
+                  <option key={backup} value={backup}>
+                    {backup}
+                  </option>
                 ))}
               </select>
             </div>

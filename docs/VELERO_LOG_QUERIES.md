@@ -11,7 +11,7 @@ Since Velero namespace contains the real operational data, here are the most imp
 {namespace="velero"} |= "backup" |~ "Failed|Error|error"
 
 # Backup completion events
-{namespace="velero"} |= "backup" |= "Completed" 
+{namespace="velero"} |= "backup" |= "Completed"
 
 # Backup start/progress tracking
 {namespace="velero"} |= "backup" |~ "Starting|InProgress"
@@ -35,7 +35,7 @@ Since Velero namespace contains the real operational data, here are the most imp
 # Failed restores
 {namespace="velero"} |= "restore" |~ "Failed|Error"
 
-# Successful restores  
+# Successful restores
 {namespace="velero"} |= "restore" |= "Completed"
 
 # Restore progress
@@ -96,9 +96,9 @@ sum(count_over_time({namespace="velero"} |= "backup" |~ "Failed|PartiallyFailed"
 
 ```logql
 # Extract backup duration from logs
-{namespace="velero"} 
-  | logfmt 
-  | backup != "" 
+{namespace="velero"}
+  | logfmt
+  | backup != ""
   | duration != ""
 
 # Extract backup size information
@@ -128,6 +128,7 @@ sum(count_over_time({namespace="velero"} |= "BackupStorageLocation" |= "unavaila
 ## 💡 **Pro Tips for Velero Log Analysis**
 
 ### 1. **Combine with Metrics**
+
 ```logql
 # Use logs to understand WHY metrics show problems
 # Example: If backup_success_rate metric drops, query:
@@ -135,15 +136,17 @@ sum(count_over_time({namespace="velero"} |= "BackupStorageLocation" |= "unavaila
 ```
 
 ### 2. **Track User-Initiated vs Scheduled Backups**
+
 ```logql
 # Manual backups
 {namespace="velero"} |= "backup" |!= "schedule"
 
-# Scheduled backups  
+# Scheduled backups
 {namespace="velero"} |= "backup" |= "schedule"
 ```
 
 ### 3. **Monitor Backup Chain Integrity**
+
 ```logql
 # Full vs incremental backups
 {namespace="velero"} |= "backup" |~ "full|incremental"
@@ -153,6 +156,7 @@ sum(count_over_time({namespace="velero"} |= "BackupStorageLocation" |= "unavaila
 ```
 
 ### 4. **Resource-Specific Issues**
+
 ```logql
 # PVC backup issues
 {namespace="velero"} |= "PersistentVolumeClaim" |~ "error|skip"
@@ -176,7 +180,8 @@ Based on the Velero namespace being the source of truth:
 6. **Cross-Cluster Correlation** - If using multiple clusters
 
 The velero-manager namespace logs are secondary - mainly for:
+
 - API authentication issues
-- Web UI access problems  
+- Web UI access problems
 - OIDC troubleshooting
 - User activity auditing

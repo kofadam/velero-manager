@@ -11,16 +11,16 @@ data:
       external_labels:
         cluster: 'kind-cluster'
         environment: 'development'
-    
+
     rule_files:
       - "velero_alerts.yml"
-    
+
     alerting:
       alertmanagers:
         - static_configs:
             - targets:
               - alertmanager:9093
-    
+
     scrape_configs:
       # Velero Manager application metrics
       - job_name: 'velero-manager'
@@ -29,12 +29,12 @@ data:
         metrics_path: '/metrics'
         scrape_interval: 30s
         scrape_timeout: 10s
-    
+
       # Prometheus self-monitoring
       - job_name: 'prometheus'
         static_configs:
           - targets: ['localhost:9090']
-    
+
       # Kubernetes API Server
       - job_name: 'kubernetes-apiserver'
         kubernetes_sd_configs:
@@ -51,7 +51,7 @@ data:
           - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
             action: keep
             regex: default;kubernetes;https
-    
+
       # Kubernetes Nodes
       - job_name: 'kubernetes-nodes'
         kubernetes_sd_configs:
@@ -64,7 +64,7 @@ data:
         relabel_configs:
           - action: labelmap
             regex: __meta_kubernetes_node_label_(.+)
-    
+
       # Kubernetes Pods
       - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
@@ -103,7 +103,7 @@ data:
             annotations:
               summary: "Velero backup failed"
               description: "Velero backup {{ $labels.backup_name }} in namespace {{ $labels.namespace }} has failed."
-          
+
           - alert: VeleroBackupPartiallyFailed
             expr: velero_backup_errors > 0
             for: 5m
@@ -112,7 +112,7 @@ data:
             annotations:
               summary: "Velero backup completed with errors"
               description: "Velero backup {{ $labels.backup_name }} completed with {{ $value }} errors."
-          
+
           - alert: VeleroBackupDurationHigh
             expr: velero_backup_duration_seconds > 3600
             for: 10m
@@ -121,7 +121,7 @@ data:
             annotations:
               summary: "Velero backup duration is high"
               description: "Velero backup {{ $labels.schedule }} is taking longer than 1 hour to complete."
-          
+
           - alert: VeleroRestoreFailed
             expr: velero_restore_failure_total > 0
             for: 5m
@@ -130,7 +130,7 @@ data:
             annotations:
               summary: "Velero restore failed"
               description: "Velero restore {{ $labels.restore_name }} has failed."
-          
+
           - alert: VeleroSchedulePaused
             expr: velero_schedule_paused > 0
             for: 15m
@@ -139,7 +139,7 @@ data:
             annotations:
               summary: "Velero schedule is paused"
               description: "{{ $value }} Velero schedule(s) are currently paused."
-          
+
           - alert: VeleroNotAvailable
             expr: velero_available == 0
             for: 5m
@@ -171,13 +171,13 @@ spec:
         - name: prometheus
           image: prom/prometheus:v2.45.0
           args:
-            - '--config.file=/etc/prometheus/prometheus.yml'
-            - '--storage.tsdb.path=/prometheus/'
-            - '--web.console.libraries=/etc/prometheus/console_libraries'
-            - '--web.console.templates=/etc/prometheus/consoles'
-            - '--storage.tsdb.retention.time=7d'
-            - '--web.enable-lifecycle'
-            - '--web.enable-admin-api'
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus/"
+            - "--web.console.libraries=/etc/prometheus/console_libraries"
+            - "--web.console.templates=/etc/prometheus/consoles"
+            - "--storage.tsdb.retention.time=7d"
+            - "--web.enable-lifecycle"
+            - "--web.enable-admin-api"
           ports:
             - containerPort: 9090
               name: web

@@ -40,7 +40,7 @@ func (vm *VeleroMetrics) GenerateMockData() {
 		totalBackups := float64(50 + rand.Intn(450))
 		vm.ClusterBackupTotal.WithLabelValues(cluster, "total").Set(totalBackups)
 
-		// Total restores (5-50) 
+		// Total restores (5-50)
 		totalRestores := float64(5 + rand.Intn(45))
 		vm.ClusterRestoreTotal.WithLabelValues(cluster, "total").Set(totalRestores)
 	}
@@ -110,7 +110,7 @@ func (vm *VeleroMetrics) GenerateMockData() {
 		for _, namespace := range namespaces {
 			vm.ScheduleTotal.WithLabelValues(namespace, schedule).Set(1)
 			vm.SchedulePaused.WithLabelValues(namespace, schedule).Set(0) // Not paused
-			
+
 			// Last backup for this schedule (within last 48 hours)
 			lastScheduledBackup := time.Now().Add(-time.Duration(rand.Intn(48)) * time.Hour).Unix()
 			vm.ScheduleLastBackup.WithLabelValues(namespace, schedule).Set(float64(lastScheduledBackup))
@@ -127,14 +127,14 @@ func (vm *VeleroMetrics) GenerateMockData() {
 	for i := 0; i < 200; i++ {
 		endpoint := apiEndpoints[rand.Intn(len(apiEndpoints))]
 		method := methods[rand.Intn(len(methods))]
-		
+
 		// Status distribution: mostly 2xx, some 4xx, rare 5xx
 		var status string
 		r := rand.Float32()
 		if r < 0.8 {
 			status = "200"
 		} else if r < 0.9 {
-			status = "201" 
+			status = "201"
 		} else if r < 0.95 {
 			status = "404"
 		} else if r < 0.98 {
@@ -144,7 +144,7 @@ func (vm *VeleroMetrics) GenerateMockData() {
 		}
 
 		vm.APIRequestsTotal.WithLabelValues(method, endpoint, status).Add(1)
-		
+
 		// Request duration (1ms to 5000ms)
 		duration := 0.001 + rand.Float64()*4.999
 		vm.APIRequestDuration.WithLabelValues(method, endpoint).Observe(duration)

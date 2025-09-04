@@ -90,7 +90,11 @@ export default function Navigator(props: NavigatorProps) {
       <List disablePadding>
         <ListItem sx={{ ...item, ...itemCategory, fontSize: 22, color: '#fff', py: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <img src="/logo-simple.svg" alt="Velero Manager" style={{ height: '32px', width: 'auto' }} />
+            <img
+              src="/logo-simple.svg"
+              alt="Velero Manager"
+              style={{ height: '32px', width: 'auto' }}
+            />
             <Typography variant="h6" color="inherit" fontWeight={600}>
               Velero Manager
             </Typography>
@@ -109,9 +113,7 @@ export default function Navigator(props: NavigatorProps) {
         {categories.map(({ id, children }) => (
           <Box key={id} sx={{ bgcolor: '#101F33' }}>
             <ListItem sx={{ py: 2, px: 3 }}>
-              <ListItemText sx={{ color: '#fff' }}>
-                {id}
-              </ListItemText>
+              <ListItemText sx={{ color: '#fff' }}>{id}</ListItemText>
             </ListItem>
             {children.map(({ id: childId, name, icon }) => (
               <ListItem disablePadding key={childId}>

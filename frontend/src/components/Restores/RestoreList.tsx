@@ -13,7 +13,7 @@ import {
   CircularProgress,
   Alert,
   Paper,
-  Typography
+  Typography,
 } from '@mui/material';
 import { Refresh, Add, Delete } from '@mui/icons-material';
 
@@ -26,7 +26,9 @@ const RestoreList: React.FC = () => {
 
   // Get unique clusters from restores
   const availableClusters = React.useMemo(() => {
-    const clusters = Array.from(new Set(restores.map(restore => restore.cluster).filter(Boolean)));
+    const clusters = Array.from(
+      new Set(restores.map((restore) => restore.cluster).filter(Boolean))
+    );
     return clusters.sort();
   }, [restores]);
 
@@ -34,13 +36,13 @@ const RestoreList: React.FC = () => {
     if (selected) {
       setSelectedRestores([...selectedRestores, restoreName]);
     } else {
-      setSelectedRestores(selectedRestores.filter(name => name !== restoreName));
+      setSelectedRestores(selectedRestores.filter((name) => name !== restoreName));
     }
   };
 
   const handleSelectAll = (selected: boolean) => {
     if (selected) {
-      setSelectedRestores(restores.map(r => r.name));
+      setSelectedRestores(restores.map((r) => r.name));
     } else {
       setSelectedRestores([]);
     }
@@ -68,15 +70,16 @@ const RestoreList: React.FC = () => {
     refreshRestores();
   };
 
-  const filteredRestores = restores.filter(restore => {
+  const filteredRestores = restores.filter((restore) => {
     // Search filter
-    const matchesSearch = restore.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
+    const matchesSearch =
+      restore.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
       restore.status.phase.toLowerCase().includes(searchFilter.toLowerCase()) ||
       restore.spec.backupName.toLowerCase().includes(searchFilter.toLowerCase());
-    
+
     // Cluster filter
     const matchesCluster = clusterFilter === 'all' || restore.cluster === clusterFilter;
-    
+
     return matchesSearch && matchesCluster;
   });
 
@@ -100,20 +103,24 @@ const RestoreList: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Paper sx={{ p: 3 }}>
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: { xs: 'column', md: 'row' },
-          justifyContent: 'space-between',
-          alignItems: { xs: 'stretch', md: 'center' },
-          gap: 2,
-          mb: 3
-        }}>
-          <Box sx={{ 
-            display: 'flex', 
-            gap: 2, 
-            flex: 1,
-            flexDirection: { xs: 'column', sm: 'row' }
-          }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            justifyContent: 'space-between',
+            alignItems: { xs: 'stretch', md: 'center' },
+            gap: 2,
+            mb: 3,
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 2,
+              flex: 1,
+              flexDirection: { xs: 'column', sm: 'row' },
+            }}
+          >
             <TextField
               placeholder="Search restores by name, status, or backup..."
               value={searchFilter}
@@ -130,17 +137,21 @@ const RestoreList: React.FC = () => {
                 label="Cluster"
               >
                 <MenuItem value="all">All Clusters</MenuItem>
-                {availableClusters.map(cluster => (
-                  <MenuItem key={cluster} value={cluster}>{cluster}</MenuItem>
+                {availableClusters.map((cluster) => (
+                  <MenuItem key={cluster} value={cluster}>
+                    {cluster}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
           </Box>
-          <Box sx={{ 
-            display: 'flex', 
-            gap: 1,
-            flexWrap: 'wrap'
-          }}>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              flexWrap: 'wrap',
+            }}
+          >
             <Button
               variant="outlined"
               onClick={refreshRestores}
@@ -149,15 +160,11 @@ const RestoreList: React.FC = () => {
             >
               {loading ? 'Refreshing...' : 'Refresh'}
             </Button>
-            <Button 
-              variant="contained"
-              onClick={handleCreateRestore}
-              startIcon={<Add />}
-            >
+            <Button variant="contained" onClick={handleCreateRestore} startIcon={<Add />}>
               Create Restore
             </Button>
             {selectedRestores.length > 0 && (
-              <Button 
+              <Button
                 variant="contained"
                 color="error"
                 onClick={handleDeleteSelected}
@@ -168,8 +175,8 @@ const RestoreList: React.FC = () => {
             )}
           </Box>
         </Box>
-        
-        <RestoreTable 
+
+        <RestoreTable
           restores={filteredRestores}
           selectedRestores={selectedRestores}
           onSelectRestore={handleSelectRestore}
@@ -178,11 +185,7 @@ const RestoreList: React.FC = () => {
           onRefresh={refreshRestores}
         />
 
-        {showCreateModal && (
-          <CreateRestoreModal 
-            onClose={handleModalClose}
-          />
-        )}
+        {showCreateModal && <CreateRestoreModal onClose={handleModalClose} />}
       </Paper>
     </Box>
   );

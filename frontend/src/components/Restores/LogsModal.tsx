@@ -33,7 +33,7 @@ const LogsModal: React.FC<LogsModalProps> = ({ restoreName, onClose }) => {
   const fetchLogs = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await apiService.getRestoreLogs(restoreName);
       setLogs(response.logs || 'No logs available');
@@ -56,7 +56,7 @@ const LogsModal: React.FC<LogsModalProps> = ({ restoreName, onClose }) => {
             {loading ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
-        
+
         <div className="logs-content">
           {loading && (
             <div className="logs-loading">
@@ -64,17 +64,15 @@ const LogsModal: React.FC<LogsModalProps> = ({ restoreName, onClose }) => {
               <span>Loading logs...</span>
             </div>
           )}
-          
+
           {error && (
             <div className="logs-error">
               <span>❌ Error: {error}</span>
               <button onClick={fetchLogs}>Try Again</button>
             </div>
           )}
-          
-          {!loading && !error && (
-            <pre className="logs-text">{logs.replace(/\\n/g, '\n')}</pre>
-          )}
+
+          {!loading && !error && <pre className="logs-text">{logs.replace(/\\n/g, '\n')}</pre>}
         </div>
       </div>
     </Modal>

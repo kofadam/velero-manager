@@ -86,13 +86,13 @@ spec:
             - containerPort: 12345
               name: http-metrics
           volumeMounts:
-          - mountPath: /etc/alloy
-            name: config
-            readOnly: true
-          - mountPath: /tmp
-            name: tmp
-          - mountPath: /var/lib/alloy
-            name: data
+            - mountPath: /etc/alloy
+              name: config
+              readOnly: true
+            - mountPath: /tmp
+              name: tmp
+            - mountPath: /var/lib/alloy
+              name: data
           resources:
             requests:
               cpu: 100m
@@ -109,13 +109,13 @@ spec:
             runAsNonRoot: true
             runAsUser: 65532
       volumes:
-      - configMap:
-          name: alloy-config
-        name: config
-      - name: tmp
-        emptyDir: {}
-      - name: data
-        emptyDir: {}
+        - configMap:
+            name: alloy-config
+          name: config
+        - name: tmp
+          emptyDir: {}
+        - name: data
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

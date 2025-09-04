@@ -21,14 +21,17 @@ export const useRestores = () => {
     }
   }, []);
 
-  const deleteRestore = useCallback(async (name: string) => {
-    try {
-      await apiService.deleteRestore(name);
-      await fetchRestores(); // Refresh the list
-    } catch (err: any) {
-      throw new Error(err.response?.data?.message || err.message || 'Failed to delete restore');
-    }
-  }, [fetchRestores]);
+  const deleteRestore = useCallback(
+    async (name: string) => {
+      try {
+        await apiService.deleteRestore(name);
+        await fetchRestores(); // Refresh the list
+      } catch (err: any) {
+        throw new Error(err.response?.data?.message || err.message || 'Failed to delete restore');
+      }
+    },
+    [fetchRestores]
+  );
 
   const refreshRestores = useCallback(() => {
     fetchRestores();

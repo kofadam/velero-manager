@@ -9,36 +9,44 @@ The dashboard provides comprehensive visibility into:
 ### **🎯 Key Metrics Panels**
 
 1. **Cluster Health Status** - Real-time health indicators per cluster
+
    - 🟢 **Healthy** (90%+ backup success rate)
-   - 🟡 **Warning** (70-90% backup success rate) 
+   - 🟡 **Warning** (70-90% backup success rate)
    - 🟠 **No Backups** (no backup activity detected)
    - 🔴 **Critical** (<70% success rate or all backups failing)
 
 2. **Backup & Restore Success Rates** - Per-cluster percentage success rates
+
    - Color-coded thresholds: Green (90%+), Yellow (70-90%), Red (<70%)
    - Horizontal bar charts for easy comparison across clusters
 
 3. **Overall Backup & Restore Totals** - Time series of total operations
+
    - Successful vs failed backup/restore trends over time
    - Helps identify overall system health and activity patterns
 
 4. **Backup Distribution** - Pie chart showing backup status distribution
+
    - Visual breakdown of successful, failed, and total backup counts
 
 5. **Backup Duration Analysis** - Performance metrics
+
    - 95th and 50th percentile backup duration times
    - Helps identify performance issues and optimization opportunities
 
 6. **Last Backup Information** - Critical monitoring table
+
    - Shows last backup timestamp per cluster
    - Time since last backup with color-coded alerts
    - Red alert if >48 hours, yellow if >24 hours
 
 7. **Detailed Cluster Statistics** - Stacked time series
+
    - Successful vs failed backups per cluster over time
    - Helps identify cluster-specific trends and issues
 
 8. **API Performance Monitoring** - Request rate and response times
+
    - API request rates by endpoint and status code
    - Performance monitoring for the Velero Manager application
 
@@ -64,7 +72,7 @@ Add the following job to your `prometheus.yml`:
 scrape_configs:
   - job_name: 'velero-manager'
     static_configs:
-      - targets: ['velero-manager:8080']  # Adjust host/port as needed
+      - targets: ['velero-manager:8080'] # Adjust host/port as needed
     metrics_path: '/metrics'
     scrape_interval: 30s
 ```
@@ -74,12 +82,13 @@ scrape_configs:
 1. **Copy Dashboard JSON**: Use the provided `grafana-dashboard.json`
 
 2. **Import to Grafana**:
+
    - Navigate to Grafana → Dashboards → Import
    - Paste the JSON content or upload the file
    - Select your Prometheus data source
    - Click "Import"
 
-3. **Configure Data Source**: 
+3. **Configure Data Source**:
    - Ensure the `${DS_PROMETHEUS}` variable points to your Prometheus instance
    - Test data source connectivity
 
@@ -97,7 +106,7 @@ scrape_configs:
 # Cluster health status (0=critical, 1=no-backups, 2=warning, 3=healthy)
 velero_cluster_health_status{cluster="cluster-name"}
 
-# Backup success rate percentage per cluster  
+# Backup success rate percentage per cluster
 velero_cluster_backup_success_rate{cluster="cluster-name"}
 
 # Restore success rate percentage per cluster
@@ -109,7 +118,7 @@ velero_cluster_last_backup_timestamp{cluster="cluster-name"}
 # Backup totals per cluster and status
 velero_cluster_backup_total{cluster="cluster-name",status="successful|failed|total"}
 
-# Restore totals per cluster and status  
+# Restore totals per cluster and status
 velero_cluster_restore_total{cluster="cluster-name",status="successful|failed|total"}
 ```
 
@@ -118,7 +127,7 @@ velero_cluster_restore_total{cluster="cluster-name",status="successful|failed|to
 ```
 # Backup metrics
 velero_backup_success_total{namespace,schedule,storage_location}
-velero_backup_failure_total{namespace,schedule,storage_location}  
+velero_backup_failure_total{namespace,schedule,storage_location}
 velero_backup_duration_seconds{namespace,schedule,phase}
 
 # Restore metrics
@@ -145,29 +154,29 @@ velero_manager_api_request_duration_seconds # API response times
 groups:
   - name: velero-manager.rules
     rules:
-    - alert: VeleroClusterCritical
-      expr: velero_cluster_health_status == 0
-      for: 5m
-      labels:
-        severity: critical
-      annotations:
-        summary: "Velero cluster {{ $labels.cluster }} is in critical state"
-        
-    - alert: VeleroNoRecentBackups  
-      expr: time() - velero_cluster_last_backup_timestamp > 172800  # 48 hours
-      for: 5m
-      labels:
-        severity: warning
-      annotations:
-        summary: "No recent backups for cluster {{ $labels.cluster }}"
-        
-    - alert: VeleroLowSuccessRate
-      expr: velero_cluster_backup_success_rate < 70
-      for: 10m
-      labels:
-        severity: warning
-      annotations:
-        summary: "Low backup success rate for cluster {{ $labels.cluster }}"
+      - alert: VeleroClusterCritical
+        expr: velero_cluster_health_status == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Velero cluster {{ $labels.cluster }} is in critical state'
+
+      - alert: VeleroNoRecentBackups
+        expr: time() - velero_cluster_last_backup_timestamp > 172800 # 48 hours
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'No recent backups for cluster {{ $labels.cluster }}'
+
+      - alert: VeleroLowSuccessRate
+        expr: velero_cluster_backup_success_rate < 70
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Low backup success rate for cluster {{ $labels.cluster }}'
 ```
 
 ### **Panel Customization**
@@ -182,11 +191,13 @@ groups:
 ### **No Data Showing**
 
 1. **Check Prometheus Scraping**:
+
    ```bash
    curl http://velero-manager:8080/metrics
    ```
 
 2. **Verify Metrics Collection**:
+
    - Check Velero Manager logs for metrics collection errors
    - Ensure Kubernetes permissions for accessing Velero resources
 

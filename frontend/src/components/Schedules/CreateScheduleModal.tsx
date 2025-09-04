@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../Common/Modal.tsx';
 import { apiService } from '../../services/api.ts';
-import { CRON_PRESETS, translateCronExpression, validateCronExpression } from '../../utils/cronUtils.ts';
+import {
+  CRON_PRESETS,
+  translateCronExpression,
+  validateCronExpression,
+} from '../../utils/cronUtils.ts';
 import './CreateScheduleModal.css';
 
 interface CreateScheduleModalProps {
@@ -17,7 +21,7 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
     excludedNamespaces: '',
     storageLocation: 'default',
     ttl: '720h0m0s',
-    paused: false
+    paused: false,
   });
   const [cronTranslation, setCronTranslation] = useState('');
   const [cronError, setCronError] = useState('');
@@ -46,11 +50,11 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
   };
 
   const handlePresetSelect = (preset: any) => {
-    setFormData(prev => ({ ...prev, schedule: preset.expression }));
+    setFormData((prev) => ({ ...prev, schedule: preset.expression }));
   };
 
   const handleChange = (field: string, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,13 +72,13 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
     try {
       const namespaces = formData.includedNamespaces
         .split(',')
-        .map(ns => ns.trim())
-        .filter(ns => ns.length > 0);
+        .map((ns) => ns.trim())
+        .filter((ns) => ns.length > 0);
 
       const excludedNamespaces = formData.excludedNamespaces
         .split(',')
-        .map(ns => ns.trim())
-        .filter(ns => ns.length > 0);
+        .map((ns) => ns.trim())
+        .filter((ns) => ns.length > 0);
 
       await apiService.createSchedule({
         name: formData.name,
@@ -83,7 +87,7 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
         excludedNamespaces: excludedNamespaces.length > 0 ? excludedNamespaces : undefined,
         storageLocation: formData.storageLocation,
         ttl: formData.ttl,
-        paused: formData.paused
+        paused: formData.paused,
       });
 
       onSuccess();
@@ -97,11 +101,10 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
   return (
     <Modal title="⏰ Create Backup Schedule" onClose={onClose} size="large">
       <form onSubmit={handleSubmit} className="create-schedule-form">
-        
         {/* Basic Info Section */}
         <div className="form-section">
           <h3>📋 Basic Information</h3>
-          
+
           <div className="form-group">
             <label htmlFor="schedule-name">Schedule Name *</label>
             <input
@@ -119,7 +122,7 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
         {/* Schedule Section */}
         <div className="form-section">
           <h3>⏰ Schedule Configuration</h3>
-          
+
           {/* Preset Buttons */}
           <div className="presets-section">
             <label>Quick Presets:</label>
@@ -128,7 +131,9 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
                 <button
                   key={index}
                   type="button"
-                  className={`preset-btn ${formData.schedule === preset.expression ? 'active' : ''}`}
+                  className={`preset-btn ${
+                    formData.schedule === preset.expression ? 'active' : ''
+                  }`}
                   onClick={() => handlePresetSelect(preset)}
                   disabled={loading}
                 >
@@ -142,7 +147,7 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
           {/* Custom Cron Input */}
           <div className="form-group">
             <label htmlFor="cron-schedule">
-              Cron Expression * 
+              Cron Expression *
               <span className="help-link">
                 <a href="https://crontab.guru/" target="_blank" rel="noopener noreferrer">
                   Need help? 🔗
@@ -164,11 +169,7 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
                 ✅ <strong>Schedule:</strong> {cronTranslation}
               </div>
             )}
-            {cronError && (
-              <div className="cron-error">
-                ❌ {cronError}
-              </div>
-            )}
+            {cronError && <div className="cron-error">❌ {cronError}</div>}
             <small>Format: minute(0-59) hour(0-23) day(1-31) month(1-12) weekday(0-7)</small>
           </div>
         </div>
@@ -176,7 +177,7 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
         {/* Backup Scope Section */}
         <div className="form-section">
           <h3>🎯 Backup Scope</h3>
-          
+
           <div className="form-group">
             <label htmlFor="included-namespaces">Included Namespaces</label>
             <input
@@ -207,7 +208,7 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
         {/* Advanced Options Section */}
         <div className="form-section">
           <h3>⚙️ Advanced Options</h3>
-          
+
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="storage-location">Storage Location</label>

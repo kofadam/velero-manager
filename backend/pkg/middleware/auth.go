@@ -60,8 +60,8 @@ func CreateJWTToken(username, role string) (string, error) {
 // CreateJWTTokenWithConfig creates JWT with additional options
 func CreateJWTTokenWithConfig(username, role, configVersion, authMethod string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour) // 24 hour expiry
-	sessionID := generateSecureToken()[:16] // Shorter session ID
-	
+	sessionID := generateSecureToken()[:16]          // Shorter session ID
+
 	claims := &Claims{
 		Username:      username,
 		Role:          role,
@@ -76,12 +76,12 @@ func CreateJWTTokenWithConfig(username, role, configVersion, authMethod string) 
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(jwtSecret)
-	
+
 	if err == nil && authMethod == "oidc" {
-		log.Printf("Created JWT for OIDC user %s with role %s, session %s, config %s", 
+		log.Printf("Created JWT for OIDC user %s with role %s, session %s, config %s",
 			username, role, sessionID, configVersion)
 	}
-	
+
 	return tokenString, err
 }
 
@@ -99,12 +99,12 @@ func ValidateJWTToken(tokenString string) (*Claims, error) {
 	if !token.Valid {
 		return nil, fmt.Errorf("invalid token")
 	}
-	
+
 	// Check if session was revoked
 	if claims.SessionID != "" && IsSessionRevoked(claims.SessionID) {
 		return nil, fmt.Errorf("session has been revoked")
 	}
-	
+
 	// For OIDC tokens, validate config version if available
 	if claims.AuthMethod == "oidc" && claims.ConfigVersion != "" {
 		// Check against global config version
@@ -128,18 +128,18 @@ func RevokeSession(sessionID string) {
 func IsSessionRevoked(sessionID string) bool {
 	revokeMutex.RLock()
 	defer revokeMutex.RUnlock()
-	
+
 	expiry, exists := revokedSessions[sessionID]
 	if !exists {
 		return false
 	}
-	
+
 	// Clean up if expired
 	if time.Now().After(expiry) {
 		delete(revokedSessions, sessionID)
 		return false
 	}
-	
+
 	return true
 }
 
@@ -164,7 +164,7 @@ func CleanExpiredSessions() {
 			delete(userSessions, token)
 		}
 	}
-	
+
 	// Also clean expired revocations
 	revokeMutex.Lock()
 	defer revokeMutex.Unlock()
@@ -186,23 +186,23 @@ func RequireAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Clean expired sessions periodically
 		go CleanExpiredSessions()
-		
+
 		token := c.GetHeader("Authorization")
 		if token == "" {
 			token = c.GetHeader("X-Auth-Token")
 		}
-		
+
 		if token == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "No authentication token provided"})
 			c.Abort()
 			return
 		}
-		
+
 		// Remove "Bearer " prefix if present
 		if strings.HasPrefix(token, "Bearer ") {
 			token = strings.TrimPrefix(token, "Bearer ")
 		}
-		
+
 		// Try JWT token first
 		if claims, err := ValidateJWTToken(token); err == nil {
 			c.Set("username", claims.Username)
@@ -217,7 +217,7 @@ func RequireAuth() gin.HandlerFunc {
 			if strings.Contains(err.Error(), "configuration changed") {
 				log.Printf("Token validation failed for config change: %v", err)
 				c.JSON(http.StatusUnauthorized, gin.H{
-					"error": "Configuration changed, please re-authenticate",
+					"error":         "Configuration changed, please re-authenticate",
 					"needs_refresh": true,
 				})
 				c.Abort()
@@ -225,25 +225,25 @@ func RequireAuth() gin.HandlerFunc {
 			} else if strings.Contains(err.Error(), "revoked") {
 				log.Printf("Token validation failed - session revoked: %v", err)
 				c.JSON(http.StatusUnauthorized, gin.H{
-					"error": "Session has been revoked",
+					"error":         "Session has been revoked",
 					"needs_refresh": true,
 				})
 				c.Abort()
 				return
 			}
 		}
-		
+
 		// Fallback to session tokens
 		sessionMutex.RLock()
 		session, exists := userSessions[token]
 		sessionMutex.RUnlock()
-		
+
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
 		}
-		
+
 		// Check if session is expired
 		if time.Now().After(session.Expiry) {
 			sessionMutex.Lock()
@@ -253,7 +253,7 @@ func RequireAuth() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		c.Set("username", session.Username)
 		c.Set("role", session.Role)
 		c.Set("auth_method", "session")
@@ -276,19 +276,19 @@ func RequireAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		username := c.GetString("username")
 		role := c.GetString("role")
-		
+
 		if username == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			c.Abort()
 			return
 		}
-		
+
 		// First check role from token/session
 		if role == "admin" {
 			c.Next()
 			return
 		}
-		
+
 		// If we have a validator, use it as fallback
 		if globalUserValidator != nil {
 			users, err := globalUserValidator.GetUsers()
@@ -297,7 +297,7 @@ func RequireAdmin() gin.HandlerFunc {
 				c.Abort()
 				return
 			}
-			
+
 			if user, exists := users[username]; exists {
 				if userMap, ok := user.(map[string]interface{}); ok {
 					if userRole, ok := userMap["role"].(string); ok && userRole == "admin" {
@@ -307,7 +307,7 @@ func RequireAdmin() gin.HandlerFunc {
 				}
 			}
 		}
-		
+
 		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 		c.Abort()
 	}

@@ -15,7 +15,7 @@ import {
   InputAdornment,
   IconButton,
   Tooltip,
-  Chip
+  Chip,
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -24,7 +24,7 @@ import {
   VisibilityOff,
   Info as InfoIcon,
   CheckCircle as CheckCircleIcon,
-  Error as ErrorIcon
+  Error as ErrorIcon,
 } from '@mui/icons-material';
 
 interface OIDCConfig {
@@ -57,7 +57,7 @@ const OIDCSettings: React.FC = () => {
     groupsClaim: 'groups',
     adminRoles: [],
     adminGroups: [],
-    defaultRole: 'user'
+    defaultRole: 'user',
   });
 
   const [loading, setLoading] = useState(false);
@@ -81,9 +81,9 @@ const OIDCSettings: React.FC = () => {
       const token = localStorage.getItem('velero_token');
       const response = await fetch('/api/v1/oidc/config', {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
 
       if (response.ok) {
@@ -113,14 +113,16 @@ const OIDCSettings: React.FC = () => {
       const response = await fetch('/api/v1/oidc/config', {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(config)
+        body: JSON.stringify(config),
       });
 
       if (response.ok) {
-        setSuccess('OIDC configuration saved successfully. The application will reload to apply changes.');
+        setSuccess(
+          'OIDC configuration saved successfully. The application will reload to apply changes.'
+        );
         // Reload after a short delay to apply new configuration
         setTimeout(() => {
           window.location.reload();
@@ -145,14 +147,14 @@ const OIDCSettings: React.FC = () => {
       const response = await fetch('/api/v1/oidc/test', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           issuerURL: config.issuerURL,
           clientID: config.clientID,
-          clientSecret: config.clientSecret
-        })
+          clientSecret: config.clientSecret,
+        }),
       });
 
       if (response.ok) {
@@ -173,7 +175,7 @@ const OIDCSettings: React.FC = () => {
     if (adminRoleInput.trim() && !config.adminRoles.includes(adminRoleInput.trim())) {
       setConfig({
         ...config,
-        adminRoles: [...config.adminRoles, adminRoleInput.trim()]
+        adminRoles: [...config.adminRoles, adminRoleInput.trim()],
       });
       setAdminRoleInput('');
     }
@@ -182,7 +184,7 @@ const OIDCSettings: React.FC = () => {
   const handleRemoveAdminRole = (role: string) => {
     setConfig({
       ...config,
-      adminRoles: config.adminRoles.filter(r => r !== role)
+      adminRoles: config.adminRoles.filter((r) => r !== role),
     });
   };
 
@@ -190,7 +192,7 @@ const OIDCSettings: React.FC = () => {
     if (adminGroupInput.trim() && !config.adminGroups.includes(adminGroupInput.trim())) {
       setConfig({
         ...config,
-        adminGroups: [...config.adminGroups, adminGroupInput.trim()]
+        adminGroups: [...config.adminGroups, adminGroupInput.trim()],
       });
       setAdminGroupInput('');
     }
@@ -199,7 +201,7 @@ const OIDCSettings: React.FC = () => {
   const handleRemoveAdminGroup = (group: string) => {
     setConfig({
       ...config,
-      adminGroups: config.adminGroups.filter(g => g !== group)
+      adminGroups: config.adminGroups.filter((g) => g !== group),
     });
   };
 
@@ -240,11 +242,7 @@ const OIDCSettings: React.FC = () => {
                 color="primary"
               />
             }
-            label={
-              <Typography variant="h6">
-                Enable OIDC Authentication
-              </Typography>
-            }
+            label={<Typography variant="h6">Enable OIDC Authentication</Typography>}
             sx={{ mb: 3 }}
           />
 
@@ -275,7 +273,7 @@ const OIDCSettings: React.FC = () => {
                             <InfoIcon color="action" fontSize="small" />
                           </Tooltip>
                         </InputAdornment>
-                      )
+                      ),
                     }}
                   />
                 </Grid>
@@ -305,14 +303,11 @@ const OIDCSettings: React.FC = () => {
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
-                          <IconButton
-                            onClick={() => setShowSecret(!showSecret)}
-                            edge="end"
-                          >
+                          <IconButton onClick={() => setShowSecret(!showSecret)} edge="end">
                             {showSecret ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
                         </InputAdornment>
-                      )
+                      ),
                     }}
                   />
                 </Grid>
@@ -333,23 +328,38 @@ const OIDCSettings: React.FC = () => {
                   <Button
                     variant="outlined"
                     startIcon={
-                      testStatus === 'testing' ? <CircularProgress size={20} /> :
-                      testStatus === 'success' ? <CheckCircleIcon /> :
-                      testStatus === 'failed' ? <ErrorIcon /> :
-                      <RefreshIcon />
+                      testStatus === 'testing' ? (
+                        <CircularProgress size={20} />
+                      ) : testStatus === 'success' ? (
+                        <CheckCircleIcon />
+                      ) : testStatus === 'failed' ? (
+                        <ErrorIcon />
+                      ) : (
+                        <RefreshIcon />
+                      )
                     }
                     onClick={handleTestConnection}
-                    disabled={!config.issuerURL || !config.clientID || !config.clientSecret || testStatus === 'testing'}
+                    disabled={
+                      !config.issuerURL ||
+                      !config.clientID ||
+                      !config.clientSecret ||
+                      testStatus === 'testing'
+                    }
                     color={
-                      testStatus === 'success' ? 'success' :
-                      testStatus === 'failed' ? 'error' :
-                      'primary'
+                      testStatus === 'success'
+                        ? 'success'
+                        : testStatus === 'failed'
+                          ? 'error'
+                          : 'primary'
                     }
                   >
-                    {testStatus === 'testing' ? 'Testing...' :
-                     testStatus === 'success' ? 'Connection Successful' :
-                     testStatus === 'failed' ? 'Connection Failed' :
-                     'Test Connection'}
+                    {testStatus === 'testing'
+                      ? 'Testing...'
+                      : testStatus === 'success'
+                        ? 'Connection Successful'
+                        : testStatus === 'failed'
+                          ? 'Connection Failed'
+                          : 'Test Connection'}
                   </Button>
                 </Grid>
 
@@ -450,7 +460,7 @@ const OIDCSettings: React.FC = () => {
                               Add
                             </Button>
                           </InputAdornment>
-                        )
+                        ),
                       }}
                     />
                     <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -480,11 +490,14 @@ const OIDCSettings: React.FC = () => {
                       InputProps={{
                         endAdornment: (
                           <InputAdornment position="end">
-                            <Button onClick={handleAddAdminGroup} disabled={!adminGroupInput.trim()}>
+                            <Button
+                              onClick={handleAddAdminGroup}
+                              disabled={!adminGroupInput.trim()}
+                            >
                               Add
                             </Button>
                           </InputAdornment>
-                        )
+                        ),
                       }}
                     />
                     <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -514,11 +527,7 @@ const OIDCSettings: React.FC = () => {
             >
               {saving ? 'Saving...' : 'Save Configuration'}
             </Button>
-            <Button
-              variant="outlined"
-              onClick={fetchOIDCConfig}
-              startIcon={<RefreshIcon />}
-            >
+            <Button variant="outlined" onClick={fetchOIDCConfig} startIcon={<RefreshIcon />}>
               Reset
             </Button>
           </Box>

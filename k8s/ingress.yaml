@@ -9,13 +9,13 @@ metadata:
     app: velero-manager
 spec:
   rules:
-  - host: velero.homelab.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: velero-manager
-            port:
-              number: 80
+    - host: velero.homelab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: velero-manager
+                port:
+                  number: 80

@@ -59,7 +59,7 @@ kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`;
       });
 
       if (!response.ok) throw new Error('Failed to add cluster');
-      
+
       onSuccess();
       onClose();
     } catch (error) {
@@ -73,7 +73,9 @@ kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`;
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Add Cluster</h2>
-          <button className="close-button" onClick={onClose}>×</button>
+          <button className="close-button" onClick={onClose}>
+            ×
+          </button>
         </div>
 
         <div className="modal-body">
@@ -85,7 +87,7 @@ kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`;
                 <input
                   type="text"
                   value={clusterData.name}
-                  onChange={(e) => setClusterData({...clusterData, name: e.target.value})}
+                  onChange={(e) => setClusterData({ ...clusterData, name: e.target.value })}
                   placeholder="e.g., production-cluster"
                 />
               </div>
@@ -94,7 +96,7 @@ kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`;
                 <input
                   type="text"
                   value={clusterData.apiEndpoint}
-                  onChange={(e) => setClusterData({...clusterData, apiEndpoint: e.target.value})}
+                  onChange={(e) => setClusterData({ ...clusterData, apiEndpoint: e.target.value })}
                   placeholder="https://10.20.30.40:6443"
                 />
               </div>
@@ -103,7 +105,7 @@ kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`;
                 <input
                   type="text"
                   value={clusterData.schedule}
-                  onChange={(e) => setClusterData({...clusterData, schedule: e.target.value})}
+                  onChange={(e) => setClusterData({ ...clusterData, schedule: e.target.value })}
                   placeholder="0 2 * * *"
                 />
               </div>
@@ -112,7 +114,9 @@ kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`;
                 <input
                   type="text"
                   value={clusterData.storageLocation}
-                  onChange={(e) => setClusterData({...clusterData, storageLocation: e.target.value})}
+                  onChange={(e) =>
+                    setClusterData({ ...clusterData, storageLocation: e.target.value })
+                  }
                   placeholder="default"
                 />
               </div>
@@ -121,7 +125,7 @@ kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`;
                 <input
                   type="text"
                   value={clusterData.ttl}
-                  onChange={(e) => setClusterData({...clusterData, ttl: e.target.value})}
+                  onChange={(e) => setClusterData({ ...clusterData, ttl: e.target.value })}
                   placeholder="720h"
                 />
               </div>
@@ -133,7 +137,7 @@ kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`;
               <h3>Step 2: Run Commands on Guest Cluster</h3>
               <div className="commands-box">
                 <pre>{generateCommands()}</pre>
-                <button 
+                <button
                   className="copy-button"
                   onClick={() => navigator.clipboard.writeText(generateCommands())}
                 >
@@ -141,7 +145,8 @@ kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`;
                 </button>
               </div>
               <p className="info-text">
-                Run these commands on the guest cluster, then paste the extracted credentials in the next step.
+                Run these commands on the guest cluster, then paste the extracted credentials in the
+                next step.
               </p>
             </div>
           )}
@@ -153,7 +158,7 @@ kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`;
                 <label>Service Account Token</label>
                 <textarea
                   value={clusterData.token}
-                  onChange={(e) => setClusterData({...clusterData, token: e.target.value})}
+                  onChange={(e) => setClusterData({ ...clusterData, token: e.target.value })}
                   placeholder="Paste the extracted TOKEN here"
                   rows={4}
                 />
@@ -162,7 +167,7 @@ kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`;
                 <label>CA Certificate (Base64)</label>
                 <textarea
                   value={clusterData.caCert}
-                  onChange={(e) => setClusterData({...clusterData, caCert: e.target.value})}
+                  onChange={(e) => setClusterData({ ...clusterData, caCert: e.target.value })}
                   placeholder="Paste the extracted CA_CERT here (base64 encoded)"
                   rows={6}
                 />
@@ -178,16 +183,16 @@ kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`;
             </button>
           )}
           {step < 3 ? (
-            <button 
-              className="btn btn-primary" 
+            <button
+              className="btn btn-primary"
               onClick={() => setStep(step + 1)}
               disabled={step === 1 && (!clusterData.name || !clusterData.apiEndpoint)}
             >
               Next
             </button>
           ) : (
-            <button 
-              className="btn btn-primary" 
+            <button
+              className="btn btn-primary"
               onClick={handleSubmit}
               disabled={!clusterData.token || !clusterData.caCert}
             >

@@ -21,13 +21,15 @@ const LogsModal: React.FC<LogsModalProps> = ({ backup, onClose }) => {
   const fetchLogs = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // Simulate fetching logs - in real implementation, this would call the backend
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       // Backup logs explanation
-      const mockLogs = `Backup logs for '${backup.name}' are not directly accessible through the API.
+      const mockLogs = `Backup logs for '${
+        backup.name
+      }' are not directly accessible through the API.
 
 To view detailed backup logs, use the Velero CLI:
 velero backup logs ${backup.name}
@@ -42,7 +44,7 @@ Format Version: ${backup.status.formatVersion || 'N/A'}
 
 Created: ${backup.creationTimestamp}
 Storage Location: ${backup.spec.storageLocation}`;
-      
+
       setLogs(mockLogs);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch logs');
@@ -63,7 +65,7 @@ Storage Location: ${backup.spec.storageLocation}`;
             {loading ? 'Refreshing...' : '🔄 Refresh'}
           </button>
         </div>
-        
+
         <div className="logs-content">
           {loading && (
             <div className="logs-loading">
@@ -71,17 +73,15 @@ Storage Location: ${backup.spec.storageLocation}`;
               <span>Loading logs...</span>
             </div>
           )}
-          
+
           {error && (
             <div className="logs-error">
               <span>❌ Error: {error}</span>
               <button onClick={fetchLogs}>Try Again</button>
             </div>
           )}
-          
-          {!loading && !error && (
-            <pre className="logs-text">{logs}</pre>
-          )}
+
+          {!loading && !error && <pre className="logs-text">{logs}</pre>}
         </div>
       </div>
     </Modal>

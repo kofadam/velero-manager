@@ -16,7 +16,7 @@ class AuthService {
           this.config = {
             oidcEnabled: false,
             legacyAuthEnabled: true,
-            authenticated: false
+            authenticated: false,
           };
         }
       } catch (error) {
@@ -24,7 +24,7 @@ class AuthService {
         this.config = {
           oidcEnabled: false,
           legacyAuthEnabled: true,
-          authenticated: false
+          authenticated: false,
         };
       }
     }
@@ -117,9 +117,9 @@ class AuthService {
       if (token) {
         await fetch('/api/v1/auth/logout', {
           method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json' 
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
         });
       }
@@ -166,7 +166,7 @@ class AuthService {
     const token = this.getToken();
     if (token) {
       return {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       };
     }

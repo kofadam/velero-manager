@@ -15,7 +15,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Chip
+  Chip,
 } from '@mui/material';
 import { Refresh, Add } from '@mui/icons-material';
 
@@ -55,10 +55,10 @@ const Clusters: React.FC = () => {
       // No backups yet, but cluster is configured
       return { label: 'Configured', color: 'success' as const };
     }
-    
+
     const lastBackupDate = new Date(lastBackup);
     const hoursSinceBackup = (Date.now() - lastBackupDate.getTime()) / (1000 * 60 * 60);
-    
+
     if (hoursSinceBackup < 25) return { label: 'Healthy', color: 'success' as const };
     if (hoursSinceBackup < 48) return { label: 'Warning', color: 'warning' as const };
     return { label: 'Critical', color: 'error' as const };
@@ -70,21 +70,23 @@ const Clusters: React.FC = () => {
     return date.toLocaleString();
   };
 
-  const filteredClusters = clusters.filter(cluster =>
+  const filteredClusters = clusters.filter((cluster) =>
     cluster.name.toLowerCase().includes(searchFilter.toLowerCase())
   );
 
   return (
     <Box sx={{ p: 3 }}>
       <Paper sx={{ p: 3 }}>
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 2,
-          mb: 3,
-          flexWrap: 'wrap'
-        }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 2,
+            mb: 3,
+            flexWrap: 'wrap',
+          }}
+        >
           <TextField
             placeholder="Search clusters by name..."
             value={searchFilter}
@@ -102,18 +104,16 @@ const Clusters: React.FC = () => {
             >
               {loading ? 'Refreshing...' : 'Refresh'}
             </Button>
-            <Button
-              variant="contained"
-              onClick={() => setShowAddModal(true)}
-              startIcon={<Add />}
-            >
+            <Button variant="contained" onClick={() => setShowAddModal(true)} startIcon={<Add />}>
               Add Cluster
             </Button>
           </Box>
         </Box>
 
         {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+          <Box
+            sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}
+          >
             <CircularProgress />
             <Typography sx={{ ml: 2 }}>Loading clusters...</Typography>
           </Box>
@@ -156,29 +156,29 @@ const Clusters: React.FC = () => {
                   filteredClusters.map((cluster) => {
                     const health = getHealthStatus(cluster.lastBackup, cluster.backupCount);
                     return (
-                      <TableRow 
+                      <TableRow
                         key={cluster.name}
                         hover
-                        sx={{ 
-                          '&:hover': { 
+                        sx={{
+                          '&:hover': {
                             backgroundColor: 'action.hover',
-                          } 
+                          },
                         }}
                       >
                         <TableCell>
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
+                          <Typography
+                            variant="body2"
+                            sx={{
                               fontWeight: 600,
-                              color: 'primary.main'
+                              color: 'primary.main',
                             }}
                           >
                             {cluster.name}
                           </Typography>
                         </TableCell>
                         <TableCell>
-                          <Typography 
-                            color="text.secondary" 
+                          <Typography
+                            color="text.secondary"
                             variant="body2"
                             sx={{ fontStyle: 'italic' }}
                           >
@@ -186,50 +186,50 @@ const Clusters: React.FC = () => {
                           </Typography>
                         </TableCell>
                         <TableCell>
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
+                          <Typography
+                            variant="body2"
+                            sx={{
                               fontFamily: 'monospace',
                               color: 'text.secondary',
-                              fontSize: '0.875rem'
+                              fontSize: '0.875rem',
                             }}
                           >
                             {`${cluster.name}-storage`}
                           </Typography>
                         </TableCell>
                         <TableCell align="center">
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
+                          <Typography
+                            variant="body2"
+                            sx={{
                               fontWeight: 600,
-                              color: cluster.backupCount > 0 ? 'success.main' : 'text.secondary'
+                              color: cluster.backupCount > 0 ? 'success.main' : 'text.secondary',
                             }}
                           >
                             {cluster.backupCount}
                           </Typography>
                         </TableCell>
                         <TableCell>
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
+                          <Typography
+                            variant="body2"
+                            sx={{
                               color: 'text.secondary',
                               fontSize: '0.875rem',
-                              whiteSpace: 'nowrap'
+                              whiteSpace: 'nowrap',
                             }}
                           >
                             {formatDate(cluster.lastBackup)}
                           </Typography>
                         </TableCell>
                         <TableCell align="center">
-                          <Chip 
-                            label={health.label} 
+                          <Chip
+                            label={health.label}
                             color={health.color}
                             size="small"
-                            sx={{ 
+                            sx={{
                               fontWeight: 600,
                               textTransform: 'uppercase',
                               fontSize: '0.75rem',
-                              letterSpacing: '0.5px'
+                              letterSpacing: '0.5px',
                             }}
                           />
                         </TableCell>
@@ -242,7 +242,7 @@ const Clusters: React.FC = () => {
           </TableContainer>
         )}
       </Paper>
-      
+
       {showAddModal && (
         <AddClusterModal
           onClose={() => setShowAddModal(false)}

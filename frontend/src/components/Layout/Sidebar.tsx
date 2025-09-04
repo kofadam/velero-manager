@@ -21,10 +21,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeRoute, onRouteChange, onLogout 
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        <img src="/logo-simple.svg" alt="Velero Manager" style={{ height: '40px', marginBottom: '8px' }} />
+        <img
+          src="/logo-simple.svg"
+          alt="Velero Manager"
+          style={{ height: '40px', marginBottom: '8px' }}
+        />
         <h1>Velero Manager</h1>
       </div>
-      
+
       <nav className="sidebar-nav">
         {menuItems.map((item) => (
           <div
@@ -37,7 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeRoute, onRouteChange, onLogout 
           </div>
         ))}
       </nav>
-      
+
       <div className="sidebar-footer">
         <button className="logout-btn" onClick={onLogout}>
           Logout

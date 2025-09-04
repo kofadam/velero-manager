@@ -37,7 +37,7 @@ const usersNamespace = "velero-manager"
 func (h *UserHandler) getUsers() (map[string]User, error) {
 	secret, err := h.k8sClient.Clientset.CoreV1().Secrets(usersNamespace).Get(
 		h.k8sClient.Context, usersSecretName, metav1.GetOptions{})
-	
+
 	if err != nil {
 		// Secret doesn't exist, create default admin
 		adminHash, _ := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
@@ -61,7 +61,7 @@ func (h *UserHandler) getUsers() (map[string]User, error) {
 	if data, ok := secret.Data["users"]; ok {
 		json.Unmarshal(data, &users)
 	}
-	
+
 	// Always ensure admin exists
 	if _, ok := users["admin"]; !ok {
 		// Generate proper hash for "admin" password
@@ -73,7 +73,7 @@ func (h *UserHandler) getUsers() (map[string]User, error) {
 			Created:  "fallback",
 		}
 	}
-	
+
 	return users, nil
 }
 
@@ -83,7 +83,7 @@ func (h *UserHandler) GetUsers() (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	result := make(map[string]interface{})
 	for k, v := range users {
 		result[k] = map[string]interface{}{
@@ -92,14 +92,13 @@ func (h *UserHandler) GetUsers() (map[string]interface{}, error) {
 			"created":  v.Created,
 		}
 	}
-	
+
 	return result, nil
 }
 
-
 func (h *UserHandler) saveUsers(users map[string]User) error {
 	data, _ := json.Marshal(users)
-	
+
 	secret := map[string]interface{}{
 		"apiVersion": "v1",
 		"kind":       "Secret",
@@ -115,7 +114,7 @@ func (h *UserHandler) saveUsers(users map[string]User) error {
 
 	existing, err := h.k8sClient.Clientset.CoreV1().Secrets(usersNamespace).Get(
 		h.k8sClient.Context, usersSecretName, metav1.GetOptions{})
-	
+
 	if err != nil {
 		// Create new secret
 		_, err = h.k8sClient.DynamicClient.
@@ -130,7 +129,7 @@ func (h *UserHandler) saveUsers(users map[string]User) error {
 		_, err = h.k8sClient.Clientset.CoreV1().Secrets(usersNamespace).Update(
 			h.k8sClient.Context, existing, metav1.UpdateOptions{})
 	}
-	
+
 	return err
 }
 
@@ -147,7 +146,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 	users, _ := h.getUsers()
 	user, exists := users[request.Username]
-	
+
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
@@ -222,14 +221,14 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	}
 
 	users, _ := h.getUsers()
-	
+
 	if _, exists := users[request.Username]; exists {
 		c.JSON(http.StatusConflict, gin.H{"error": "User already exists"})
 		return
 	}
 
 	hash, _ := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
-	
+
 	users[request.Username] = User{
 		Username: request.Username,
 		Hash:     string(hash),
@@ -243,28 +242,28 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "User created",
+		"message":  "User created",
 		"username": request.Username,
 	})
 }
 
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	username := c.Param("username")
-	
+
 	if username == "admin" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Cannot delete admin user"})
 		return
 	}
 
 	users, _ := h.getUsers()
-	
+
 	if _, exists := users[username]; !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
 	delete(users, username)
-	
+
 	if err := h.saveUsers(users); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
 		return
@@ -275,7 +274,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 
 func (h *UserHandler) ChangePassword(c *gin.Context) {
 	username := c.Param("username")
-	
+
 	var request struct {
 		OldPassword string `json:"oldPassword"`
 		NewPassword string `json:"newPassword" binding:"required"`
@@ -298,7 +297,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 
 	users, _ := h.getUsers()
 	user, exists := users[username]
-	
+
 	if !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return

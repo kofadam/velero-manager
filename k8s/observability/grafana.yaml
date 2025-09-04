@@ -45,8 +45,8 @@ metadata:
   namespace: observability
 type: Opaque
 data:
-  admin-user: YWRtaW4=  # admin
-  admin-password: YWRtaW4=  # admin
+  admin-user: YWRtaW4= # admin
+  admin-password: YWRtaW4= # admin
 ---
 apiVersion: apps/v1
 kind: Deployment

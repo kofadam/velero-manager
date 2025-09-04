@@ -11,11 +11,7 @@ interface RestoreActionsProps {
   onRefresh: () => void;
 }
 
-const RestoreActions: React.FC<RestoreActionsProps> = ({ 
-  restore, 
-  onDelete, 
-  onRefresh 
-}) => {
+const RestoreActions: React.FC<RestoreActionsProps> = ({ restore, onDelete, onRefresh }) => {
   const [showLogs, setShowLogs] = useState(false);
   const [showDescribe, setShowDescribe] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -47,27 +43,19 @@ const RestoreActions: React.FC<RestoreActionsProps> = ({
     <>
       <Box sx={{ display: 'flex', gap: 0.5 }}>
         <Tooltip title="View Logs">
-          <IconButton 
-            size="small"
-            onClick={handleLogs}
-            sx={{ color: 'info.main' }}
-          >
+          <IconButton size="small" onClick={handleLogs} sx={{ color: 'info.main' }}>
             <Article fontSize="small" />
           </IconButton>
         </Tooltip>
-        
+
         <Tooltip title="Describe Restore">
-          <IconButton 
-            size="small"
-            onClick={handleDescribe}
-            sx={{ color: 'info.main' }}
-          >
+          <IconButton size="small" onClick={handleDescribe} sx={{ color: 'info.main' }}>
             <Description fontSize="small" />
           </IconButton>
         </Tooltip>
-        
+
         <Tooltip title="Delete Restore">
-          <IconButton 
+          <IconButton
             size="small"
             onClick={handleDelete}
             disabled={isDeleting}
@@ -78,18 +66,10 @@ const RestoreActions: React.FC<RestoreActionsProps> = ({
         </Tooltip>
       </Box>
 
-      {showLogs && (
-        <LogsModal
-          restoreName={restore.name}
-          onClose={() => setShowLogs(false)}
-        />
-      )}
+      {showLogs && <LogsModal restoreName={restore.name} onClose={() => setShowLogs(false)} />}
 
       {showDescribe && (
-        <DescribeModal
-          restoreName={restore.name}
-          onClose={() => setShowDescribe(false)}
-        />
+        <DescribeModal restoreName={restore.name} onClose={() => setShowDescribe(false)} />
       )}
     </>
   );

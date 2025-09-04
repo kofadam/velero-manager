@@ -5,7 +5,7 @@ This directory contains production-ready manifests for deploying a complete obse
 ## Components
 
 - **Prometheus** - Metrics collection and storage
-- **Loki** - Log aggregation and storage  
+- **Loki** - Log aggregation and storage
 - **Grafana** - Visualization and dashboards
 - **Alloy** - Unified telemetry collector (replaces Promtail)
 
@@ -42,10 +42,10 @@ Edit `alloy.yaml` or `alloy-standalone.yaml` to set your endpoints:
 
 ```yaml
 # For Prometheus
-PROMETHEUS_ENDPOINT: "http://your-prometheus:9090/api/v1/write"
+PROMETHEUS_ENDPOINT: 'http://your-prometheus:9090/api/v1/write'
 
-# For Loki  
-LOKI_ENDPOINT: "http://your-loki:3100/loki/api/v1/push"
+# For Loki
+LOKI_ENDPOINT: 'http://your-loki:3100/loki/api/v1/push'
 ```
 
 ### Storage Configuration
@@ -53,21 +53,24 @@ LOKI_ENDPOINT: "http://your-loki:3100/loki/api/v1/push"
 For production, configure proper storage classes:
 
 ```yaml
-storageClassName: "fast-ssd"  # Your storage class
-storage: 100Gi                 # Adjust based on retention needs
+storageClassName: 'fast-ssd' # Your storage class
+storage: 100Gi # Adjust based on retention needs
 ```
 
 ## Security Considerations
 
 1. **Enable Authentication**
+
    - Configure Grafana OIDC/LDAP
    - Add basic auth to Prometheus/Loki
 
 2. **Network Policies**
+
    - Restrict access between namespaces
    - Limit ingress to Grafana only
 
 3. **Resource Limits**
+
    - Set appropriate CPU/memory limits
    - Configure PVC sizes based on retention
 
@@ -107,6 +110,7 @@ Import the included dashboards:
 ## Retention Policies
 
 Default retention:
+
 - Prometheus: 30 days
 - Loki: 30 days
 - Grafana: Persistent
@@ -116,6 +120,7 @@ Adjust in respective ConfigMaps based on compliance requirements.
 ## Backup
 
 Remember to backup:
+
 - Grafana database (dashboards, users)
 - Prometheus data (if long-term retention needed)
 - Loki chunks (for compliance)

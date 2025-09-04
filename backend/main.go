@@ -32,7 +32,7 @@ func main() {
 		// Set the loaded config as current
 		config.SetOIDCConfig(oidcConfig)
 	}
-	
+
 	if oidcConfig.Enabled {
 		log.Printf("OIDC authentication enabled with issuer: %s", oidcConfig.IssuerURL)
 	} else {
@@ -41,7 +41,7 @@ func main() {
 
 	// Initialize metrics
 	veleroMetrics := metrics.NewVeleroMetrics(k8sClient)
-	
+
 	// Start metrics collector (collect every 30 seconds)
 	metricsCollector := metrics.NewMetricsCollector(veleroMetrics, 30*time.Second)
 	go metricsCollector.Start()
@@ -62,13 +62,13 @@ func main() {
 	veleroHandler := handlers.NewVeleroHandler(k8sClient, veleroMetrics)
 	userHandler := handlers.NewUserHandler(k8sClient)
 	oidcConfigHandler := handlers.NewOIDCConfigHandler(k8sClient)
-	
+
 	// Initialize auth handler with OIDC support
 	authHandler, err := handlers.NewAuthHandler(k8sClient, oidcConfig)
 	if err != nil {
 		log.Fatalf("Failed to create auth handler: %v", err)
 	}
-	
+
 	// Set user validator for admin middleware
 	middleware.SetUserValidator(userHandler)
 
@@ -79,20 +79,20 @@ func main() {
 		api.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 		})
-		
+
 		// Test endpoint for generating mock metrics data
 		api.POST("/test/generate-mock-data", veleroHandler.GenerateTestData)
-		
+
 		// Auth endpoints
 		auth := api.Group("/auth")
 		{
-			auth.GET("/info", authHandler.GetAuthInfo)           // Get auth config and user info
-			auth.POST("/login", authHandler.LegacyLogin)         // Legacy username/password login
-			auth.GET("/oidc/login", authHandler.InitiateOIDCLogin) // Start OIDC flow
+			auth.GET("/info", authHandler.GetAuthInfo)                 // Get auth config and user info
+			auth.POST("/login", authHandler.LegacyLogin)               // Legacy username/password login
+			auth.GET("/oidc/login", authHandler.InitiateOIDCLogin)     // Start OIDC flow
 			auth.GET("/oidc/callback", authHandler.HandleOIDCCallback) // OIDC callback
-			auth.POST("/logout", authHandler.Logout)             // Logout (both OIDC and legacy)
+			auth.POST("/logout", authHandler.Logout)                   // Logout (both OIDC and legacy)
 		}
-		
+
 		// Protected endpoints (authentication required)
 		protected := api.Group("/")
 		protected.Use(middleware.RequireOIDCAuth(authHandler.GetOIDCProvider()))
@@ -107,53 +107,53 @@ func main() {
 				admin.POST("/clusters", veleroHandler.AddCluster)
 				admin.POST("/storage-locations", veleroHandler.CreateStorageLocation)
 				admin.DELETE("/storage-locations/:name", veleroHandler.DeleteStorageLocation)
-				
+
 				// OIDC configuration management - admin only for modify operations
 				admin.PUT("/oidc/config", oidcConfigHandler.UpdateOIDCConfig)
 				admin.POST("/oidc/test", oidcConfigHandler.TestOIDCConnection)
 			}
-			
+
 			// User can change their own password
 			protected.PUT("/users/:username/password", userHandler.ChangePassword)
-			
+
 			// OIDC configuration view - all authenticated users can view
 			protected.GET("/oidc/config", oidcConfigHandler.GetOIDCConfig)
-			
+
 			// Backup operations (authenticated users)
 			protected.GET("/backups", veleroHandler.ListBackups)
 			protected.POST("/backups", veleroHandler.CreateBackup)
 			protected.DELETE("/backups/:name", veleroHandler.DeleteBackup)
-			
+
 			// Restore operations (authenticated users)
 			protected.GET("/restores", veleroHandler.ListRestores)
 			protected.POST("/restores", veleroHandler.CreateRestore)
 			protected.DELETE("/restores/:name", veleroHandler.DeleteRestore)
 			protected.GET("/restores/:name/logs", veleroHandler.GetRestoreLogs)
 			protected.GET("/restores/:name/describe", veleroHandler.DescribeRestore)
-			
+
 			// Schedule operations (authenticated users)
 			protected.GET("/schedules", veleroHandler.ListSchedules)
 			protected.POST("/schedules", veleroHandler.CreateSchedule)
 			protected.DELETE("/schedules/:name", veleroHandler.DeleteSchedule)
 			protected.PUT("/schedules/:name", veleroHandler.UpdateSchedule)
 			protected.POST("/schedules/:name/backup", veleroHandler.CreateBackupFromSchedule)
-			
+
 			// CronJob operations (authenticated users)
 			protected.GET("/cronjobs", veleroHandler.ListCronJobs)
 			protected.POST("/cronjobs", veleroHandler.CreateCronJob)
 			protected.DELETE("/cronjobs/:name", veleroHandler.DeleteCronJob)
 			protected.PUT("/cronjobs/:name", veleroHandler.UpdateCronJob)
 			protected.POST("/cronjobs/:name/trigger", veleroHandler.TriggerCronJob)
-			
+
 			// Cluster operations (read operations for all authenticated users)
 			protected.GET("/clusters", veleroHandler.ListClusters)
 			protected.GET("/clusters/:cluster/backups", veleroHandler.ListBackupsByCluster)
 			protected.GET("/clusters/:cluster/health", veleroHandler.GetClusterHealth)
 			protected.GET("/clusters/:cluster/details", veleroHandler.GetClusterDetails)
-			
+
 			// Storage locations (read operations for all authenticated users)
 			protected.GET("/storage-locations", veleroHandler.ListStorageLocations)
-			
+
 			// Dashboard metrics
 			protected.GET("/dashboard/metrics", veleroHandler.GetDashboardMetrics)
 		}

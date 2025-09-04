@@ -9,23 +9,23 @@ kind: ClusterRole
 metadata:
   name: alloy
 rules:
-- apiGroups: [""]
-  resources:
-  - nodes
-  - nodes/proxy
-  - services
-  - endpoints
-  - pods
-  - pods/log
-  verbs: ["get", "list", "watch"]
-- apiGroups: [""]
-  resources:
-  - configmaps
-  verbs: ["get"]
-- apiGroups: [""]
-  resources:
-  - namespaces
-  verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+      - pods/log
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources:
+      - configmaps
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources:
+      - namespaces
+    verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -36,9 +36,9 @@ roleRef:
   kind: ClusterRole
   name: alloy
 subjects:
-- kind: ServiceAccount
-  name: alloy
-  namespace: monitoring
+  - kind: ServiceAccount
+    name: alloy
+    namespace: monitoring
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -50,7 +50,7 @@ data:
     // ============================================
     // METRICS COLLECTION FOR VELERO-MANAGER
     // ============================================
-    
+
     // Scrape Velero Manager metrics
     prometheus.scrape "velero_manager" {
       targets = [
@@ -69,7 +69,7 @@ data:
     prometheus.remote_write "prometheus" {
       endpoint {
         url = "http://kube-prom-stack-kube-prome-prometheus.observability.svc.cluster.local:9090/api/v1/write"
-        
+
         // If your Prometheus requires auth, uncomment and configure:
         // basic_auth {
         //   username = "prometheus"
@@ -81,7 +81,7 @@ data:
     // ============================================
     // LOG COLLECTION FOR VELERO-MANAGER
     // ============================================
-    
+
     // Discover pods in velero (PRIMARY) and velero-manager namespaces
     discovery.kubernetes "pods" {
       role = "pod"
@@ -89,7 +89,7 @@ data:
         names = ["velero", "velero-manager"]
       }
     }
-    
+
     // Separate discovery for Velero system pods (higher priority)
     discovery.kubernetes "velero_system" {
       role = "pod"
@@ -155,7 +155,7 @@ data:
         ]
       }
 
-      // Route velero-manager logs 
+      // Route velero-manager logs
       stage.match {
         selector = '{namespace="velero-manager"}'
         stages = [
@@ -334,7 +334,7 @@ data:
     loki.write "loki" {
       endpoint {
         url = "http://loki.observability.svc.cluster.local:3100/loki/api/v1/push"
-        
+
         // If your Loki requires auth, uncomment and configure:
         // basic_auth {
         //   username = "loki"
@@ -349,9 +349,9 @@ data:
     // ============================================
     // SELF-MONITORING
     // ============================================
-    
+
     prometheus.exporter.self "alloy" {}
-    
+
     prometheus.scrape "alloy_self" {
       targets = prometheus.exporter.self.alloy.targets
       forward_to = [prometheus.remote_write.prometheus.receiver]
@@ -379,58 +379,58 @@ spec:
       hostNetwork: false
       dnsPolicy: ClusterFirst
       containers:
-      - name: alloy
-        image: grafana/alloy:v1.4.2
-        args:
-          - run
-          - /etc/alloy/config.alloy
-          - --server.http.listen-addr=0.0.0.0:12345
-          - --storage.path=/var/lib/alloy
-        env:
-        - name: HOSTNAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: CLUSTER_NAME
-          value: "production"  # Change this for each cluster
-        ports:
-        - containerPort: 12345
-          name: http-metrics
-        volumeMounts:
-        - name: config
-          mountPath: /etc/alloy
-        - name: varlog
-          mountPath: /var/log
-          readOnly: true
-        - name: varlibdockercontainers
-          mountPath: /var/lib/docker/containers
-          readOnly: true
-        - name: data
-          mountPath: /var/lib/alloy
-        resources:
-          requests:
-            cpu: 100m
-            memory: 200Mi
-          limits:
-            cpu: 500m
-            memory: 500Mi
-        securityContext:
-          runAsUser: 0
-          privileged: true
+        - name: alloy
+          image: grafana/alloy:v1.4.2
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --server.http.listen-addr=0.0.0.0:12345
+            - --storage.path=/var/lib/alloy
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CLUSTER_NAME
+              value: "production" # Change this for each cluster
+          ports:
+            - containerPort: 12345
+              name: http-metrics
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy
+            - name: varlog
+              mountPath: /var/log
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/alloy
+          resources:
+            requests:
+              cpu: 100m
+              memory: 200Mi
+            limits:
+              cpu: 500m
+              memory: 500Mi
+          securityContext:
+            runAsUser: 0
+            privileged: true
       volumes:
-      - name: config
-        configMap:
-          name: alloy-config
-      - name: varlog
-        hostPath:
-          path: /var/log
-      - name: varlibdockercontainers
-        hostPath:
-          path: /var/lib/docker/containers
-      - name: data
-        hostPath:
-          path: /var/lib/alloy
-          type: DirectoryOrCreate
+        - name: config
+          configMap:
+            name: alloy-config
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: data
+          hostPath:
+            path: /var/lib/alloy
+            type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service
@@ -442,9 +442,9 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 12345
-    targetPort: 12345
-    protocol: TCP
-    name: http-metrics
+    - port: 12345
+      targetPort: 12345
+      protocol: TCP
+      name: http-metrics
   selector:
     app: alloy

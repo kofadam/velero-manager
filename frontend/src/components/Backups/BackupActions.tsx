@@ -14,10 +14,10 @@ interface BackupActionsProps {
 }
 
 const BackupActions: React.FC<BackupActionsProps> = ({ backup, onDelete, onRefresh }) => {
-const [isDeleting, setIsDeleting] = useState(false);
-const [showLogs, setShowLogs] = useState(false);
-const [showDescribe, setShowDescribe] = useState(false);
-const [showRestore, setShowRestore] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
+  const [showDescribe, setShowDescribe] = useState(false);
+  const [showRestore, setShowRestore] = useState(false);
 
   const handleDelete = async () => {
     if (window.confirm(`Are you sure you want to delete backup "${backup.name}"?`)) {
@@ -49,7 +49,9 @@ const [showRestore, setShowRestore] = useState(false);
   const handleRestoreSubmit = async (restoreConfig: any) => {
     try {
       const result = await apiService.createRestore(restoreConfig);
-      alert(`✅ Restore "${restoreConfig.name}" created successfully!\n\n🔄 Velero is now restoring from backup "${backup.name}"\n\nCheck the Velero logs to monitor progress.`);
+      alert(
+        `✅ Restore "${restoreConfig.name}" created successfully!\n\n🔄 Velero is now restoring from backup "${backup.name}"\n\nCheck the Velero logs to monitor progress.`
+      );
       onRefresh(); // Refresh the backup list
     } catch (error: any) {
       console.error('Restore failed:', error);
@@ -62,37 +64,25 @@ const [showRestore, setShowRestore] = useState(false);
     <>
       <Box sx={{ display: 'flex', gap: 0.5 }}>
         <Tooltip title="View Logs">
-          <IconButton 
-            size="small"
-            onClick={handleLogs}
-            sx={{ color: 'info.main' }}
-          >
+          <IconButton size="small" onClick={handleLogs} sx={{ color: 'info.main' }}>
             <Article fontSize="small" />
           </IconButton>
         </Tooltip>
-        
+
         <Tooltip title="Describe Backup">
-          <IconButton 
-            size="small"
-            onClick={handleDescribe}
-            sx={{ color: 'info.main' }}
-          >
+          <IconButton size="small" onClick={handleDescribe} sx={{ color: 'info.main' }}>
             <Description fontSize="small" />
           </IconButton>
         </Tooltip>
-        
+
         <Tooltip title="Restore Backup">
-          <IconButton 
-            size="small"
-            onClick={handleRestore}
-            sx={{ color: 'success.main' }}
-          >
+          <IconButton size="small" onClick={handleRestore} sx={{ color: 'success.main' }}>
             <Restore fontSize="small" />
           </IconButton>
         </Tooltip>
-        
+
         <Tooltip title="Delete Backup">
-          <IconButton 
+          <IconButton
             size="small"
             onClick={handleDelete}
             disabled={isDeleting}
@@ -102,19 +92,9 @@ const [showRestore, setShowRestore] = useState(false);
           </IconButton>
         </Tooltip>
       </Box>
-            
-      {showLogs && (
-        <LogsModal
-          backup={backup}
-          onClose={() => setShowLogs(false)}
-        />
-      )}
-      {showDescribe && (
-        <DescribeModal
-          backup={backup}
-          onClose={() => setShowDescribe(false)}
-        />
-      )}
+
+      {showLogs && <LogsModal backup={backup} onClose={() => setShowLogs(false)} />}
+      {showDescribe && <DescribeModal backup={backup} onClose={() => setShowDescribe(false)} />}
       {showRestore && (
         <RestoreModal
           backup={backup}

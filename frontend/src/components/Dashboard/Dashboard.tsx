@@ -91,14 +91,14 @@ const Dashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Keep legacy state for backwards compatibility
   const [stats, setStats] = useState<DashboardStats>({
     totalBackups: 0,
     totalRestores: 0,
     totalSchedules: 0,
     failedBackups: 0,
-    failedRestores: 0
+    failedRestores: 0,
   });
   const [clusters, setClusters] = useState<ClusterStats[]>([]);
   const [recentBackups, setRecentBackups] = useState<any[]>([]);
@@ -107,65 +107,69 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    
+
     // Auto-refresh dashboard every 30 seconds
     const refreshInterval = setInterval(() => {
       fetchDashboardData();
     }, 30000);
-    
+
     return () => clearInterval(refreshInterval);
   }, []);
 
   const fetchDashboardData = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // Try to use new enhanced dashboard metrics endpoint
       const data = await apiService.getDashboardMetrics();
       setDashboardData(data);
-      
+
       // Update legacy stats for backwards compatibility
       setStats({
         totalBackups: data.backups.total,
         totalRestores: data.restores.total,
         totalSchedules: data.schedules.total,
         failedBackups: data.backups.failed,
-        failedRestores: data.restores.failed
+        failedRestores: data.restores.failed,
       });
-      
+
       // Set recent activity
       setRecentBackups(data.recentActivity.backups?.slice(0, 5) || []);
       setRecentRestores(data.recentActivity.restores?.slice(0, 3) || []);
-      
+
       // Convert cluster details to legacy format
-      const legacyClusters = Object.entries(data.clusters.details).map(([name, details]: [string, any]) => ({
-        name,
-        health: {
-          cluster: name,
-          status: details.status,
-          backupCount: details.backups.total,
-          lastBackup: details.backups.last
-        }
-      }));
+      const legacyClusters = Object.entries(data.clusters.details).map(
+        ([name, details]: [string, any]) => ({
+          name,
+          health: {
+            cluster: name,
+            status: details.status,
+            backupCount: details.backups.total,
+            lastBackup: details.backups.last,
+          },
+        })
+      );
       setClusters(legacyClusters);
-      
     } catch (err: any) {
       // Fallback to original method if new endpoint fails
-      console.warn('Enhanced dashboard endpoint failed, falling back to legacy method:', err.message);
+      console.warn(
+        'Enhanced dashboard endpoint failed, falling back to legacy method:',
+        err.message
+      );
       await fetchLegacyDashboardData();
     } finally {
       setLoading(false);
     }
   };
-  
+
   const fetchLegacyDashboardData = async () => {
     try {
       const [backupsRes, restoresRes, schedulesRes, clustersRes] = await Promise.all([
         apiService.getBackups(),
         apiService.getRestores(),
         apiService.getSchedules(),
-        apiService.getClusters()
+        apiService.getClusters(),
       ]);
 
       const backups = backupsRes.backups || [];
@@ -179,14 +183,14 @@ const Dashboard: React.FC = () => {
           const health = await apiService.getClusterHealth(cluster.name);
           return { ...cluster, health };
         } catch (err) {
-          return { 
-            ...cluster, 
-            health: { 
-              cluster: cluster.name, 
-              status: 'error' as const, 
-              backupCount: 0, 
-              lastBackup: null 
-            } 
+          return {
+            ...cluster,
+            health: {
+              cluster: cluster.name,
+              status: 'error' as const,
+              backupCount: 0,
+              lastBackup: null,
+            },
           };
         }
       });
@@ -195,38 +199,41 @@ const Dashboard: React.FC = () => {
       setClusters(clustersWithHealth);
 
       // Calculate stats
-      const failedBackups = backups.filter((b: any) => 
-        b.status?.phase === 'Failed' || b.status?.phase === 'FailedValidation'
+      const failedBackups = backups.filter(
+        (b: any) => b.status?.phase === 'Failed' || b.status?.phase === 'FailedValidation'
       ).length;
-      
-      const failedRestores = restores.filter((r: any) => 
-        r.status?.phase === 'Failed'
-      ).length;
+
+      const failedRestores = restores.filter((r: any) => r.status?.phase === 'Failed').length;
 
       setStats({
         totalBackups: backups.length,
         totalRestores: restores.length,
         totalSchedules: schedules.length,
         failedBackups,
-        failedRestores
+        failedRestores,
       });
 
       // Get recent items (last 3, sorted by creation time)
-      const sortByDate = (items: any[]) => 
-        items.sort((a, b) => new Date(b.creationTimestamp).getTime() - new Date(a.creationTimestamp).getTime());
+      const sortByDate = (items: any[]) =>
+        items.sort(
+          (a, b) =>
+            new Date(b.creationTimestamp).getTime() - new Date(a.creationTimestamp).getTime()
+        );
 
       setRecentBackups(sortByDate([...backups]).slice(0, 5));
       setRecentRestores(sortByDate([...restores]).slice(0, 3));
       setRecentSchedules(sortByDate([...schedules]).slice(0, 3));
-
     } catch (err: any) {
       setError(err.message || 'Failed to fetch dashboard data');
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString() + ' ' + 
-           new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return (
+      new Date(dateString).toLocaleDateString() +
+      ' ' +
+      new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    );
   };
 
   const getStatusClass = (phase: string) => {
@@ -247,7 +254,9 @@ const Dashboard: React.FC = () => {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
         <CircularProgress size={60} />
-        <Typography variant="h6" sx={{ ml: 2 }}>Loading dashboard...</Typography>
+        <Typography variant="h6" sx={{ ml: 2 }}>
+          Loading dashboard...
+        </Typography>
       </Box>
     );
   }
@@ -255,8 +264,12 @@ const Dashboard: React.FC = () => {
   if (error) {
     return (
       <Box textAlign="center" py={4}>
-        <Typography variant="h5" color="error" gutterBottom>Error loading dashboard</Typography>
-        <Typography variant="body1" color="text.secondary" gutterBottom>{error}</Typography>
+        <Typography variant="h5" color="error" gutterBottom>
+          Error loading dashboard
+        </Typography>
+        <Typography variant="body1" color="text.secondary" gutterBottom>
+          {error}
+        </Typography>
         <Button
           variant="contained"
           startIcon={<RefreshIcon />}
@@ -279,7 +292,8 @@ const Dashboard: React.FC = () => {
           </Typography>
           {dashboardData && (
             <Typography variant="caption" color="textSecondary">
-              Last updated: {new Date(dashboardData.updatedAt).toLocaleTimeString()} (auto-refreshes every 30s)
+              Last updated: {new Date(dashboardData.updatedAt).toLocaleTimeString()} (auto-refreshes
+              every 30s)
             </Typography>
           )}
         </Box>
@@ -306,7 +320,10 @@ const Dashboard: React.FC = () => {
                   <Typography variant="h3" component="div">
                     {stats.totalBackups}
                   </Typography>
-                  <Typography color={stats.failedBackups === 0 ? "success.main" : "error.main"} variant="body2">
+                  <Typography
+                    color={stats.failedBackups === 0 ? 'success.main' : 'error.main'}
+                    variant="body2"
+                  >
                     {stats.failedBackups === 0 ? 'All successful' : `${stats.failedBackups} failed`}
                   </Typography>
                 </Box>
@@ -326,8 +343,13 @@ const Dashboard: React.FC = () => {
                   <Typography variant="h3" component="div">
                     {stats.totalRestores}
                   </Typography>
-                  <Typography color={stats.failedRestores === 0 ? "success.main" : "error.main"} variant="body2">
-                    {stats.failedRestores === 0 ? 'All successful' : `${stats.failedRestores} failed`}
+                  <Typography
+                    color={stats.failedRestores === 0 ? 'success.main' : 'error.main'}
+                    variant="body2"
+                  >
+                    {stats.failedRestores === 0
+                      ? 'All successful'
+                      : `${stats.failedRestores} failed`}
                   </Typography>
                 </Box>
                 <RestoreIcon sx={{ fontSize: 40, color: 'secondary.main' }} />
@@ -364,7 +386,12 @@ const Dashboard: React.FC = () => {
                     Success Rate
                   </Typography>
                   <Typography variant="h3" component="div">
-                    {((stats.totalBackups - stats.failedBackups) / Math.max(stats.totalBackups, 1) * 100).toFixed(1)}%
+                    {(
+                      ((stats.totalBackups - stats.failedBackups) /
+                        Math.max(stats.totalBackups, 1)) *
+                      100
+                    ).toFixed(1)}
+                    %
                   </Typography>
                   <Typography color="success.main" variant="body2">
                     Excellent
@@ -386,14 +413,14 @@ const Dashboard: React.FC = () => {
           <Box display="flex" gap={1}>
             {dashboardData && (
               <>
-                <Chip 
+                <Chip
                   label={`${dashboardData.clusters.healthy} healthy`}
                   color="success"
                   variant="outlined"
                   size="small"
                 />
                 {dashboardData.clusters.critical > 0 && (
-                  <Chip 
+                  <Chip
                     label={`${dashboardData.clusters.critical} critical`}
                     color="error"
                     variant="outlined"
@@ -402,126 +429,150 @@ const Dashboard: React.FC = () => {
                 )}
               </>
             )}
-            <Chip 
+            <Chip
               label={`${clusters.length} total`}
-              color="primary" 
-              variant="outlined" 
+              color="primary"
+              variant="outlined"
               size="small"
             />
           </Box>
         </Box>
         {clusters.length > 0 ? (
           <Grid container spacing={2}>
-            {Object.entries(dashboardData?.clusters.details || {}).map(([clusterName, details]: [string, any]) => (
-              <Grid item xs={12} md={6} lg={4} key={clusterName}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-                      <Typography variant="h6" component="h3">
-                        {clusterName}
-                      </Typography>
-                      <Chip
-                        label={details.status}
-                        color={
-                          details.status === 'healthy' ? 'success' : 
-                          details.status === 'warning' ? 'warning' :
-                          details.status === 'critical' ? 'error' : 'default'
-                        }
-                        size="small"
-                      />
-                    </Box>
-                    <Grid container spacing={2} mb={2}>
-                      <Grid item xs={6}>
-                        <Typography variant="h4" component="div">
-                          {details.backups?.total || 0}
+            {Object.entries(dashboardData?.clusters.details || {}).map(
+              ([clusterName, details]: [string, any]) => (
+                <Grid item xs={12} md={6} lg={4} key={clusterName}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                        <Typography variant="h6" component="h3">
+                          {clusterName}
                         </Typography>
-                        <Typography color="textSecondary" variant="body2">
-                          Total Backups
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="h4" component="div" color={
-                          details.backups?.successRate >= 90 ? 'success.main' :
-                          details.backups?.successRate >= 70 ? 'warning.main' : 'error.main'
-                        }>
-                          {details.backups?.successRate ? `${Math.round(details.backups.successRate)}%` : 'N/A'}
-                        </Typography>
-                        <Typography color="textSecondary" variant="body2">
-                          Success Rate
-                        </Typography>
-                      </Grid>
-                    </Grid>
-                    <Grid container spacing={2}>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="success.main">
-                          ✓ {details.backups?.successful || 0} successful
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="error.main">
-                          ✗ {details.backups?.failed || 0} failed
-                        </Typography>
-                      </Grid>
-                    </Grid>
-                    {details.restores?.total > 0 && (
-                      <Box mt={1} pt={1} borderTop="1px solid" borderColor="divider">
-                        <Typography variant="body2" color="textSecondary">
-                          Restores: {details.restores.successful}/{details.restores.total} successful 
-                          ({Math.round(details.restores.successRate || 0)}%)
-                        </Typography>
+                        <Chip
+                          label={details.status}
+                          color={
+                            details.status === 'healthy'
+                              ? 'success'
+                              : details.status === 'warning'
+                                ? 'warning'
+                                : details.status === 'critical'
+                                  ? 'error'
+                                  : 'default'
+                          }
+                          size="small"
+                        />
                       </Box>
-                    )}
-                    {details.backups?.last && (
-                      <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-                        Last backup: {formatDate(details.backups.last)}
-                      </Typography>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
+                      <Grid container spacing={2} mb={2}>
+                        <Grid item xs={6}>
+                          <Typography variant="h4" component="div">
+                            {details.backups?.total || 0}
+                          </Typography>
+                          <Typography color="textSecondary" variant="body2">
+                            Total Backups
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography
+                            variant="h4"
+                            component="div"
+                            color={
+                              details.backups?.successRate >= 90
+                                ? 'success.main'
+                                : details.backups?.successRate >= 70
+                                  ? 'warning.main'
+                                  : 'error.main'
+                            }
+                          >
+                            {details.backups?.successRate
+                              ? `${Math.round(details.backups.successRate)}%`
+                              : 'N/A'}
+                          </Typography>
+                          <Typography color="textSecondary" variant="body2">
+                            Success Rate
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                      <Grid container spacing={2}>
+                        <Grid item xs={6}>
+                          <Typography variant="body2" color="success.main">
+                            ✓ {details.backups?.successful || 0} successful
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="body2" color="error.main">
+                            ✗ {details.backups?.failed || 0} failed
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                      {details.restores?.total > 0 && (
+                        <Box mt={1} pt={1} borderTop="1px solid" borderColor="divider">
+                          <Typography variant="body2" color="textSecondary">
+                            Restores: {details.restores.successful}/{details.restores.total}{' '}
+                            successful ({Math.round(details.restores.successRate || 0)}%)
+                          </Typography>
+                        </Box>
+                      )}
+                      {details.backups?.last && (
+                        <Typography
+                          variant="caption"
+                          color="textSecondary"
+                          sx={{ mt: 1, display: 'block' }}
+                        >
+                          Last backup: {formatDate(details.backups.last)}
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )
+            )}
             {/* Fallback to legacy cluster display if no enhanced data */}
-            {(!dashboardData || Object.keys(dashboardData.clusters.details).length === 0) && clusters.map((cluster) => (
-              <Grid item xs={12} md={6} lg={4} key={cluster.name}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-                      <Typography variant="h6" component="h3">
-                        {cluster.name}
-                      </Typography>
-                      <Chip
-                        label={cluster.health.status}
-                        color={cluster.health.status === 'healthy' ? 'success' : 'error'}
-                        size="small"
-                      />
-                    </Box>
-                    <Grid container spacing={2}>
-                      <Grid item xs={6}>
-                        <Typography variant="h4" component="div">
-                          {cluster.health.backupCount || 0}
+            {(!dashboardData || Object.keys(dashboardData.clusters.details).length === 0) &&
+              clusters.map((cluster) => (
+                <Grid item xs={12} md={6} lg={4} key={cluster.name}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                        <Typography variant="h6" component="h3">
+                          {cluster.name}
                         </Typography>
-                        <Typography color="textSecondary" variant="body2">
-                          Total Backups
-                        </Typography>
+                        <Chip
+                          label={cluster.health.status}
+                          color={cluster.health.status === 'healthy' ? 'success' : 'error'}
+                          size="small"
+                        />
+                      </Box>
+                      <Grid container spacing={2}>
+                        <Grid item xs={6}>
+                          <Typography variant="h4" component="div">
+                            {cluster.health.backupCount || 0}
+                          </Typography>
+                          <Typography color="textSecondary" variant="body2">
+                            Total Backups
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="body1" component="div">
+                            {cluster.health.lastBackup ? 'Recent' : 'Never'}
+                          </Typography>
+                          <Typography color="textSecondary" variant="body2">
+                            Last Activity
+                          </Typography>
+                        </Grid>
                       </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body1" component="div">
-                          {cluster.health.lastBackup ? 'Recent' : 'Never'}
+                      {cluster.health.lastBackup && (
+                        <Typography
+                          variant="caption"
+                          color="textSecondary"
+                          sx={{ mt: 1, display: 'block' }}
+                        >
+                          Last backup: {formatDate(cluster.health.lastBackup)}
                         </Typography>
-                        <Typography color="textSecondary" variant="body2">
-                          Last Activity
-                        </Typography>
-                      </Grid>
-                    </Grid>
-                    {cluster.health.lastBackup && (
-                      <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-                        Last backup: {formatDate(cluster.health.lastBackup)}
-                      </Typography>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
           </Grid>
         ) : (
           <Box textAlign="center" py={4}>
@@ -545,19 +596,38 @@ const Dashboard: React.FC = () => {
                 <Typography variant="h6" component="h3">
                   Recent Backups
                 </Typography>
-                <Chip label={dashboardData.recentActivity.backups?.length || 0} size="small" color="primary" />
+                <Chip
+                  label={dashboardData.recentActivity.backups?.length || 0}
+                  size="small"
+                  color="primary"
+                />
               </Box>
               {dashboardData.recentActivity.backups?.length > 0 ? (
                 <Box>
                   {dashboardData.recentActivity.backups.slice(0, 5).map((backup: any) => (
-                    <Box key={backup.name} display="flex" justifyContent="space-between" alignItems="center" py={1}
-                         sx={{ borderLeft: '3px solid', borderColor: backup.status === 'Completed' ? 'success.main' : 'error.main', pl: 1, mb: 1 }}>
+                    <Box
+                      key={backup.name}
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      py={1}
+                      sx={{
+                        borderLeft: '3px solid',
+                        borderColor: backup.status === 'Completed' ? 'success.main' : 'error.main',
+                        pl: 1,
+                        mb: 1,
+                      }}
+                    >
                       <Box>
                         <Typography variant="body1" fontWeight="medium">
                           {backup.name}
                         </Typography>
                         <Box display="flex" gap={1} alignItems="center">
-                          <Chip label={backup.cluster || 'Unknown'} size="small" variant="outlined" />
+                          <Chip
+                            label={backup.cluster || 'Unknown'}
+                            size="small"
+                            variant="outlined"
+                          />
                           <Typography variant="caption" color="textSecondary">
                             {formatDate(backup.time)}
                           </Typography>
@@ -565,8 +635,13 @@ const Dashboard: React.FC = () => {
                       </Box>
                       <Chip
                         label={backup.status || 'Unknown'}
-                        color={backup.status === 'Completed' ? 'success' : 
-                               backup.status === 'Failed' || backup.status === 'FailedValidation' ? 'error' : 'default'}
+                        color={
+                          backup.status === 'Completed'
+                            ? 'success'
+                            : backup.status === 'Failed' || backup.status === 'FailedValidation'
+                              ? 'error'
+                              : 'default'
+                        }
                         size="small"
                       />
                     </Box>
@@ -586,19 +661,38 @@ const Dashboard: React.FC = () => {
                 <Typography variant="h6" component="h3">
                   Recent Restores
                 </Typography>
-                <Chip label={dashboardData.recentActivity.restores?.length || 0} size="small" color="secondary" />
+                <Chip
+                  label={dashboardData.recentActivity.restores?.length || 0}
+                  size="small"
+                  color="secondary"
+                />
               </Box>
               {dashboardData.recentActivity.restores?.length > 0 ? (
                 <Box>
                   {dashboardData.recentActivity.restores.slice(0, 5).map((restore: any) => (
-                    <Box key={restore.name} display="flex" justifyContent="space-between" alignItems="center" py={1}
-                         sx={{ borderLeft: '3px solid', borderColor: restore.status === 'Completed' ? 'success.main' : 'error.main', pl: 1, mb: 1 }}>
+                    <Box
+                      key={restore.name}
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      py={1}
+                      sx={{
+                        borderLeft: '3px solid',
+                        borderColor: restore.status === 'Completed' ? 'success.main' : 'error.main',
+                        pl: 1,
+                        mb: 1,
+                      }}
+                    >
                       <Box>
                         <Typography variant="body1" fontWeight="medium">
                           {restore.name}
                         </Typography>
                         <Box display="flex" gap={1} alignItems="center">
-                          <Chip label={restore.cluster || 'Unknown'} size="small" variant="outlined" />
+                          <Chip
+                            label={restore.cluster || 'Unknown'}
+                            size="small"
+                            variant="outlined"
+                          />
                           <Typography variant="caption" color="textSecondary">
                             from {restore.backupName}
                           </Typography>
@@ -609,8 +703,13 @@ const Dashboard: React.FC = () => {
                       </Box>
                       <Chip
                         label={restore.status || 'Unknown'}
-                        color={restore.status === 'Completed' ? 'success' : 
-                               restore.status === 'Failed' ? 'error' : 'default'}
+                        color={
+                          restore.status === 'Completed'
+                            ? 'success'
+                            : restore.status === 'Failed'
+                              ? 'error'
+                              : 'default'
+                        }
                         size="small"
                       />
                     </Box>
@@ -642,7 +741,13 @@ const Dashboard: React.FC = () => {
               {recentBackups.length > 0 ? (
                 <Box>
                   {recentBackups.slice(0, 5).map((backup) => (
-                    <Box key={backup.name} display="flex" justifyContent="space-between" alignItems="center" py={1}>
+                    <Box
+                      key={backup.name}
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      py={1}
+                    >
                       <Box>
                         <Typography variant="body1" fontWeight="medium">
                           {backup.name}
@@ -656,8 +761,13 @@ const Dashboard: React.FC = () => {
                       </Box>
                       <Chip
                         label={backup.status?.phase || 'Unknown'}
-                        color={backup.status?.phase === 'Completed' ? 'success' : 
-                               backup.status?.phase === 'Failed' ? 'error' : 'default'}
+                        color={
+                          backup.status?.phase === 'Completed'
+                            ? 'success'
+                            : backup.status?.phase === 'Failed'
+                              ? 'error'
+                              : 'default'
+                        }
                         size="small"
                       />
                     </Box>
@@ -683,7 +793,13 @@ const Dashboard: React.FC = () => {
               {recentRestores.length > 0 ? (
                 <Box>
                   {recentRestores.map((restore) => (
-                    <Box key={restore.name} display="flex" justifyContent="space-between" alignItems="center" py={1}>
+                    <Box
+                      key={restore.name}
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      py={1}
+                    >
                       <Box>
                         <Typography variant="body1" fontWeight="medium">
                           {restore.name}
@@ -694,8 +810,13 @@ const Dashboard: React.FC = () => {
                       </Box>
                       <Chip
                         label={restore.status?.phase || 'Unknown'}
-                        color={restore.status?.phase === 'Completed' ? 'success' : 
-                               restore.status?.phase === 'Failed' ? 'error' : 'default'}
+                        color={
+                          restore.status?.phase === 'Completed'
+                            ? 'success'
+                            : restore.status?.phase === 'Failed'
+                              ? 'error'
+                              : 'default'
+                        }
                         size="small"
                       />
                     </Box>

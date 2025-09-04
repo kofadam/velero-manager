@@ -22,7 +22,7 @@ import {
   Select,
   MenuItem,
   IconButton,
-  CircularProgress
+  CircularProgress,
 } from '@mui/material';
 import { Add, Edit, Delete, Close } from '@mui/icons-material';
 
@@ -42,7 +42,11 @@ const UserManagement: React.FC = () => {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [selectedUser, setSelectedUser] = useState('');
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' });
-  const [passwordData, setPasswordData] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordData, setPasswordData] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -50,18 +54,18 @@ const UserManagement: React.FC = () => {
       const token = localStorage.getItem('velero_token');
       const response = await fetch('/api/v1/users', {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
-      
+
       if (response.status === 403) {
         // User doesn't have permission to view users (likely OIDC non-admin user)
         setHasPermission(false);
         setUsers([]);
         return;
       }
-      
+
       const data = await response.json();
       setUsers(data.users || []);
     } catch (error) {
@@ -81,9 +85,9 @@ const UserManagement: React.FC = () => {
       const token = localStorage.getItem('velero_token');
       const response = await fetch('/api/v1/users', {
         method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json' 
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(newUser),
       });
@@ -103,15 +107,15 @@ const UserManagement: React.FC = () => {
 
   const handleDeleteUser = async (username: string) => {
     if (!window.confirm(`Delete user ${username}?`)) return;
-    
+
     try {
       const token = localStorage.getItem('velero_token');
       const response = await fetch(`/api/v1/users/${username}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
 
       if (response.ok) {
@@ -131,7 +135,7 @@ const UserManagement: React.FC = () => {
     try {
       const currentUser = JSON.parse(localStorage.getItem('velero_user') || '{}');
       const isChangingOwnPassword = currentUser.username === selectedUser;
-      
+
       const body: any = { newPassword: passwordData.newPassword };
       if (isChangingOwnPassword) {
         body.oldPassword = passwordData.oldPassword;
@@ -140,9 +144,9 @@ const UserManagement: React.FC = () => {
       const token = localStorage.getItem('velero_token');
       const response = await fetch(`/api/v1/users/${selectedUser}/password`, {
         method: 'PUT',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json' 
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
       });
@@ -162,33 +166,33 @@ const UserManagement: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        mb: 3
-      }}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 3,
+        }}
+      >
         <Typography variant="h5" sx={{ fontWeight: 600 }}>
           User Management
         </Typography>
         {isAdmin && hasPermission && (
-          <Button 
-            variant="contained"
-            onClick={() => setShowAddUser(true)}
-            startIcon={<Add />}
-          >
+          <Button variant="contained" onClick={() => setShowAddUser(true)} startIcon={<Add />}>
             Add User
           </Button>
         )}
       </Box>
 
       {loading ? (
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: 200 
-        }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: 200,
+          }}
+        >
           <CircularProgress />
           <Typography sx={{ ml: 2 }}>Loading users...</Typography>
         </Box>
@@ -216,7 +220,10 @@ const UserManagement: React.FC = () => {
                           <Typography color="text.secondary" variant="body2">
                             User management is only available to administrators.
                             {currentUser.role !== 'admin' && (
-                              <><br />OIDC users are managed through your identity provider.</>
+                              <>
+                                <br />
+                                OIDC users are managed through your identity provider.
+                              </>
                             )}
                           </Typography>
                         </>
@@ -234,46 +241,46 @@ const UserManagement: React.FC = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map(user => (
-                  <TableRow 
+                users.map((user) => (
+                  <TableRow
                     key={user.username}
                     hover
-                    sx={{ 
-                      '&:hover': { 
+                    sx={{
+                      '&:hover': {
                         backgroundColor: 'action.hover',
-                      } 
+                      },
                     }}
                   >
                     <TableCell>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
+                      <Typography
+                        variant="body2"
+                        sx={{
                           fontWeight: 600,
-                          color: 'primary.main'
+                          color: 'primary.main',
                         }}
                       >
                         {user.username}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip 
+                      <Chip
                         label={user.role}
                         color={user.role === 'admin' ? 'error' : 'primary'}
                         size="small"
-                        sx={{ 
+                        sx={{
                           fontWeight: 600,
                           textTransform: 'uppercase',
                           fontSize: '0.75rem',
-                          letterSpacing: '0.5px'
+                          letterSpacing: '0.5px',
                         }}
                       />
                     </TableCell>
                     <TableCell>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
+                      <Typography
+                        variant="body2"
+                        sx={{
                           color: 'text.secondary',
-                          fontSize: '0.875rem'
+                          fontSize: '0.875rem',
                         }}
                       >
                         {user.created || 'N/A'}
@@ -321,7 +328,9 @@ const UserManagement: React.FC = () => {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <DialogTitle
+          sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        >
           Change Password for {selectedUser}
           <IconButton onClick={() => setShowChangePassword(false)}>
             <Close />
@@ -335,7 +344,7 @@ const UserManagement: React.FC = () => {
                 type="password"
                 label="Current Password"
                 value={passwordData.oldPassword}
-                onChange={e => setPasswordData({...passwordData, oldPassword: e.target.value})}
+                onChange={(e) => setPasswordData({ ...passwordData, oldPassword: e.target.value })}
                 variant="outlined"
               />
             )}
@@ -344,7 +353,7 @@ const UserManagement: React.FC = () => {
               type="password"
               label="New Password"
               value={passwordData.newPassword}
-              onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})}
+              onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
               variant="outlined"
               required
             />
@@ -353,35 +362,44 @@ const UserManagement: React.FC = () => {
               type="password"
               label="Confirm New Password"
               value={passwordData.confirmPassword}
-              onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+              onChange={(e) =>
+                setPasswordData({ ...passwordData, confirmPassword: e.target.value })
+              }
               variant="outlined"
               required
-              error={passwordData.confirmPassword !== '' && passwordData.newPassword !== passwordData.confirmPassword}
-              helperText={passwordData.confirmPassword !== '' && passwordData.newPassword !== passwordData.confirmPassword ? 'Passwords do not match' : ''}
+              error={
+                passwordData.confirmPassword !== '' &&
+                passwordData.newPassword !== passwordData.confirmPassword
+              }
+              helperText={
+                passwordData.confirmPassword !== '' &&
+                passwordData.newPassword !== passwordData.confirmPassword
+                  ? 'Passwords do not match'
+                  : ''
+              }
             />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowChangePassword(false)}>
-            Cancel
-          </Button>
-          <Button 
+          <Button onClick={() => setShowChangePassword(false)}>Cancel</Button>
+          <Button
             variant="contained"
             onClick={handleChangePassword}
-            disabled={!passwordData.newPassword || !passwordData.confirmPassword || passwordData.newPassword !== passwordData.confirmPassword}
+            disabled={
+              !passwordData.newPassword ||
+              !passwordData.confirmPassword ||
+              passwordData.newPassword !== passwordData.confirmPassword
+            }
           >
             Change Password
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog
-        open={showAddUser}
-        onClose={() => setShowAddUser(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Dialog open={showAddUser} onClose={() => setShowAddUser(false)} maxWidth="sm" fullWidth>
+        <DialogTitle
+          sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        >
           Add New User
           <IconButton onClick={() => setShowAddUser(false)}>
             <Close />
@@ -393,7 +411,7 @@ const UserManagement: React.FC = () => {
               fullWidth
               label="Username"
               value={newUser.username}
-              onChange={e => setNewUser({...newUser, username: e.target.value})}
+              onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
               variant="outlined"
               required
             />
@@ -402,7 +420,7 @@ const UserManagement: React.FC = () => {
               type="password"
               label="Password"
               value={newUser.password}
-              onChange={e => setNewUser({...newUser, password: e.target.value})}
+              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
               variant="outlined"
               required
             />
@@ -410,7 +428,7 @@ const UserManagement: React.FC = () => {
               <InputLabel>Role</InputLabel>
               <Select
                 value={newUser.role}
-                onChange={e => setNewUser({...newUser, role: e.target.value})}
+                onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
                 label="Role"
               >
                 <MenuItem value="user">User</MenuItem>
@@ -420,10 +438,8 @@ const UserManagement: React.FC = () => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowAddUser(false)}>
-            Cancel
-          </Button>
-          <Button 
+          <Button onClick={() => setShowAddUser(false)}>Cancel</Button>
+          <Button
             variant="contained"
             onClick={handleAddUser}
             disabled={!newUser.username || !newUser.password}

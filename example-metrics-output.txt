@@ -4,7 +4,7 @@
 # TYPE velero_available gauge
 velero_available 1
 
-# HELP velero_backup_failure_total Total number of failed Velero backups  
+# HELP velero_backup_failure_total Total number of failed Velero backups
 # TYPE velero_backup_failure_total counter
 velero_backup_failure_total{namespace="velero",schedule="manual",storage_location="default"} 2
 
@@ -18,7 +18,7 @@ velero_cluster_backup_success_rate{cluster="core-cl1"} 95.2
 velero_cluster_backup_success_rate{cluster="edge-cl2"} 87.5
 velero_cluster_backup_success_rate{cluster="test-cl3"} 100
 
-# HELP velero_cluster_backup_total Total number of backups per cluster  
+# HELP velero_cluster_backup_total Total number of backups per cluster
 # TYPE velero_cluster_backup_total gauge
 velero_cluster_backup_total{cluster="core-cl1",status="failed"} 1
 velero_cluster_backup_total{cluster="core-cl1",status="successful"} 20
@@ -45,7 +45,7 @@ velero_cluster_restore_success_rate{cluster="core-cl1"} 100
 velero_cluster_restore_success_rate{cluster="edge-cl2"} 85.7
 
 # HELP velero_cluster_restore_total Total number of restores per cluster
-# TYPE velero_cluster_restore_total gauge  
+# TYPE velero_cluster_restore_total gauge
 velero_cluster_restore_total{cluster="core-cl1",status="failed"} 0
 velero_cluster_restore_total{cluster="core-cl1",status="successful"} 3
 velero_cluster_restore_total{cluster="core-cl1",status="total"} 3

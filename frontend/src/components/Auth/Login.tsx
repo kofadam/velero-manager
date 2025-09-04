@@ -34,10 +34,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       } catch (error) {
         console.error('Failed to load auth config:', error);
         // Fallback to legacy auth only - ensure users can always login
-        setAuthConfig({ 
-          oidcEnabled: false, 
-          legacyAuthEnabled: true, 
-          authenticated: false 
+        setAuthConfig({
+          oidcEnabled: false,
+          legacyAuthEnabled: true,
+          authenticated: false,
         });
       }
     };
@@ -46,7 +46,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
       const state = urlParams.get('state');
-      
+
       if (code && state) {
         try {
           setLoading(true);
@@ -143,7 +143,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   >
                     {loading ? 'Redirecting...' : 'Sign in with SSO'}
                   </Button>
-                  
+
                   {(!authConfig || authConfig.legacyAuthEnabled !== false) && (
                     <Divider sx={{ my: 2 }}>
                       <Typography variant="body2" color="text.secondary">
@@ -156,7 +156,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
               {/* Legacy Login Form - Always available as fallback */}
               {(!authConfig || authConfig.legacyAuthEnabled !== false) && (
-                <Box component="form" onSubmit={handleLegacySubmit} sx={{ mt: authConfig?.oidcEnabled === true ? 0 : 3, width: '100%' }}>
+                <Box
+                  component="form"
+                  onSubmit={handleLegacySubmit}
+                  sx={{ mt: authConfig?.oidcEnabled === true ? 0 : 3, width: '100%' }}
+                >
                   <TextField
                     margin="normal"
                     required
@@ -183,18 +187,18 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
                   />
-                  
+
                   <Button
                     type="submit"
                     fullWidth
-                    variant={authConfig?.oidcEnabled === true ? "outlined" : "contained"}
+                    variant={authConfig?.oidcEnabled === true ? 'outlined' : 'contained'}
                     sx={{ mt: 3, mb: 2 }}
                     disabled={loading}
                     startIcon={loading ? <CircularProgress size={20} /> : <LockOutlinedIcon />}
                   >
                     {loading ? 'Signing in...' : 'Sign in with Username'}
                   </Button>
-                  
+
                   <Box textAlign="center" mt={2}>
                     <Typography variant="body2" color="text.secondary">
                       Default credentials: admin / admin

@@ -3,54 +3,54 @@ kind: ClusterRole
 metadata:
   name: velero-manager
 rules:
-- apiGroups:
-  - velero.io
-  resources:
-  - backups
-  - restores
-  - schedules
-  - backupstoragelocations
-  verbs:
-  - get
-  - list
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - batch
-  resources:
-  - cronjobs
-  - jobs
-  verbs:
-  - get
-  - list
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  - configmaps
-  - namespaces
-  - pods
-  - pods/log
-  verbs:
-  - get
-  - list
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - discovery.k8s.io
-  resources:
-  - '*'
-  verbs:
-  - get
-  - list
+  - apiGroups:
+      - velero.io
+    resources:
+      - backups
+      - restores
+      - schedules
+      - backupstoragelocations
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - batch
+    resources:
+      - cronjobs
+      - jobs
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+      - configmaps
+      - namespaces
+      - pods
+      - pods/log
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - "*"
+    verbs:
+      - get
+      - list
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -67,6 +67,6 @@ roleRef:
   kind: ClusterRole
   name: velero-manager
 subjects:
-- kind: ServiceAccount
-  name: velero-manager
-  namespace: velero-manager
+  - kind: ServiceAccount
+    name: velero-manager
+    namespace: velero-manager

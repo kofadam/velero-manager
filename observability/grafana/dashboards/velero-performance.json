@@ -90,11 +90,7 @@
       "id": 1,
       "options": {
         "legend": {
-          "calcs": [
-            "mean",
-            "max",
-            "current"
-          ],
+          "calcs": ["mean", "max", "current"],
           "displayMode": "table",
           "placement": "bottom",
           "values": []
@@ -187,10 +183,7 @@
       "id": 2,
       "options": {
         "legend": {
-          "calcs": [
-            "mean",
-            "max"
-          ],
+          "calcs": ["mean", "max"],
           "displayMode": "table",
           "placement": "bottom",
           "values": []
@@ -283,10 +276,7 @@
       "id": 3,
       "options": {
         "legend": {
-          "calcs": [
-            "mean",
-            "max"
-          ],
+          "calcs": ["mean", "max"],
           "displayMode": "table",
           "placement": "bottom",
           "values": []
@@ -379,9 +369,7 @@
       "id": 4,
       "options": {
         "legend": {
-          "calcs": [
-            "current"
-          ],
+          "calcs": ["current"],
           "displayMode": "table",
           "placement": "bottom",
           "values": []
@@ -474,9 +462,7 @@
       "id": 5,
       "options": {
         "legend": {
-          "calcs": [
-            "current"
-          ],
+          "calcs": ["current"],
           "displayMode": "table",
           "placement": "bottom",
           "values": []
@@ -573,11 +559,7 @@
       "id": 6,
       "options": {
         "legend": {
-          "calcs": [
-            "mean",
-            "max",
-            "current"
-          ],
+          "calcs": ["mean", "max", "current"],
           "displayMode": "table",
           "placement": "bottom",
           "values": []
@@ -674,11 +656,7 @@
       "id": 7,
       "options": {
         "legend": {
-          "calcs": [
-            "mean",
-            "max",
-            "current"
-          ],
+          "calcs": ["mean", "max", "current"],
           "displayMode": "table",
           "placement": "bottom",
           "values": []
@@ -802,9 +780,7 @@
       "id": 8,
       "options": {
         "legend": {
-          "calcs": [
-            "sum"
-          ],
+          "calcs": ["sum"],
           "displayMode": "table",
           "placement": "bottom",
           "values": []
@@ -939,9 +915,7 @@
       "id": 9,
       "options": {
         "legend": {
-          "calcs": [
-            "sum"
-          ],
+          "calcs": ["sum"],
           "displayMode": "table",
           "placement": "bottom",
           "values": []
@@ -982,12 +956,7 @@
   "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": [
-    "velero",
-    "performance",
-    "kubernetes",
-    "observability"
-  ],
+  "tags": ["velero", "performance", "kubernetes", "observability"],
   "templating": {
     "list": [
       {

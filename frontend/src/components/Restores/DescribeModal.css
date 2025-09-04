@@ -65,7 +65,8 @@
   padding: 20px;
 }
 
-.describe-loading, .describe-error {
+.describe-loading,
+.describe-error {
   text-align: center;
   padding: 40px;
   color: #6c757d;

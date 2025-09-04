@@ -77,9 +77,11 @@ const DescribeModal: React.FC<DescribeModalProps> = ({ backup, onClose }) => {
       <div className="describe-modal">
         <div className="describe-modal-header">
           <h3>Backup Details: {backup.name}</h3>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <button className="close-btn" onClick={onClose}>
+            ×
+          </button>
         </div>
-        
+
         <div className="describe-modal-content">
           {loading ? (
             <div className="describe-loading">Loading backup details...</div>
@@ -93,7 +95,7 @@ const DescribeModal: React.FC<DescribeModalProps> = ({ backup, onClose }) => {
             </div>
           )}
         </div>
-        
+
         <div className="describe-modal-footer">
           <button className="btn btn-secondary" onClick={onClose}>
             Close
@@ -101,7 +103,6 @@ const DescribeModal: React.FC<DescribeModalProps> = ({ backup, onClose }) => {
         </div>
       </div>
     </div>
-        
   );
 };
 

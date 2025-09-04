@@ -10,44 +10,44 @@ export const CRON_PRESETS: CronPreset[] = [
     label: 'Daily at 2 AM',
     description: 'Every day at 2:00 AM',
     expression: '0 2 * * *',
-    icon: '🌙'
+    icon: '🌙',
   },
   {
     label: 'Daily at 8 AM',
     description: 'Every day at 8:00 AM',
     expression: '0 8 * * *',
-    icon: '🌅'
+    icon: '🌅',
   },
   {
     label: 'Weekdays at 6 PM',
     description: 'Monday to Friday at 6:00 PM',
     expression: '0 18 * * 1-5',
-    icon: '🏢'
+    icon: '🏢',
   },
   {
     label: 'Weekly on Sunday',
     description: 'Every Sunday at midnight',
     expression: '0 0 * * 0',
-    icon: '📅'
+    icon: '📅',
   },
   {
     label: 'Monthly on 1st',
     description: 'First day of each month at midnight',
     expression: '0 0 1 * *',
-    icon: '📆'
+    icon: '📆',
   },
   {
     label: 'Every 6 hours',
     description: 'Every 6 hours starting at midnight',
     expression: '0 */6 * * *',
-    icon: '⏰'
+    icon: '⏰',
   },
   {
     label: 'Twice daily',
     description: 'Every day at 6 AM and 6 PM',
     expression: '0 6,18 * * *',
-    icon: '🔄'
-  }
+    icon: '🔄',
+  },
 ];
 
 export const translateCronExpression = (cronExpression: string): string => {
@@ -64,7 +64,7 @@ export const translateCronExpression = (cronExpression: string): string => {
 
   try {
     // Check for preset matches first
-    const preset = CRON_PRESETS.find(p => p.expression === cronExpression);
+    const preset = CRON_PRESETS.find((p) => p.expression === cronExpression);
     if (preset) {
       return preset.description;
     }
@@ -85,7 +85,13 @@ export const translateCronExpression = (cronExpression: string): string => {
     } else if (minute === '0' && hour === '0' && day !== '*' && month === '*' && weekday === '*') {
       // Monthly on specific day
       description = `Monthly on the ${day}${getOrdinalSuffix(parseInt(day))} at midnight`;
-    } else if (minute === '0' && hour.includes('*/') && day === '*' && month === '*' && weekday === '*') {
+    } else if (
+      minute === '0' &&
+      hour.includes('*/') &&
+      day === '*' &&
+      month === '*' &&
+      weekday === '*'
+    ) {
       // Every X hours
       const interval = hour.replace('*/', '');
       description = `Every ${interval} hours`;
@@ -104,12 +110,12 @@ export const translateCronExpression = (cronExpression: string): string => {
       description = `Daily at ${time}`;
     } else {
       // Complex expression - show basic format
-      const timeStr = minute !== '*' || hour !== '*' ? 
-        ` at ${hour}:${minute.padStart(2, '0')}` : '';
+      const timeStr =
+        minute !== '*' || hour !== '*' ? ` at ${hour}:${minute.padStart(2, '0')}` : '';
       const dayStr = day !== '*' ? ` on day ${day}` : '';
       const monthStr = month !== '*' ? ` in month ${month}` : '';
       const weekdayStr = weekday !== '*' ? ` on ${parseDayOfWeek(weekday)}` : '';
-      
+
       description = `Custom schedule${timeStr}${dayStr}${monthStr}${weekdayStr}`;
     }
 
@@ -138,7 +144,7 @@ const parseDayOfWeek = (weekday: string): string => {
     '7': 'Sunday', // Some systems use 7 for Sunday
     '1-5': 'Weekdays (Mon-Fri)',
     '6,0': 'Weekends',
-    '0,6': 'Weekends'
+    '0,6': 'Weekends',
   };
 
   return dayMap[weekday] || `Day ${weekday}`;
@@ -153,19 +159,24 @@ const getOrdinalSuffix = (num: number): string => {
   return 'th';
 };
 
-export const validateCronExpression = (cronExpression: string): { isValid: boolean; error?: string } => {
+export const validateCronExpression = (
+  cronExpression: string
+): { isValid: boolean; error?: string } => {
   if (!cronExpression || !cronExpression.trim()) {
     return { isValid: false, error: 'Cron expression is required' };
   }
 
   const parts = cronExpression.trim().split(/\s+/);
   if (parts.length !== 5) {
-    return { isValid: false, error: 'Cron expression must have 5 parts: minute hour day month weekday' };
+    return {
+      isValid: false,
+      error: 'Cron expression must have 5 parts: minute hour day month weekday',
+    };
   }
 
   // Basic validation for each part
   const [minute, hour, day, month, weekday] = parts;
-  
+
   if (!isValidCronPart(minute, 0, 59)) {
     return { isValid: false, error: 'Invalid minute (0-59)' };
   }
@@ -187,26 +198,26 @@ export const validateCronExpression = (cronExpression: string): { isValid: boole
 
 const isValidCronPart = (part: string, min: number, max: number): boolean => {
   if (part === '*') return true;
-  
+
   // Handle ranges like 1-5
   if (part.includes('-')) {
     const [start, end] = part.split('-').map(Number);
     return start >= min && end <= max && start <= end;
   }
-  
+
   // Handle lists like 1,3,5
   if (part.includes(',')) {
     const nums = part.split(',').map(Number);
-    return nums.every(num => num >= min && num <= max);
+    return nums.every((num) => num >= min && num <= max);
   }
-  
+
   // Handle step values like */6
   if (part.includes('/')) {
     const [range, step] = part.split('/');
     const stepNum = Number(step);
     return stepNum > 0 && (range === '*' || isValidCronPart(range, min, max));
   }
-  
+
   // Handle single number
   const num = Number(part);
   return !isNaN(num) && num >= min && num <= max;

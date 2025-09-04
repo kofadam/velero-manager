@@ -16,13 +16,13 @@ const RestoreModal: React.FC<RestoreModalProps> = ({ backup, onClose, onRestore 
     excludedNamespaces: '',
     namespaceMapping: '',
     restorePVs: true,
-    includeClusterResources: true
+    includeClusterResources: true,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleChange = (field: string, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,16 +34,24 @@ const RestoreModal: React.FC<RestoreModalProps> = ({ backup, onClose, onRestore 
       const restoreConfig = {
         name: formData.restoreName,
         backupName: backup.name,
-        includedNamespaces: formData.includedNamespaces.split(',').map(ns => ns.trim()).filter(ns => ns.length > 0),
-        excludedNamespaces: formData.excludedNamespaces.split(',').map(ns => ns.trim()).filter(ns => ns.length > 0),
-        namespaceMapping: formData.namespaceMapping ? Object.fromEntries(
-          formData.namespaceMapping.split(',').map(mapping => {
-            const [from, to] = mapping.split(':').map(s => s.trim());
-            return [from, to];
-          })
-        ) : {},
+        includedNamespaces: formData.includedNamespaces
+          .split(',')
+          .map((ns) => ns.trim())
+          .filter((ns) => ns.length > 0),
+        excludedNamespaces: formData.excludedNamespaces
+          .split(',')
+          .map((ns) => ns.trim())
+          .filter((ns) => ns.length > 0),
+        namespaceMapping: formData.namespaceMapping
+          ? Object.fromEntries(
+              formData.namespaceMapping.split(',').map((mapping) => {
+                const [from, to] = mapping.split(':').map((s) => s.trim());
+                return [from, to];
+              })
+            )
+          : {},
         restorePVs: formData.restorePVs,
-        includeClusterResources: formData.includeClusterResources
+        includeClusterResources: formData.includeClusterResources,
       };
 
       await onRestore(restoreConfig);
@@ -61,15 +69,15 @@ const RestoreModal: React.FC<RestoreModalProps> = ({ backup, onClose, onRestore 
         <div className="restore-warning">
           <div className="warning-icon">⚠️</div>
           <div>
-            <strong>Important:</strong> This will create a restore operation from backup "{backup.name}".
-            Make sure you understand the implications before proceeding.
+            <strong>Important:</strong> This will create a restore operation from backup "
+            {backup.name}". Make sure you understand the implications before proceeding.
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="restore-form">
           <div className="form-section">
             <h3>📋 Restore Configuration</h3>
-            
+
             <div className="form-group">
               <label htmlFor="restore-name">Restore Name *</label>
               <input
@@ -85,7 +93,7 @@ const RestoreModal: React.FC<RestoreModalProps> = ({ backup, onClose, onRestore 
 
           <div className="form-section">
             <h3>🎯 Scope</h3>
-            
+
             <div className="form-group">
               <label htmlFor="included-namespaces">Included Namespaces</label>
               <input
@@ -128,7 +136,7 @@ const RestoreModal: React.FC<RestoreModalProps> = ({ backup, onClose, onRestore 
 
           <div className="form-section">
             <h3>⚙️ Options</h3>
-            
+
             <div className="checkbox-group">
               <label className="checkbox-label">
                 <input

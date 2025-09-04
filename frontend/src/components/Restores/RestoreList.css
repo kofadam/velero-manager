@@ -107,7 +107,8 @@
   transform: translateY(-1px);
 }
 
-.loading, .error {
+.loading,
+.error {
   text-align: center;
   padding: 40px;
   font-size: 1.1rem;

@@ -11,11 +11,13 @@ Velero Manager supports both legacy username/password authentication and OIDC au
 ### 1. Create Keycloak Client
 
 1. **Access Keycloak Admin Console**
+
    ```
    https://your-keycloak.company.com/auth/admin/
    ```
 
 2. **Create New Client**
+
    - **Client ID**: `velero-manager`
    - **Client Protocol**: `openid-connect`
    - **Access Type**: `confidential`
@@ -24,12 +26,14 @@ Velero Manager supports both legacy username/password authentication and OIDC au
    - **Authorization**: `Disabled`
 
 3. **Configure Valid Redirect URIs**
+
    ```
    http://localhost:3000/auth/callback
    https://velero-manager.company.com/auth/callback
    ```
 
 4. **Configure Web Origins**
+
    ```
    http://localhost:3000
    https://velero-manager.company.com
@@ -42,7 +46,9 @@ Velero Manager supports both legacy username/password authentication and OIDC au
 ### 2. Configure User Roles/Groups
 
 #### Option A: Using Realm Roles
+
 1. **Create Realm Roles**:
+
    - `velero-admin` (for admin access)
    - `velero-user` (for regular user access)
 
@@ -51,7 +57,9 @@ Velero Manager supports both legacy username/password authentication and OIDC au
    - Assign appropriate realm roles
 
 #### Option B: Using Groups
+
 1. **Create Groups**:
+
    - `velero-administrators` (for admin access)
    - `velero-users` (for regular user access)
 
@@ -62,6 +70,7 @@ Velero Manager supports both legacy username/password authentication and OIDC au
 ### 3. Configure Client Scopes (Optional)
 
 1. **Create Custom Scope for Groups** (if using groups):
+
    - **Name**: `groups`
    - **Protocol**: `openid-connect`
    - **Include in Token Scope**: `On`
@@ -107,31 +116,33 @@ OIDC_FULL_NAME_CLAIM=name                       # Claim for full name
 ## 🐳 Docker Deployment Example
 
 ### docker-compose.yml
+
 ```yaml
 version: '3.8'
 services:
   velero-manager:
     image: your-registry/velero-manager:latest
     ports:
-      - "8080:8080"
+      - '8080:8080'
     environment:
       # OIDC Configuration
-      OIDC_ENABLED: "true"
-      OIDC_ISSUER_URL: "https://keycloak.company.com/auth/realms/company"
-      OIDC_CLIENT_ID: "velero-manager"
-      OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET}"
-      OIDC_REDIRECT_URL: "https://velero-manager.company.com/auth/callback"
-      
+      OIDC_ENABLED: 'true'
+      OIDC_ISSUER_URL: 'https://keycloak.company.com/auth/realms/company'
+      OIDC_CLIENT_ID: 'velero-manager'
+      OIDC_CLIENT_SECRET: '${OIDC_CLIENT_SECRET}'
+      OIDC_REDIRECT_URL: 'https://velero-manager.company.com/auth/callback'
+
       # Role Mapping
-      OIDC_ADMIN_ROLES: "velero-admin,realm-admin"
-      OIDC_ADMIN_GROUPS: "velero-administrators"
-      OIDC_DEFAULT_ROLE: "user"
+      OIDC_ADMIN_ROLES: 'velero-admin,realm-admin'
+      OIDC_ADMIN_GROUPS: 'velero-administrators'
+      OIDC_DEFAULT_ROLE: 'user'
     volumes:
       - ~/.kube:/root/.kube:ro
     restart: unless-stopped
 ```
 
 ### .env file
+
 ```bash
 OIDC_CLIENT_SECRET=your-secret-key-here
 ```
@@ -139,6 +150,7 @@ OIDC_CLIENT_SECRET=your-secret-key-here
 ## ☸️ Kubernetes Deployment Example
 
 ### ConfigMap
+
 ```yaml
 apiVersion: v1
 kind: ConfigMap
@@ -146,16 +158,17 @@ metadata:
   name: velero-manager-oidc-config
   namespace: velero-manager
 data:
-  OIDC_ENABLED: "true"
-  OIDC_ISSUER_URL: "https://keycloak.company.com/auth/realms/company"
-  OIDC_CLIENT_ID: "velero-manager"
-  OIDC_REDIRECT_URL: "https://velero-manager.company.com/auth/callback"
-  OIDC_ADMIN_ROLES: "velero-admin,realm-admin"
-  OIDC_ADMIN_GROUPS: "velero-administrators"
-  OIDC_DEFAULT_ROLE: "user"
+  OIDC_ENABLED: 'true'
+  OIDC_ISSUER_URL: 'https://keycloak.company.com/auth/realms/company'
+  OIDC_CLIENT_ID: 'velero-manager'
+  OIDC_REDIRECT_URL: 'https://velero-manager.company.com/auth/callback'
+  OIDC_ADMIN_ROLES: 'velero-admin,realm-admin'
+  OIDC_ADMIN_GROUPS: 'velero-administrators'
+  OIDC_DEFAULT_ROLE: 'user'
 ```
 
 ### Secret
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -164,10 +177,11 @@ metadata:
   namespace: velero-manager
 type: Opaque
 stringData:
-  OIDC_CLIENT_SECRET: "your-secret-key-here"
+  OIDC_CLIENT_SECRET: 'your-secret-key-here'
 ```
 
 ### Deployment
+
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -185,23 +199,23 @@ spec:
         app: velero-manager
     spec:
       containers:
-      - name: velero-manager
-        image: your-registry/velero-manager:latest
-        ports:
-        - containerPort: 8080
-        envFrom:
-        - configMapRef:
-            name: velero-manager-oidc-config
-        - secretRef:
-            name: velero-manager-oidc-secret
-        volumeMounts:
-        - name: kubeconfig
-          mountPath: /root/.kube
-          readOnly: true
+        - name: velero-manager
+          image: your-registry/velero-manager:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: velero-manager-oidc-config
+            - secretRef:
+                name: velero-manager-oidc-secret
+          volumeMounts:
+            - name: kubeconfig
+              mountPath: /root/.kube
+              readOnly: true
       volumes:
-      - name: kubeconfig
-        secret:
-          secretName: velero-manager-kubeconfig
+        - name: kubeconfig
+          secret:
+            secretName: velero-manager-kubeconfig
 ```
 
 ## 🔄 Authentication Flow
@@ -222,6 +236,7 @@ spec:
 ### 2. API Authentication
 
 All API calls include the JWT token:
+
 ```bash
 curl -H "Authorization: Bearer <jwt-token>" \
      https://velero-manager.company.com/api/v1/backups
@@ -263,6 +278,7 @@ curl -H "Authorization: Bearer <jwt-token>" \
 The system supports flexible mapping from Keycloak roles/groups to Velero Manager roles:
 
 **Admin Access** - Users with any of these conditions get `admin` role:
+
 - Has any role listed in `OIDC_ADMIN_ROLES`
 - Member of any group listed in `OIDC_ADMIN_GROUPS`
 
@@ -271,6 +287,7 @@ The system supports flexible mapping from Keycloak roles/groups to Velero Manage
 ### Example Configurations
 
 #### Configuration 1: Realm Roles Only
+
 ```bash
 OIDC_ROLES_CLAIM=realm_access.roles
 OIDC_ADMIN_ROLES=velero-admin,backup-admin
@@ -278,6 +295,7 @@ OIDC_DEFAULT_ROLE=user
 ```
 
 #### Configuration 2: Groups Only
+
 ```bash
 OIDC_GROUPS_CLAIM=groups
 OIDC_ADMIN_GROUPS=velero-administrators,platform-team
@@ -285,6 +303,7 @@ OIDC_DEFAULT_ROLE=user
 ```
 
 #### Configuration 3: Mixed (Roles + Groups)
+
 ```bash
 OIDC_ROLES_CLAIM=realm_access.roles
 OIDC_GROUPS_CLAIM=groups
@@ -296,16 +315,19 @@ OIDC_DEFAULT_ROLE=user
 ## 🔐 Security Best Practices
 
 ### 1. Token Security
+
 - JWT tokens are valid for 24 hours
 - ID tokens are stored for frontend OIDC logout
 - Session fallback tokens are cleaned automatically
 
 ### 2. HTTPS Requirements
+
 - Always use HTTPS in production
 - Configure proper SSL certificates
 - Set secure redirect URLs
 
 ### 3. Client Secret Protection
+
 - Store client secret in environment variables or Kubernetes secrets
 - Rotate client secret periodically
 - Use different secrets for different environments
@@ -315,30 +337,36 @@ OIDC_DEFAULT_ROLE=user
 ### Common Issues
 
 #### 1. "Invalid redirect URI" Error
+
 **Cause**: Redirect URI in request doesn't match Keycloak client configuration
 **Solution**: Verify `OIDC_REDIRECT_URL` matches Keycloak client's Valid Redirect URIs
 
 #### 2. "Failed to verify ID token" Error
+
 **Cause**: Token verification failed (wrong client ID or expired token)
 **Solution**: Check `OIDC_CLIENT_ID` matches Keycloak client configuration
 
 #### 3. "No admin access" Error
+
 **Cause**: User roles/groups don't match admin configuration
 **Solution**: Verify user has roles/groups listed in `OIDC_ADMIN_ROLES`/`OIDC_ADMIN_GROUPS`
 
 #### 4. "OIDC provider initialization failed" Error
+
 **Cause**: Cannot connect to Keycloak or wrong issuer URL
 **Solution**: Verify `OIDC_ISSUER_URL` is accessible and correct
 
 ### Debug Information
 
 Check logs for authentication details:
+
 ```bash
 docker logs velero-manager | grep -i oidc
 kubectl logs deployment/velero-manager | grep -i oidc
 ```
 
 Enable verbose logging:
+
 ```bash
 export GIN_MODE=debug
 ```
@@ -346,6 +374,7 @@ export GIN_MODE=debug
 ### Health Checks
 
 Test OIDC connectivity:
+
 ```bash
 # Test issuer URL accessibility
 curl https://your-keycloak.company.com/auth/realms/your-realm/.well-known/openid_configuration
