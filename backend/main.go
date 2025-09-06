@@ -168,9 +168,9 @@ func main() {
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Serve static files from frontend build
-	router.Static("/static", "../frontend/build/static")
-	router.StaticFile("/favicon.ico", "../frontend/build/favicon.ico")
-	router.StaticFile("/manifest.json", "../frontend/build/manifest.json")
+	router.Static("/static", "./frontend/build/static")
+	router.StaticFile("/favicon.ico", "./frontend/build/favicon.ico")
+	router.StaticFile("/manifest.json", "./frontend/build/manifest.json")
 
 	// Serve React app for all non-API routes
 	router.NoRoute(func(c *gin.Context) {
@@ -179,7 +179,7 @@ func main() {
 			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
 			return
 		}
-		c.File("../frontend/build/index.html")
+		c.File("./frontend/build/index.html")
 	})
 
 	log.Println("🚀 Velero Manager starting on :8080")
