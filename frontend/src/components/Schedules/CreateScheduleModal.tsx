@@ -11,17 +11,24 @@ import './CreateScheduleModal.css';
 interface CreateScheduleModalProps {
   onClose: () => void;
   onSuccess: () => void;
+  schedule?: any; // Optional schedule for editing
 }
 
-const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSuccess }) => {
+const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
+  onClose,
+  onSuccess,
+  schedule,
+}) => {
+  const isEditing = !!schedule;
+
   const [formData, setFormData] = useState({
-    name: '',
-    schedule: '',
-    includedNamespaces: '',
-    excludedNamespaces: '',
-    storageLocation: 'default',
-    ttl: '720h0m0s',
-    paused: false,
+    name: schedule?.metadata?.name || '',
+    schedule: schedule?.spec?.schedule || '',
+    includedNamespaces: schedule?.spec?.template?.includedNamespaces?.join(', ') || '',
+    excludedNamespaces: schedule?.spec?.template?.excludedNamespaces?.join(', ') || '',
+    storageLocation: schedule?.spec?.template?.storageLocation || 'default',
+    ttl: schedule?.spec?.template?.ttl || '720h0m0s',
+    paused: schedule?.spec?.suspend || false,
   });
   const [cronTranslation, setCronTranslation] = useState('');
   const [cronError, setCronError] = useState('');
@@ -80,7 +87,7 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
         .map((ns) => ns.trim())
         .filter((ns) => ns.length > 0);
 
-      await apiService.createSchedule({
+      const scheduleData = {
         name: formData.name,
         schedule: formData.schedule,
         includedNamespaces: namespaces.length > 0 ? namespaces : undefined,
@@ -88,18 +95,32 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
         storageLocation: formData.storageLocation,
         ttl: formData.ttl,
         paused: formData.paused,
-      });
+      };
+
+      if (isEditing) {
+        await apiService.updateSchedule(schedule.metadata.name, scheduleData);
+      } else {
+        await apiService.createSchedule(scheduleData);
+      }
 
       onSuccess();
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to create schedule');
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          `Failed to ${isEditing ? 'update' : 'create'} schedule`
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal title="⏰ Create Backup Schedule" onClose={onClose} size="large">
+    <Modal
+      title={isEditing ? '✏️ Edit Backup Schedule' : '⏰ Create Backup Schedule'}
+      onClose={onClose}
+      size="large"
+    >
       <form onSubmit={handleSubmit} className="create-schedule-form">
         {/* Basic Info Section */}
         <div className="form-section">
@@ -114,7 +135,7 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
               onChange={(e) => handleChange('name', e.target.value)}
               placeholder="daily-backup-schedule"
               required
-              disabled={loading}
+              disabled={loading || isEditing} // Disable name editing when updating
             />
           </div>
         </div>
@@ -257,7 +278,13 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onClose, onSu
             Cancel
           </button>
           <button type="submit" className="btn-primary" disabled={loading || !!cronError}>
-            {loading ? 'Creating...' : '⏰ Create Schedule'}
+            {loading
+              ? isEditing
+                ? 'Updating...'
+                : 'Creating...'
+              : isEditing
+                ? '✏️ Update Schedule'
+                : '⏰ Create Schedule'}
           </button>
         </div>
       </form>

@@ -25,6 +25,7 @@ interface ScheduleTableProps {
   onCreateBackupNow: (scheduleName: string) => Promise<void>;
   onRefresh: () => void;
   onViewDetails: (schedule: any) => void;
+  onEdit: (schedule: any) => void;
 }
 
 const ScheduleTable: React.FC<ScheduleTableProps> = ({
@@ -34,6 +35,7 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
   onCreateBackupNow,
   onRefresh,
   onViewDetails,
+  onEdit,
 }) => {
   const getScheduleStatus = (
     schedule: any
@@ -327,7 +329,7 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
                     <Tooltip title="Edit Schedule">
                       <IconButton
                         size="small"
-                        onClick={() => alert('Edit functionality coming soon!')}
+                        onClick={() => onEdit(schedule)}
                         sx={{ color: 'info.main' }}
                       >
                         <Edit fontSize="small" />

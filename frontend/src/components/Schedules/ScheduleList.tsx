@@ -11,6 +11,7 @@ const ScheduleList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
 
@@ -80,6 +81,11 @@ const ScheduleList: React.FC = () => {
     setShowDetailsModal(true);
   };
 
+  const handleEdit = (schedule: any) => {
+    setSelectedSchedule(schedule);
+    setShowEditModal(true);
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <Paper sx={{ p: 3 }}>
@@ -128,6 +134,7 @@ const ScheduleList: React.FC = () => {
             onCreateBackupNow={handleCreateBackupNow}
             onRefresh={fetchSchedules}
             onViewDetails={handleViewDetails}
+            onEdit={handleEdit}
           />
         )}
 
@@ -136,6 +143,21 @@ const ScheduleList: React.FC = () => {
             onClose={() => setShowCreateModal(false)}
             onSuccess={() => {
               setShowCreateModal(false);
+              fetchSchedules();
+            }}
+          />
+        )}
+
+        {showEditModal && selectedSchedule && (
+          <CreateScheduleModal
+            schedule={selectedSchedule}
+            onClose={() => {
+              setShowEditModal(false);
+              setSelectedSchedule(null);
+            }}
+            onSuccess={() => {
+              setShowEditModal(false);
+              setSelectedSchedule(null);
               fetchSchedules();
             }}
           />

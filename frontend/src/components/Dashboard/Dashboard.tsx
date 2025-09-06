@@ -380,20 +380,32 @@ const Dashboard: React.FC = () => {
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
                 <Badge
-                  badgeContent={stats.failedBackups > 0 ? stats.failedBackups : null}
+                  badgeContent={
+                    (dashboardData?.clusters.critical || 0) + stats.failedBackups > 0
+                      ? (dashboardData?.clusters.critical || 0) + stats.failedBackups
+                      : null
+                  }
                   color="error"
                   showZero={false}
                 >
-                  <BackupIcon sx={{ fontSize: 28, color: 'primary.main' }} />
+                  <ErrorIcon sx={{ fontSize: 28, color: 'error.main' }} />
                 </Badge>
                 <Box textAlign="right">
                   <Typography variant="h4" component="div" fontWeight="bold">
-                    {stats.totalBackups}
+                    {(dashboardData?.clusters.critical || 0) + stats.failedBackups}
                   </Typography>
                   <Typography color="textSecondary" variant="caption">
-                    TOTAL BACKUPS
+                    Issues
                   </Typography>
                 </Box>
+              </Box>
+              <Box mt={2}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  {dashboardData?.clusters.critical || 0} cluster issues
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {stats.failedBackups} failed backups
+                </Typography>
               </Box>
               <Box mt={2}>
                 <Box display="flex" justifyContent="space-between" mb={1}>

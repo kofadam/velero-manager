@@ -23,14 +23,16 @@ import {
   DialogContent,
   DialogActions,
 } from '@mui/material';
-import { Refresh, Add, Edit } from '@mui/icons-material';
+import { Refresh, Add, Edit, Delete } from '@mui/icons-material';
 
 interface Cluster {
   name: string;
   backupCount: number;
   lastBackup: string;
   ip?: string;
+  apiEndpoint?: string;
   description?: string;
+  status?: 'healthy' | 'warning' | 'critical' | 'error';
 }
 
 const Clusters: React.FC = () => {
@@ -41,6 +43,7 @@ const Clusters: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCluster, setEditingCluster] = useState<string | null>(null);
   const [newDescription, setNewDescription] = useState('');
+  const [clusterToDelete, setClusterToDelete] = useState<string | null>(null);
 
   const fetchClusters = async () => {
     setLoading(true);
@@ -60,13 +63,18 @@ const Clusters: React.FC = () => {
     fetchClusters();
   }, []);
 
-  const getHealthStatus = (lastBackup: string, backupCount: number) => {
-    if (!lastBackup) {
-      // No backups yet, but cluster is configured
-      return { label: 'Configured', color: 'success' as const };
+  const getHealthStatus = (cluster: Cluster) => {
+    // Check if cluster has connection details configured
+    if (!cluster.ip && !cluster.apiEndpoint) {
+      return { label: 'Not Configured', color: 'error' as const };
     }
 
-    const lastBackupDate = new Date(lastBackup);
+    if (!cluster.lastBackup) {
+      // Configured but no backups yet
+      return { label: 'Configured', color: 'info' as const };
+    }
+
+    const lastBackupDate = new Date(cluster.lastBackup);
     const hoursSinceBackup = (Date.now() - lastBackupDate.getTime()) / (1000 * 60 * 60);
 
     if (hoursSinceBackup < 25) return { label: 'Healthy', color: 'success' as const };
@@ -83,6 +91,29 @@ const Clusters: React.FC = () => {
   const filteredClusters = clusters.filter((cluster) =>
     cluster.name.toLowerCase().includes(searchFilter.toLowerCase())
   );
+
+  const handleDeleteCluster = async (clusterName: string) => {
+    setClusterToDelete(clusterName);
+  };
+
+  const confirmDeleteCluster = async () => {
+    if (!clusterToDelete) return;
+
+    try {
+      await apiService.deleteCluster(clusterToDelete);
+      setClusters((prev) => prev.filter((cluster) => cluster.name !== clusterToDelete));
+      setClusterToDelete(null);
+    } catch (err: any) {
+      console.error('Failed to delete cluster:', err);
+      let errorMessage = 'Failed to delete cluster';
+      if (err.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please login again.';
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      }
+      setError(errorMessage);
+    }
+  };
 
   const handleUpdateDescription = async () => {
     if (!editingCluster) return;
@@ -194,7 +225,7 @@ const Clusters: React.FC = () => {
                   </TableRow>
                 ) : (
                   filteredClusters.map((cluster) => {
-                    const health = getHealthStatus(cluster.lastBackup, cluster.backupCount);
+                    const health = getHealthStatus(cluster);
                     return (
                       <TableRow
                         key={cluster.name}
@@ -221,11 +252,14 @@ const Clusters: React.FC = () => {
                             variant="body2"
                             sx={{
                               fontFamily: 'monospace',
-                              color: cluster.ip ? 'text.primary' : 'text.secondary',
-                              fontStyle: cluster.ip ? 'normal' : 'italic',
+                              color:
+                                cluster.ip || cluster.apiEndpoint
+                                  ? 'text.primary'
+                                  : 'text.secondary',
+                              fontStyle: cluster.ip || cluster.apiEndpoint ? 'normal' : 'italic',
                             }}
                           >
-                            {cluster.ip || 'Not configured'}
+                            {cluster.ip || cluster.apiEndpoint || 'Not configured'}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -293,18 +327,29 @@ const Clusters: React.FC = () => {
                           />
                         </TableCell>
                         <TableCell align="center">
-                          <Tooltip title="Edit Description">
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                setEditingCluster(cluster.name);
-                                setNewDescription(cluster.description || '');
-                              }}
-                              sx={{ color: 'primary.main' }}
-                            >
-                              <Edit fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                          <Box sx={{ display: 'flex', gap: 0.5 }}>
+                            <Tooltip title="Edit Cluster">
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  setEditingCluster(cluster.name);
+                                  setNewDescription(cluster.description || '');
+                                }}
+                                sx={{ color: 'primary.main' }}
+                              >
+                                <Edit fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete Cluster">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDeleteCluster(cluster.name)}
+                                sx={{ color: 'error.main' }}
+                              >
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
                         </TableCell>
                       </TableRow>
                     );
@@ -364,6 +409,31 @@ const Clusters: React.FC = () => {
           </Button>
           <Button variant="contained" onClick={handleUpdateDescription}>
             Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={!!clusterToDelete}
+        onClose={() => setClusterToDelete(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete Cluster</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Are you sure you want to delete cluster <strong>{clusterToDelete}</strong>?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            This will remove the cluster configuration and stop scheduled backups. This action
+            cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setClusterToDelete(null)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={confirmDeleteCluster}>
+            Delete
           </Button>
         </DialogActions>
       </Dialog>
