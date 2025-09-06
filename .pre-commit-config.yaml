@@ -4,13 +4,13 @@ repos:
     hooks:
       - id: go-fmt-backend
         name: go-fmt-backend
-        entry: sh -c 'cd backend && gofmt -w *.go pkg/**/*.go cmd/**/*.go || true'
+        entry: sh -c 'cd backend && gofmt -w *.go pkg/**/*.go || true'
         language: system
         files: ^backend/.*\.go$
         pass_filenames: false
       - id: go-imports-backend
         name: go-imports-backend
-        entry: sh -c 'cd backend && goimports -w *.go pkg/**/*.go cmd/**/*.go || true'
+        entry: sh -c 'cd backend && goimports -w *.go pkg/**/*.go || true'
         language: system
         files: ^backend/.*\.go$
         pass_filenames: false
