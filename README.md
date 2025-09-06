@@ -1,391 +1,152 @@
 # Velero Manager
 
-An enterprise-grade multi-cluster web interface for managing Velero backup operations across Kubernetes environments with comprehensive observability and corporate SSO integration.
+A modern web interface for managing Velero backup and restore operations across multiple Kubernetes clusters. Provides a user-friendly dashboard for monitoring backup health, creating scheduled backups, and performing disaster recovery operations.
 
-## 🚀 Recent Major Updates (v2.3.0+)
+## What is Velero Manager?
 
-### 🔐 **OIDC Authentication with Corporate Keycloak**
+Velero Manager simplifies Kubernetes backup management by providing:
 
-- **Single Sign-On**: Full OpenID Connect integration with corporate Keycloak
-- **Role Mapping**: Automatic admin/user role assignment via Keycloak groups/roles
-- **Backward Compatible**: Legacy username/password authentication remains available
-- **Security**: State validation, proper token lifecycle, JWT bearer authentication
-
-### 📊 **Enhanced Monitoring & Dashboards**
-
-- **Cluster-Based Metrics**: Health status, success rates, and operational metrics per cluster
-- **Comprehensive Grafana Dashboard**: 13 panels with color-coded thresholds and alerting
-- **Auto-Refresh**: Real-time dashboard updates every 30 seconds
-- **Prometheus Integration**: Cluster-specific metrics with backup/restore correlation
+- **Multi-cluster backup management** - Centralized control of Velero operations across multiple clusters
+- **Web-based interface** - Modern React dashboard for managing backups, restores, and schedules
+- **Real-time monitoring** - Live backup status, cluster health, and success rate tracking
+- **Enterprise authentication** - OIDC/SSO integration alongside traditional login
+- **Comprehensive observability** - Integrated Grafana dashboards and Prometheus metrics
 
 ## Features
 
-### Core Functionality
-
-- **Multi-Cluster Management** - Centralized control across multiple Kubernetes clusters
 - **Backup Operations** - Create, monitor, and manage backups with real-time status
 - **Restore Management** - Cross-cluster restore capabilities with target selection
-- **Schedule Automation** - CronJob-based backup scheduling (replacing Velero schedules)
-- **Cluster Health Monitoring** - Real-time cluster status and backup metrics with success rates
-
-### Enterprise Features
-
-- **Corporate SSO** - OIDC authentication with Keycloak integration
-- **Role-Based Access** - Admin/user permissions via corporate groups/roles
-- **Material-UI Design** - Modern dashboard with professional enterprise interface
-- **Comprehensive Observability** - Integrated Alloy + Prometheus + Grafana metrics
-- **Air-Gap Ready** - Fully self-contained for isolated environments
+- **Schedule Automation** - CronJob-based backup scheduling and management
+- **Cluster Health Monitoring** - Real-time cluster status and backup success rates
+- **Storage Location Management** - Configure and manage backup storage locations
+- **User Authentication** - OIDC/SSO integration with role-based access control
 
 ## Architecture
 
-- **Frontend**: React 18 + TypeScript with Material-UI design system and OIDC authentication
-- **Backend**: Go 1.24 + Gin framework with OIDC middleware and real Velero CRD integration
-- **Authentication**: OpenID Connect (Keycloak) + Legacy JWT/username fallback
-- **Observability**: Cluster-based metrics collection, Prometheus storage, Grafana dashboards
-- **Storage**: MinIO S3 backend with tested disaster recovery workflows
-- **Deployment**: Docker containers + Kubernetes manifests for air-gap environments
+- **Frontend**: React 18 + TypeScript with Material-UI design system
+- **Backend**: Go with Gin framework and Velero CRD integration
+- **Authentication**: OpenID Connect (OIDC) + JWT token fallback
+- **Storage**: S3-compatible storage backends (MinIO, AWS S3, etc.)
+- **Deployment**: Docker containers with Kubernetes manifests
 
-## 🔧 Quick Start
+## Quick Start
 
-### Development Mode
+### Prerequisites
+
+- Kubernetes cluster with Velero installed
+- kubectl access to your clusters
+- Docker for building images
+- Node.js and npm for frontend development
+
+### Local Development
 
 ```bash
-# Start backend (legacy auth only)
-cd ./velero-manager/backend
-OIDC_ENABLED=false ./velero-manager
-
-# Start with OIDC (requires Keycloak configuration)
-OIDC_ENABLED=true \
-OIDC_ISSUER_URL=https://keycloak.company.com/auth/realms/company \
-OIDC_CLIENT_ID=velero-manager \
-OIDC_CLIENT_SECRET=your-secret \
-./velero-manager
+# Clone the repository
+git clone https://github.com/kofadam/velero-manager.git
+cd velero-manager
 
 # Build frontend
-cd ../frontend
-npm run build
-```
+cd frontend && npm install && npm run build
 
-### Production Deployment
+# Start backend
+cd ../backend && go run main.go
 
-```bash
-# Build and deploy locally (development)
-./build.sh                # Builds and pushes to localhost:32000 registry
-./deploy-local.sh         # Updates Kubernetes deployment
-
-# Enterprise release with OIDC
-docker build -t your-registry/velero-manager:v2.3.0 .
-docker push your-registry/velero-manager:v2.3.0
-```
-
-### Access Application
-
-```bash
-# Local development
+# Access the application
 http://localhost:8080
-
-# Default credentials (legacy auth)
-Username: admin
-Password: admin
-
-# Grafana observability dashboard
-http://localhost:3000
-
-# Prometheus metrics
-http://localhost:9090/targets
 ```
 
-## 📊 Observability Stack
-
-### Integrated Monitoring Solution
-
-Velero Manager includes a complete observability stack with Grafana Alloy, Prometheus, and Loki for comprehensive monitoring:
-
-- **Metrics Collection**: Automated scraping of Velero and backup operation metrics
-- **Log Aggregation**: Centralized logging from both velero and velero-manager namespaces
-- **Real-time Dashboards**: Pre-configured Grafana dashboards for operational insights
-- **Alerting**: PrometheusRule configurations for backup failures and SLA violations
-
-**📋 Complete Setup Guide**: [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md)
-
-### Available Dashboards
-
-#### Daily Backup Overview Dashboard
-
-Perfect for morning checks with at-a-glance status:
-
-- 24-hour backup success rate across all clusters
-- Failed backups requiring immediate attention
-- Clusters without recent backups
-- Backup schedule status and compliance
-- Recent failure logs with actionable details
-
-#### Velero Operations Dashboard
-
-Comprehensive operational monitoring:
-
-- Cluster health status with color-coded indicators
-- Backup and restore success rates by cluster
-- Backup status distribution (pie charts)
-- Storage and infrastructure issue tracking
-- Historical trends and performance metrics
-
-### Alerts Configuration
-
-Pre-configured alerts for critical events:
-
-- **VeleroBackupFailed**: Immediate notification of backup failures
-- **VeleroNoRecentBackup**: Alert when cluster hasn't been backed up in 24 hours
-- **VeleroBackupSuccessRateLow**: Warning when success rate drops below 85%
-- **VeleroDailyBackupMissing**: SLA violation for missing daily backups
-- **VeleroStorageLocationUnavailable**: Critical alert for storage issues
-
----
-
-## 🔐 Authentication Setup
-
-### OIDC / Corporate Keycloak
-
-For corporate environments with existing Keycloak/SSO infrastructure:
+### Kubernetes Deployment
 
 ```bash
-# Environment configuration
-OIDC_ENABLED=true
-OIDC_ISSUER_URL=https://keycloak.company.com/auth/realms/company
-OIDC_CLIENT_ID=velero-manager
-OIDC_CLIENT_SECRET=your-keycloak-client-secret
-OIDC_REDIRECT_URL=https://velero-manager.company.com/auth/callback
+# Build and deploy to Kubernetes
+./build.sh        # Build Docker image
+./deploy-local.sh # Deploy to cluster
 
-# Role mapping
-OIDC_ADMIN_ROLES=velero-admin,backup-admin
-OIDC_ADMIN_GROUPS=platform-administrators,backup-operators
-OIDC_DEFAULT_ROLE=user
-```
-
-**📋 Complete Setup Guide**: [docs/OIDC_SETUP.md](docs/OIDC_SETUP.md)
-
-### Legacy Authentication
-
-For development or environments without SSO:
-
-- **Default Credentials**: `admin` / `admin`
-- **User Management**: `/api/v1/users` endpoints for CRUD operations
-- **JWT Tokens**: 24-hour expiry with automatic refresh
-
-## 📊 Monitoring & Observability
-
-### Grafana Dashboard
-
-Comprehensive monitoring with 13 panels covering:
-
-- **Cluster Health Status** - Real-time health indicators with color coding
-- **Backup & Restore Success Rates** - Per-cluster percentage tracking
-- **Last Backup Information** - Timestamp tracking with alerts
-- **API Performance** - Request rates and response times
-- **Operational Status** - Active schedules and system health
-
-**📋 Complete Setup Guide**: [docs/GRAFANA_DASHBOARD.md](docs/GRAFANA_DASHBOARD.md)
-
-### Metrics Collection
-
-```bash
-# Prometheus metrics endpoint
-curl http://localhost:8080/metrics
-
-# Key cluster-based metrics (new in v2.3.0+)
-velero_cluster_health_status{cluster="cluster-name"}
-velero_cluster_backup_success_rate{cluster="cluster-name"}
-velero_cluster_last_backup_timestamp{cluster="cluster-name"}
-velero_backup_total{namespace="namespace",schedule="schedule-name"}
-velero_restore_success_rate{cluster="cluster-name"}
-
-# Generate test metrics data (development)
-curl -X POST http://localhost:8080/api/v1/test/generate-mock-data
-```
-
-## 📡 API Endpoints
-
-### Authentication (New)
-
-- `GET /api/v1/auth/info` - Authentication configuration and current user info
-- `POST /api/v1/auth/login` - Legacy username/password login
-- `GET /api/v1/auth/oidc/login` - Initiate OIDC authentication flow
-- `GET /api/v1/auth/oidc/callback` - Handle OIDC callback
-- `POST /api/v1/auth/logout` - Logout (provides OIDC logout URL)
-
-### Cluster Management
-
-- `GET /api/v1/clusters` - List all managed clusters with health metrics
-- `GET /api/v1/clusters/{cluster}/health` - Get cluster health status and success rates
-- `GET /api/v1/clusters/{cluster}/backups` - List cluster-specific backups
-- `GET /api/v1/clusters/{cluster}/details` - Comprehensive cluster information
-
-### Backup Operations
-
-- `GET /api/v1/backups` - List all backups across clusters
-- `POST /api/v1/backups` - Create new backup
-- `DELETE /api/v1/backups/{name}` - Delete backup
-
-### Restore Operations
-
-- `GET /api/v1/restores` - List all restores
-- `POST /api/v1/restores` - Create restore (with target cluster selection)
-- `GET /api/v1/restores/{name}/logs` - Get restore logs
-- `GET /api/v1/restores/{name}/describe` - Get restore details
-
-### Monitoring & Metrics
-
-- `GET /api/v1/dashboard/metrics` - Enhanced dashboard metrics with cluster breakdowns
-- `GET /metrics` - Prometheus metrics endpoint with cluster-based metrics
-
-## 🐳 Deployment Options
-
-### Docker Compose (Development)
-
-```yaml
-version: '3.8'
-services:
-  velero-manager:
-    image: your-registry/velero-manager:v2.3.0
-    environment:
-      OIDC_ENABLED: 'true'
-      OIDC_ISSUER_URL: 'https://keycloak.company.com/auth/realms/company'
-      OIDC_CLIENT_ID: 'velero-manager'
-      OIDC_CLIENT_SECRET: '${OIDC_CLIENT_SECRET}'
-    ports:
-      - '8080:8080'
-```
-
-### Kubernetes (Production)
-
-```bash
-# Deploy observability stack (monitoring namespace)
-kubectl create namespace monitoring
-kubectl apply -f k8s/monitoring/
-
-# Deploy main application with OIDC
-kubectl create namespace velero-manager
-kubectl create secret generic oidc-secret \
-  --from-literal=OIDC_CLIENT_SECRET=your-secret \
-  -n velero-manager
-
+# Or use kubectl directly
 kubectl apply -f k8s/
-
-# Deploy Prometheus alerts
-kubectl apply -f k8s/monitoring/prometheus-alerts.yaml
-
-# Verify deployment
-kubectl get pods -n velero-manager
-kubectl get pods -n monitoring | grep alloy
 ```
 
-### Air-Gap Deployment
-
-Perfect for completely isolated environments:
-
-- **No internet access** required during operation
-- **All dependencies** vendored or containerized
-- **Local container registry** support
-- **MinIO S3** backend for backup storage
-
-## 🔄 Current Development Status
-
-### ✅ Completed Features (v2.3.0+)
-
-- **✅ OIDC Authentication**: Complete Keycloak integration with role mapping
-- **✅ Enhanced Dashboard**: Cluster-based metrics with auto-refresh
-- **✅ Grafana Integration**: 13-panel comprehensive monitoring dashboard
-- **✅ Multi-Cluster Backend**: Real CRD integration with health monitoring
-- **✅ Material-UI Frontend**: Modern enterprise interface design
-- **✅ Backup/Restore Operations**: Cross-cluster support with filtering
-- **✅ Observability Stack**: Prometheus metrics with cluster correlation
-- **✅ Documentation**: Complete setup guides for OIDC and monitoring
-
-### 🚧 In Progress / TODO
-
-- **🔄 OIDC Configuration Management**: Make OIDC configuration through configMap and UI settings
-- **🔄 Frontend Route Integration**: Add OIDC callback route to React router
-- **🔄 Schedule Page Enhancement**: Material-UI transformation with cluster support
-- **🔄 Settings Page Redesign**: OIDC user info display and management
-- **🔄 User Profile Management**: Display OIDC user details (email, groups, roles)
-- **🔄 Error Handling**: Enhanced OIDC error states and user feedback
-- **🔄 Testing**: End-to-end OIDC authentication flow validation
-- **🔄 Mobile Responsiveness**: Dashboard optimization for mobile devices
-- **🔄 Advanced Permissions**: Granular RBAC based on Keycloak roles
-- **🔄 Audit Logging**: Track authentication and backup operations
-- **🔄 High Availability**: Multi-replica deployment with session persistence
-
-### 🏗️ Future Enhancements
-
-- **📱 Mobile App**: React Native companion app
-- **🔔 Notifications**: Slack/Teams integration for backup failures
-- **🤖 AI/ML**: Predictive backup failure analysis
-- **🔒 Vault Integration**: Dynamic secret management
-- **🌐 Multi-Region**: Cross-region backup replication
-- **📈 Cost Analytics**: Backup storage cost tracking and optimization
-
-## 📚 Documentation
-
-- **[Observability Setup Guide](docs/OBSERVABILITY.md)** - Complete monitoring stack deployment
-- **[OIDC Setup Guide](docs/OIDC_SETUP.md)** - Complete Keycloak integration setup
-- **[Grafana Dashboard Guide](docs/GRAFANA_DASHBOARD.md)** - Dashboard import and customization
-- **[Environment Configuration](.env.example)** - Configuration template with examples
-
-## 🧪 Testing
-
-### Manual Testing Workflow
+### Docker Deployment
 
 ```bash
-# Test authentication endpoints
-curl http://localhost:8080/api/v1/auth/info
+# Build image
+docker build -t velero-manager:latest .
 
-# Test legacy login
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin"}' \
-  http://localhost:8080/api/v1/auth/login
-
-# Test cluster health with authentication
-curl -H "Authorization: Bearer <jwt-token>" \
-  http://localhost:8080/api/v1/clusters/cluster-name/health
+# Run container
+docker run -p 8080:8080 velero-manager:latest
 ```
 
-### Verified Functionality
+## Configuration
 
-- **✅ Multi-cluster API**: All endpoints returning accurate cluster-specific data
-- **✅ Authentication Flow**: Both OIDC and legacy login working
-- **✅ Dashboard Metrics**: Real-time cluster health and success rates
-- **✅ Backup/Restore**: End-to-end disaster recovery workflow tested
-- **✅ Grafana Integration**: All 13 panels displaying live data
-- **✅ Role-Based Access**: Admin/user permissions enforced
+### Basic Configuration
 
-## 🤝 Contributing
+The application can be configured through environment variables or Kubernetes ConfigMaps:
 
-1. **Fork** the repository
-2. **Create** feature branch (`git checkout -b feature/amazing-feature`)
-3. **Test** your changes thoroughly
-4. **Commit** with descriptive messages (`git commit -m 'feat: add amazing feature'`)
-5. **Push** to branch (`git push origin feature/amazing-feature`)
-6. **Open** Pull Request with detailed description
+```bash
+# Authentication
+OIDC_ENABLED=true
+OIDC_ISSUER_URL=https://your-keycloak.com/auth/realms/company
+OIDC_CLIENT_ID=velero-manager
 
-### Development Guidelines
+# Server settings
+GIN_MODE=release
+PORT=8080
+```
 
-- **TypeScript**: Use strict typing for all frontend code
-- **Go**: Follow standard Go conventions and error handling
-- **Testing**: Add tests for new authentication and API features
-- **Documentation**: Update relevant docs for configuration changes
+### Storage Configuration
 
-## 📄 License
+Configure backup storage locations through the web interface or API:
 
-MIT License - Enterprise backup management for Kubernetes environments.
+- S3-compatible storage (AWS S3, MinIO, etc.)
+- Self-signed certificate support
+- Credential management
 
-## 🙏 Acknowledgments
+## Documentation
+
+- **[Velero Deployment Guide](docs/velero-deployment-readme.md)** - Complete Velero setup and configuration
+- **[OIDC Setup Guide](docs/OIDC_SETUP.md)** - Authentication configuration
+- **[Observability Guide](docs/OBSERVABILITY.md)** - Monitoring and dashboard setup
+- **[Grafana Dashboard Guide](docs/GRAFANA_DASHBOARD.md)** - Dashboard configuration
+
+## Monitoring & Observability
+
+Velero Manager includes integrated monitoring capabilities:
+
+- **Prometheus metrics** - Cluster health and backup success rates
+- **Grafana dashboards** - Pre-configured operational dashboards
+- **Real-time alerts** - Backup failure notifications
+- **Log aggregation** - Centralized logging with Loki
+
+For detailed setup instructions, see the [Observability Guide](docs/OBSERVABILITY.md).
+
+## Helm Chart (Coming Soon)
+
+Helm chart deployment will be available in future releases for simplified Kubernetes installation.
+
+## API Documentation
+
+The application provides REST APIs for programmatic access:
+
+- **Authentication**: `/api/v1/auth/*` - Login, OIDC, user management
+- **Clusters**: `/api/v1/clusters/*` - Cluster management and health
+- **Backups**: `/api/v1/backups/*` - Backup operations and status
+- **Restores**: `/api/v1/restores/*` - Restore operations
+- **Monitoring**: `/api/v1/dashboard/*` - Metrics and dashboard data
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
 
 - [Velero](https://velero.io/) - Kubernetes backup and disaster recovery
-- [Material-UI](https://mui.com/) - Design system and component library
-- [Keycloak](https://www.keycloak.org/) - Identity and access management
-- [Prometheus](https://prometheus.io/) + [Grafana](https://grafana.com/) - Observability stack
-- Air-gap deployment patterns for secure enterprise environments
-
----
-
-**🏢 Perfect for Enterprise**: Corporate SSO integration, comprehensive monitoring, and air-gap deployment support make this ideal for enterprise Kubernetes backup management.
+- [Material-UI](https://mui.com/) - React component library
+- [Prometheus](https://prometheus.io/) & [Grafana](https://grafana.com/) - Monitoring stack
