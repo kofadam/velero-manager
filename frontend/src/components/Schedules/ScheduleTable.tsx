@@ -1,6 +1,6 @@
 import React from 'react';
 import { translateCronExpression } from '../../utils/cronUtils.ts';
-import { formatDate, formatDateShort } from '../../utils/dateUtils.ts';
+import { formatDateShort } from '../../utils/dateUtils.ts';
 import {
   Table,
   TableBody,
@@ -14,6 +14,7 @@ import {
   Box,
   IconButton,
   Tooltip,
+  Link,
 } from '@mui/material';
 import { PlayArrow, Pause, Edit, Delete, FlashOn } from '@mui/icons-material';
 
@@ -23,6 +24,7 @@ interface ScheduleTableProps {
   onToggleSchedule: (scheduleName: string, paused: boolean) => Promise<void>;
   onCreateBackupNow: (scheduleName: string) => Promise<void>;
   onRefresh: () => void;
+  onViewDetails: (schedule: any) => void;
 }
 
 const ScheduleTable: React.FC<ScheduleTableProps> = ({
@@ -31,13 +33,8 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
   onToggleSchedule,
   onCreateBackupNow,
   onRefresh,
+  onViewDetails,
 }) => {
-  const getNextRunTime = (cronExpression: string): string => {
-    // This is a simplified calculation - in real implementation you'd use a proper cron library
-    // For now, we'll just show a placeholder
-    return 'Next run: TBD';
-  };
-
   const getScheduleStatus = (
     schedule: any
   ): { status: string; color: 'success' | 'info' | 'error' | 'warning' | 'default' } => {
@@ -176,15 +173,22 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
               >
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography
+                    <Link
+                      component="button"
                       variant="body2"
+                      onClick={() => onViewDetails(schedule)}
                       sx={{
                         fontWeight: 600,
                         color: 'primary.main',
+                        textDecoration: 'none',
+                        '&:hover': {
+                          textDecoration: 'underline',
+                          color: 'primary.dark',
+                        },
                       }}
                     >
                       {schedule.name}
-                    </Typography>
+                    </Link>
                     {isSuspended && (
                       <Chip
                         label="PAUSED"

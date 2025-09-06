@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { apiService } from '../../services/api.ts';
 import Modal from '../Common/Modal.tsx';
 
@@ -7,9 +7,14 @@ interface CreateBackupModalProps {
   onSuccess: () => void;
 }
 
+interface Cluster {
+  name: string;
+}
+
 const CreateBackupModal: React.FC<CreateBackupModalProps> = ({ onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     name: '',
+    cluster: '',
     includedNamespaces: '',
     excludedNamespaces: '',
     storageLocation: 'default',
@@ -17,11 +22,39 @@ const CreateBackupModal: React.FC<CreateBackupModalProps> = ({ onClose, onSucces
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [loadingClusters, setLoadingClusters] = useState(true);
+
+  useEffect(() => {
+    const fetchClusters = async () => {
+      try {
+        const data = await apiService.getClusters();
+        setClusters(data.clusters || []);
+        // Auto-select first cluster if available
+        if (data.clusters && data.clusters.length > 0) {
+          setFormData((prev) => ({ ...prev, cluster: data.clusters[0].name }));
+        }
+      } catch (err) {
+        console.error('Failed to fetch clusters:', err);
+        setError('Failed to load clusters');
+      } finally {
+        setLoadingClusters(false);
+      }
+    };
+
+    fetchClusters();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    if (!formData.cluster) {
+      setError('Please select a cluster');
+      setLoading(false);
+      return;
+    }
 
     try {
       const namespaces = formData.includedNamespaces
@@ -36,6 +69,7 @@ const CreateBackupModal: React.FC<CreateBackupModalProps> = ({ onClose, onSucces
 
       await apiService.createBackup({
         name: formData.name,
+        cluster: formData.cluster,
         includedNamespaces: namespaces.length > 0 ? namespaces : undefined,
         excludedNamespaces: excludedNamespaces.length > 0 ? excludedNamespaces : undefined,
         storageLocation: formData.storageLocation,
@@ -44,6 +78,7 @@ const CreateBackupModal: React.FC<CreateBackupModalProps> = ({ onClose, onSucces
 
       onSuccess();
     } catch (err: any) {
+      console.error('Backup creation failed:', err);
       setError(err.response?.data?.message || err.message || 'Failed to create backup');
     } finally {
       setLoading(false);
@@ -68,6 +103,32 @@ const CreateBackupModal: React.FC<CreateBackupModalProps> = ({ onClose, onSucces
             required
             disabled={loading}
           />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="cluster">Target Cluster *</label>
+          {loadingClusters ? (
+            <div>Loading clusters...</div>
+          ) : clusters.length === 0 ? (
+            <div style={{ color: '#f44336' }}>
+              No clusters available. Add clusters in the Clusters section.
+            </div>
+          ) : (
+            <select
+              id="cluster"
+              value={formData.cluster}
+              onChange={(e) => handleChange('cluster', e.target.value)}
+              required
+              disabled={loading}
+            >
+              <option value="">Select a cluster</option>
+              {clusters.map((cluster) => (
+                <option key={cluster.name} value={cluster.name}>
+                  {cluster.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div className="form-group">

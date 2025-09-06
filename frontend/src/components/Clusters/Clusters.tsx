@@ -16,13 +16,21 @@ import {
   TableHead,
   TableRow,
   Chip,
+  IconButton,
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
-import { Refresh, Add } from '@mui/icons-material';
+import { Refresh, Add, Edit } from '@mui/icons-material';
 
 interface Cluster {
   name: string;
   backupCount: number;
   lastBackup: string;
+  ip?: string;
+  description?: string;
 }
 
 const Clusters: React.FC = () => {
@@ -31,6 +39,8 @@ const Clusters: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingCluster, setEditingCluster] = useState<string | null>(null);
+  const [newDescription, setNewDescription] = useState('');
 
   const fetchClusters = async () => {
     setLoading(true);
@@ -73,6 +83,34 @@ const Clusters: React.FC = () => {
   const filteredClusters = clusters.filter((cluster) =>
     cluster.name.toLowerCase().includes(searchFilter.toLowerCase())
   );
+
+  const handleUpdateDescription = async () => {
+    if (!editingCluster) return;
+
+    try {
+      // Use apiService which includes proper authentication headers
+      await apiService.updateClusterDescription(editingCluster, newDescription);
+
+      // Update local state on success
+      setClusters((prev) =>
+        prev.map((cluster) =>
+          cluster.name === editingCluster ? { ...cluster, description: newDescription } : cluster
+        )
+      );
+
+      setEditingCluster(null);
+      setNewDescription('');
+    } catch (err: any) {
+      console.error('Failed to update cluster description:', err);
+      let errorMessage = 'Failed to update cluster description';
+      if (err.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please login again.';
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      }
+      setError(errorMessage);
+    }
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -131,17 +169,19 @@ const Clusters: React.FC = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Cluster Name</TableCell>
-                  <TableCell>API Endpoint</TableCell>
+                  <TableCell>IP Address</TableCell>
+                  <TableCell>Description</TableCell>
                   <TableCell>Storage Location</TableCell>
                   <TableCell align="center">Total Backups</TableCell>
                   <TableCell>Last Backup</TableCell>
                   <TableCell align="center">Health Status</TableCell>
+                  <TableCell align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredClusters.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
+                    <TableCell colSpan={8} align="center">
                       <Box sx={{ py: 4 }}>
                         <Typography color="text.secondary" variant="h6">
                           No clusters found
@@ -178,11 +218,30 @@ const Clusters: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <Typography
-                            color="text.secondary"
                             variant="body2"
-                            sx={{ fontStyle: 'italic' }}
+                            sx={{
+                              fontFamily: 'monospace',
+                              color: cluster.ip ? 'text.primary' : 'text.secondary',
+                              fontStyle: cluster.ip ? 'normal' : 'italic',
+                            }}
                           >
-                            Not configured
+                            {cluster.ip || 'Not configured'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: cluster.description ? 'text.primary' : 'text.secondary',
+                              fontStyle: cluster.description ? 'normal' : 'italic',
+                              maxWidth: '200px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={cluster.description}
+                          >
+                            {cluster.description || 'No description'}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -233,6 +292,20 @@ const Clusters: React.FC = () => {
                             }}
                           />
                         </TableCell>
+                        <TableCell align="center">
+                          <Tooltip title="Edit Description">
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setEditingCluster(cluster.name);
+                                setNewDescription(cluster.description || '');
+                              }}
+                              sx={{ color: 'primary.main' }}
+                            >
+                              <Edit fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
                       </TableRow>
                     );
                   })
@@ -252,6 +325,48 @@ const Clusters: React.FC = () => {
           }}
         />
       )}
+
+      {/* Edit Description Dialog */}
+      <Dialog
+        open={!!editingCluster}
+        onClose={() => {
+          setEditingCluster(null);
+          setNewDescription('');
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Edit Cluster Description</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Cluster: <strong>{editingCluster}</strong>
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            label="Description"
+            multiline
+            rows={3}
+            value={newDescription}
+            onChange={(e) => setNewDescription(e.target.value)}
+            placeholder="Enter a description for this cluster..."
+            variant="outlined"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setEditingCluster(null);
+              setNewDescription('');
+            }}
+          >
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleUpdateDescription}>
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

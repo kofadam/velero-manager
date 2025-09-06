@@ -91,7 +91,6 @@ const OIDCSettings: React.FC = () => {
         setConfig(data);
       } else if (response.status === 404) {
         // No config exists yet, use defaults
-        console.log('No OIDC configuration found, using defaults');
       } else {
         throw new Error('Failed to fetch OIDC configuration');
       }

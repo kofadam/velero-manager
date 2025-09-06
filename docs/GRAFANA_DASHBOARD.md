@@ -100,7 +100,7 @@ scrape_configs:
 
 ## 📈 Available Metrics
 
-### **Cluster-Based Metrics** (New in v2.3.3+)
+### **Cluster-Based Metrics** (Available from v0.9.0-beta.1+)
 
 ```
 # Cluster health status (0=critical, 1=no-backups, 2=warning, 3=healthy)
@@ -207,7 +207,7 @@ groups:
 
 ### **Missing Cluster Metrics**
 
-- Ensure Velero Manager version 2.3.3+ (includes cluster-based metrics)
+- Ensure Velero Manager version v0.9.0-beta.1+ (includes cluster-based metrics)
 - Check that backup naming follows expected conventions
 - Verify cluster extraction logic matches your backup naming
 
@@ -228,10 +228,9 @@ groups:
 
 ## 📝 Version History
 
-- **v1.0** - Initial dashboard with basic backup/restore metrics
-- **v2.0** - Added cluster-based health monitoring
-- **v2.3.3** - Complete cluster-centric redesign with success rates
-- **Current** - Enhanced with API monitoring and operational status
+- **v0.8.x** - Initial dashboard with basic backup/restore metrics
+- **v0.9.0-alpha** - Added cluster-based health monitoring
+- **v0.9.0-beta.1** - Complete cluster-centric redesign with success rates, enhanced with API monitoring and operational status
 
 ---
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Backup } from '../../services/types.ts';
 import BackupActions from './BackupActions.tsx';
-import { formatDate, formatDateShort } from '../../utils/dateUtils.ts';
+import { formatDateShort } from '../../utils/dateUtils.ts';
 import { BACKUP_PHASES } from '../../utils/constants.ts';
 import {
   Table,
@@ -16,7 +16,11 @@ import {
   Typography,
   Box,
   TableSortLabel,
+  IconButton,
+  Tooltip,
+  Link,
 } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
 
 interface BackupTableProps {
   backups: Backup[];
@@ -25,6 +29,8 @@ interface BackupTableProps {
   onSelectAll: (selected: boolean) => void;
   onDeleteBackup: (backupName: string) => Promise<void>;
   onRefresh: () => void;
+  onViewDetails: (backup: Backup) => void;
+  onDownload: (backup: Backup) => void;
 }
 
 type SortField = 'name' | 'cluster' | 'status' | 'created';
@@ -37,6 +43,8 @@ const BackupTable: React.FC<BackupTableProps> = ({
   onSelectAll,
   onDeleteBackup,
   onRefresh,
+  onViewDetails,
+  onDownload,
 }) => {
   const [sortField, setSortField] = React.useState<SortField>('created');
   const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
@@ -171,17 +179,41 @@ const BackupTable: React.FC<BackupTableProps> = ({
                 />
               </TableCell>
               <TableCell>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontWeight: 600,
-                    color: 'primary.main',
-                    maxWidth: 200,
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {backup.name}
-                </Typography>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Link
+                    component="button"
+                    variant="body2"
+                    onClick={() => onViewDetails(backup)}
+                    sx={{
+                      fontWeight: 600,
+                      color: 'primary.main',
+                      textDecoration: 'none',
+                      maxWidth: 180,
+                      wordBreak: 'break-word',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        textDecoration: 'underline',
+                        color: 'primary.dark',
+                      },
+                    }}
+                  >
+                    {backup.name}
+                  </Link>
+                  {backup.status.phase === BACKUP_PHASES.COMPLETED && (
+                    <Tooltip title="Download backup">
+                      <IconButton
+                        size="small"
+                        onClick={() => onDownload(backup)}
+                        sx={{
+                          opacity: 0.7,
+                          '&:hover': { opacity: 1, color: 'success.main' },
+                        }}
+                      >
+                        <DownloadIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
               </TableCell>
               <TableCell>
                 <Chip

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ScheduleTable from './ScheduleTable.tsx';
 import CreateScheduleModal from './CreateScheduleModal.tsx';
+import ScheduleDetailsModal from './ScheduleDetailsModal.tsx';
 import { apiService } from '../../services/api.ts';
 import { Box, Button, CircularProgress, Alert, Paper, Typography } from '@mui/material';
 import { Refresh, Add } from '@mui/icons-material';
@@ -10,6 +11,8 @@ const ScheduleList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
 
   useEffect(() => {
     fetchSchedules();
@@ -72,6 +75,11 @@ const ScheduleList: React.FC = () => {
     }
   };
 
+  const handleViewDetails = (schedule: any) => {
+    setSelectedSchedule(schedule);
+    setShowDetailsModal(true);
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <Paper sx={{ p: 3 }}>
@@ -119,6 +127,7 @@ const ScheduleList: React.FC = () => {
             onToggleSchedule={handleToggleSchedule}
             onCreateBackupNow={handleCreateBackupNow}
             onRefresh={fetchSchedules}
+            onViewDetails={handleViewDetails}
           />
         )}
 
@@ -131,6 +140,17 @@ const ScheduleList: React.FC = () => {
             }}
           />
         )}
+
+        <ScheduleDetailsModal
+          open={showDetailsModal}
+          schedule={selectedSchedule}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedSchedule(null);
+          }}
+          onToggleSchedule={handleToggleSchedule}
+          onCreateBackupNow={handleCreateBackupNow}
+        />
       </Paper>
     </Box>
   );

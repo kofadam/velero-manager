@@ -21,7 +21,7 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [authConfig, setAuthConfig] = useState<any>(null);
   const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -198,12 +198,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   >
                     {loading ? 'Signing in...' : 'Sign in with Username'}
                   </Button>
-
-                  <Box textAlign="center" mt={2}>
-                    <Typography variant="body2" color="text.secondary">
-                      Default credentials: admin / admin
-                    </Typography>
-                  </Box>
                 </Box>
               )}
             </Box>

@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import RestoreTable from './RestoreTable.tsx';
 import CreateRestoreModal from './CreateRestoreModal.tsx';
+import RestoreDetailsModal from './RestoreDetailsModal.tsx';
 import { useRestores } from '../../hooks/useRestores.ts';
+import { Restore } from '../../services/types.ts';
 import {
   Box,
   TextField,
@@ -21,6 +23,8 @@ const RestoreList: React.FC = () => {
   const { restores, loading, error, refreshRestores, deleteRestore } = useRestores();
   const [selectedRestores, setSelectedRestores] = useState<string[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedRestore, setSelectedRestore] = useState<Restore | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [clusterFilter, setClusterFilter] = useState('all');
 
@@ -68,6 +72,11 @@ const RestoreList: React.FC = () => {
   const handleModalClose = () => {
     setShowCreateModal(false);
     refreshRestores();
+  };
+
+  const handleViewDetails = (restore: Restore) => {
+    setSelectedRestore(restore);
+    setShowDetailsModal(true);
   };
 
   const filteredRestores = restores.filter((restore) => {
@@ -183,9 +192,19 @@ const RestoreList: React.FC = () => {
           onSelectAll={handleSelectAll}
           onDeleteRestore={deleteRestore}
           onRefresh={refreshRestores}
+          onViewDetails={handleViewDetails}
         />
 
         {showCreateModal && <CreateRestoreModal onClose={handleModalClose} />}
+
+        <RestoreDetailsModal
+          open={showDetailsModal}
+          restore={selectedRestore}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedRestore(null);
+          }}
+        />
       </Paper>
     </Box>
   );

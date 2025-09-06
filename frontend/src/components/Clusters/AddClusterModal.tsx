@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { authService } from '../../services/auth.ts';
 import './AddClusterModal.css';
 
 interface AddClusterModalProps {
@@ -51,20 +52,33 @@ kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`;
 
   const handleSubmit = async () => {
     try {
-      // Create secret and CronJob via API
+      // Prepare the request body with correct field names
+      const clusterRequest = {
+        name: clusterData.name,
+        apiEndpoint: clusterData.apiEndpoint,
+        schedule: clusterData.schedule,
+        storageLocation: clusterData.storageLocation,
+        ttl: clusterData.ttl,
+        token: clusterData.token,
+        caCert: clusterData.caCert,
+      };
+
       const response = await fetch('/api/v1/clusters', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(clusterData),
+        headers: authService.getAuthHeaders(),
+        body: JSON.stringify(clusterRequest),
       });
 
-      if (!response.ok) throw new Error('Failed to add cluster');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add cluster');
+      }
 
       onSuccess();
       onClose();
     } catch (error) {
       console.error('Error adding cluster:', error);
-      alert('Failed to add cluster. Please check the logs.');
+      alert(`Failed to add cluster: ${error.message}`);
     }
   };
 

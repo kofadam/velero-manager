@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { BackupsResponse, Backup, RestoresResponse, Restore } from './types.ts';
+import { BackupsResponse, Backup, RestoresResponse } from './types.ts';
 import { API_BASE_URL } from '../utils/constants.ts';
 import { authService } from './auth.ts';
 
@@ -54,6 +54,61 @@ export const apiService = {
 
   async deleteBackup(name: string): Promise<void> {
     await api.delete(`/backups/${name}`);
+  },
+
+  // Backup Details and Downloads
+  async getBackupDetails(cluster: string, name: string) {
+    const response = await api.get(`/backups/${name}/details`);
+    return response.data;
+  },
+
+  async getBackupLogs(cluster: string, name: string) {
+    const response = await api.get(`/backups/${name}/logs`);
+    return response.data;
+  },
+
+  async downloadBackup(cluster: string, name: string) {
+    try {
+      const response = await api.get(`/backups/${name}/download`, {
+        responseType: 'blob', // Important: tell axios to expect binary data
+        timeout: 300000, // 5 minute timeout for large files
+      });
+
+      // Create a blob URL and trigger download
+      const blob = new Blob([response.data], { type: 'application/octet-stream' });
+      const url = window.URL.createObjectURL(blob);
+
+      // Create a temporary anchor element to trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${name}-data.tar.gz`;
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      return { success: true, message: 'Download started successfully' };
+    } catch (error: any) {
+      // If it's not a blob response, it might be an error JSON
+      if (error.response && error.response.data && error.response.data instanceof Blob) {
+        // Try to parse blob as JSON for error message
+        try {
+          const text = await error.response.data.text();
+          const errorData = JSON.parse(text);
+          throw new Error(errorData.error || 'Download failed');
+        } catch {
+          throw new Error('Download failed');
+        }
+      }
+      throw error;
+    }
+  },
+
+  async describeBackup(name: string): Promise<any> {
+    const response = await api.get(`/backups/${name}/describe`);
+    return response.data;
   },
 
   async createRestore(restoreConfig: any): Promise<any> {
@@ -148,6 +203,11 @@ export const apiService = {
 
   async getDashboardMetrics(): Promise<any> {
     const response = await api.get('/dashboard/metrics');
+    return response.data;
+  },
+
+  async updateClusterDescription(clusterName: string, description: string): Promise<any> {
+    const response = await api.put(`/clusters/${clusterName}/description`, { description });
     return response.data;
   },
 };

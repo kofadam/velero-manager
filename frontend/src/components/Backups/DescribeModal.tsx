@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Modal from '../Common/Modal.tsx';
 import { Backup } from '../../services/types.ts';
-import LoadingSpinner from '../Common/LoadingSpinner.tsx';
 import './DescribeModal.css';
 
 interface DescribeModalProps {
@@ -11,24 +9,13 @@ interface DescribeModalProps {
 
 const DescribeModal: React.FC<DescribeModalProps> = ({ backup, onClose }) => {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   useEffect(() => {
     // Simulate loading
     const timer = setTimeout(() => setLoading(false), 500);
     return () => clearTimeout(timer);
   }, []);
-
-  const formatTimestamp = (timestamp?: string) => {
-    if (!timestamp) return 'N/A';
-    return new Date(timestamp).toLocaleString();
-  };
-
-  const formatDuration = (start?: string, end?: string) => {
-    if (!start || !end) return 'N/A';
-    const duration = new Date(end).getTime() - new Date(start).getTime();
-    return `${Math.round(duration / 1000)}s`;
-  };
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {

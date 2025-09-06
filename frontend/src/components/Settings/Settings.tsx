@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiService } from '../../services/api.ts';
 import UserManagement from './UserManagement.tsx';
 import OIDCSettings from './OIDCSettings.tsx';
+import StorageLocationDetailsModal from './StorageLocationDetailsModal.tsx';
 import {
   Box,
   TextField,
@@ -28,6 +29,10 @@ import {
   DialogActions,
   IconButton,
   Chip,
+  Link,
+  FormControlLabel,
+  Checkbox,
+  Divider,
 } from '@mui/material';
 import {
   Refresh,
@@ -48,12 +53,18 @@ interface StorageLocation {
     default?: boolean;
     objectStorage: {
       bucket: string;
+      region?: string;
       prefix?: string;
     };
     config?: Record<string, string>;
+    credential?: {
+      name: string;
+      key: string;
+    };
   };
   status?: {
     phase: string;
+    message?: string;
     lastSyncedTime?: string;
   };
 }
@@ -61,6 +72,10 @@ interface StorageLocation {
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('storage');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedStorageLocation, setSelectedStorageLocation] = useState<StorageLocation | null>(
+    null
+  );
   const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +87,10 @@ const Settings: React.FC = () => {
     s3Url: '',
     region: 'minio',
     s3ForcePathStyle: 'true',
+    caCertificate: '',
+    accessKeyId: '',
+    secretAccessKey: '',
+    useCredentials: false,
   });
 
   useEffect(() => {
@@ -103,12 +122,24 @@ const Settings: React.FC = () => {
         config.s3Url = formData.s3Url;
       }
 
+      if (formData.caCertificate) {
+        config.caCertificate = formData.caCertificate;
+      }
+
+      const credentials = formData.useCredentials
+        ? {
+            accessKeyId: formData.accessKeyId,
+            secretAccessKey: formData.secretAccessKey,
+          }
+        : undefined;
+
       await apiService.createStorageLocation({
         name: formData.name,
         provider: formData.provider,
         bucket: formData.bucket,
         prefix: formData.prefix,
         config,
+        credentials,
       });
 
       setShowCreateModal(false);
@@ -120,6 +151,10 @@ const Settings: React.FC = () => {
         s3Url: '',
         region: 'minio',
         s3ForcePathStyle: 'true',
+        caCertificate: '',
+        accessKeyId: '',
+        secretAccessKey: '',
+        useCredentials: false,
       });
       fetchStorageLocations();
     } catch (err: any) {
@@ -136,6 +171,11 @@ const Settings: React.FC = () => {
         alert(`Failed to delete: ${err.message}`);
       }
     }
+  };
+
+  const handleViewDetails = (location: StorageLocation) => {
+    setSelectedStorageLocation(location);
+    setShowDetailsModal(true);
   };
   return (
     <Box sx={{ p: 3 }}>
@@ -223,7 +263,24 @@ const Settings: React.FC = () => {
                   <TableBody>
                     {storageLocations.map((location) => (
                       <TableRow key={location.name}>
-                        <TableCell>{location.name}</TableCell>
+                        <TableCell>
+                          <Link
+                            component="button"
+                            variant="body2"
+                            onClick={() => handleViewDetails(location)}
+                            sx={{
+                              fontWeight: 600,
+                              color: 'primary.main',
+                              textDecoration: 'none',
+                              '&:hover': {
+                                textDecoration: 'underline',
+                                color: 'primary.dark',
+                              },
+                            }}
+                          >
+                            {location.name}
+                          </Link>
+                        </TableCell>
                         <TableCell>{location.spec.provider}</TableCell>
                         <TableCell>{location.spec.objectStorage.bucket}</TableCell>
                         <TableCell>
@@ -326,6 +383,58 @@ const Settings: React.FC = () => {
                 placeholder="e.g., velero/"
                 sx={{ mb: 2 }}
               />
+
+              <TextField
+                fullWidth
+                label="CA Certificate (for self-signed certificates)"
+                value={formData.caCertificate}
+                onChange={(e) => setFormData({ ...formData, caCertificate: e.target.value })}
+                placeholder="-----BEGIN CERTIFICATE-----"
+                multiline
+                rows={4}
+                sx={{ mb: 2 }}
+                helperText="Paste the CA certificate for self-signed S3 endpoints"
+              />
+
+              <Divider sx={{ my: 2 }}>
+                <Typography variant="body2" color="textSecondary">
+                  Credentials (optional)
+                </Typography>
+              </Divider>
+
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.useCredentials}
+                    onChange={(e) => setFormData({ ...formData, useCredentials: e.target.checked })}
+                  />
+                }
+                label="Use custom credentials (leave unchecked for IAM roles/service accounts)"
+                sx={{ mb: 2 }}
+              />
+
+              {formData.useCredentials && (
+                <>
+                  <TextField
+                    fullWidth
+                    label="Access Key ID"
+                    value={formData.accessKeyId}
+                    onChange={(e) => setFormData({ ...formData, accessKeyId: e.target.value })}
+                    placeholder="AKIAIOSFODNN7EXAMPLE"
+                    sx={{ mb: 2 }}
+                  />
+
+                  <TextField
+                    fullWidth
+                    label="Secret Access Key"
+                    type="password"
+                    value={formData.secretAccessKey}
+                    onChange={(e) => setFormData({ ...formData, secretAccessKey: e.target.value })}
+                    placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+                    sx={{ mb: 2 }}
+                  />
+                </>
+              )}
             </Box>
           </DialogContent>
           <DialogActions>
@@ -335,6 +444,15 @@ const Settings: React.FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        <StorageLocationDetailsModal
+          open={showDetailsModal}
+          storageLocation={selectedStorageLocation}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedStorageLocation(null);
+          }}
+        />
       </Paper>
     </Box>
   );

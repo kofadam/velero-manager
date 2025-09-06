@@ -15,12 +15,17 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import BackupTable from './BackupTable.tsx';
 import CreateBackupModal from './CreateBackupModal.tsx';
+import BackupDetailsModal from './BackupDetailsModal.tsx';
 import { useBackups } from '../../hooks/useBackups.ts';
+import { Backup } from '../../services/types.ts';
+import { apiService } from '../../services/api.ts';
 
 const BackupList: React.FC = () => {
   const { backups, loading, error, refreshBackups, deleteBackup } = useBackups();
   const [selectedBackups, setSelectedBackups] = useState<string[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedBackup, setSelectedBackup] = useState<Backup | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [clusterFilter, setClusterFilter] = useState('all');
 
@@ -56,6 +61,27 @@ const BackupList: React.FC = () => {
       }
       setSelectedBackups([]);
       refreshBackups();
+    }
+  };
+
+  const handleViewDetails = (backup: Backup) => {
+    setSelectedBackup(backup);
+    setShowDetailsModal(true);
+  };
+
+  const handleDownload = async (backup: Backup) => {
+    try {
+      const result = await apiService.downloadBackup(backup.cluster, backup.name);
+      if (result.success) {
+        // Download will start automatically, just show success message
+        alert(
+          `Download started for backup "${backup.name}". The file will be saved to your downloads folder.`
+        );
+      }
+    } catch (error: any) {
+      console.error('Failed to download backup:', error);
+      const errorMessage = error.message || 'Failed to download backup file.';
+      alert(`Download failed: ${errorMessage}`);
     }
   };
 
@@ -143,6 +169,8 @@ const BackupList: React.FC = () => {
           onSelectAll={handleSelectAll}
           onDeleteBackup={deleteBackup}
           onRefresh={refreshBackups}
+          onViewDetails={handleViewDetails}
+          onDownload={handleDownload}
         />
       </Paper>
 
@@ -155,6 +183,16 @@ const BackupList: React.FC = () => {
           }}
         />
       )}
+
+      <BackupDetailsModal
+        open={showDetailsModal}
+        backup={selectedBackup}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedBackup(null);
+        }}
+        onDownload={handleDownload}
+      />
     </Box>
   );
 };

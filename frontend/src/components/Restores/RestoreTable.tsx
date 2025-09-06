@@ -14,6 +14,7 @@ import {
   Typography,
   Box,
   TableSortLabel,
+  Link,
 } from '@mui/material';
 
 type SortField = 'name' | 'cluster' | 'creationTimestamp' | 'status';
@@ -26,6 +27,7 @@ interface RestoreTableProps {
   onSelectAll: (selected: boolean) => void;
   onDeleteRestore: (name: string) => Promise<void>;
   onRefresh: () => void;
+  onViewDetails: (restore: Restore) => void;
 }
 
 const RestoreTable: React.FC<RestoreTableProps> = ({
@@ -35,6 +37,7 @@ const RestoreTable: React.FC<RestoreTableProps> = ({
   onSelectAll,
   onDeleteRestore,
   onRefresh,
+  onViewDetails,
 }) => {
   const [sortField, setSortField] = useState<SortField>('creationTimestamp');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -166,17 +169,24 @@ const RestoreTable: React.FC<RestoreTableProps> = ({
                 />
               </TableCell>
               <TableCell>
-                <Typography
+                <Link
+                  component="button"
                   variant="body2"
+                  onClick={() => onViewDetails(restore)}
                   sx={{
                     fontWeight: 600,
                     color: 'primary.main',
+                    textDecoration: 'none',
                     maxWidth: 200,
                     wordBreak: 'break-word',
+                    '&:hover': {
+                      textDecoration: 'underline',
+                      color: 'primary.dark',
+                    },
                   }}
                 >
                   {restore.name}
-                </Typography>
+                </Link>
               </TableCell>
               <TableCell>
                 <Chip

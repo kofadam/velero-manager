@@ -88,16 +88,81 @@ export default function Navigator(props: NavigatorProps) {
   return (
     <Drawer variant="permanent" {...other}>
       <List disablePadding>
-        <ListItem sx={{ ...item, ...itemCategory, fontSize: 22, color: '#fff', py: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <img
-              src="/logo-simple.svg"
-              alt="Velero Manager"
-              style={{ height: '32px', width: 'auto' }}
-            />
-            <Typography variant="h6" color="inherit" fontWeight={600}>
-              Velero Manager
-            </Typography>
+        <ListItem
+          sx={{
+            ...item,
+            ...itemCategory,
+            fontSize: 22,
+            color: '#fff',
+            py: 3,
+            background:
+              'linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(33, 203, 243, 0.1) 100%)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+            mb: 1,
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 1,
+              width: '100%',
+              px: 1,
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                transition: 'transform 0.2s ease',
+                '&:hover': {
+                  transform: 'scale(1.05)',
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 2px 8px rgba(33, 150, 243, 0.3)',
+                }}
+              >
+                V
+              </Box>
+              <Box>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: '#fff',
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                    textShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                  }}
+                >
+                  Velero
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    fontWeight: 500,
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  Manager
+                </Typography>
+              </Box>
+            </Box>
           </Box>
         </ListItem>
         <ListItem sx={{ ...item, ...itemCategory }}>

@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { Backup } from '../../services/types.ts';
 import { apiService } from '../../services/api.ts';
-import LogsModal from './LogsModal.tsx';
 import DescribeModal from './DescribeModal.tsx';
 import RestoreModal from './RestoreModal.tsx';
 import { Box, IconButton, Tooltip } from '@mui/material';
-import { Article, Description, Delete, Restore } from '@mui/icons-material';
+import { Description, Delete, Restore } from '@mui/icons-material';
 
 interface BackupActionsProps {
   backup: Backup;
@@ -15,7 +14,6 @@ interface BackupActionsProps {
 
 const BackupActions: React.FC<BackupActionsProps> = ({ backup, onDelete, onRefresh }) => {
   const [isDeleting, setIsDeleting] = useState(false);
-  const [showLogs, setShowLogs] = useState(false);
   const [showDescribe, setShowDescribe] = useState(false);
   const [showRestore, setShowRestore] = useState(false);
 
@@ -34,10 +32,6 @@ const BackupActions: React.FC<BackupActionsProps> = ({ backup, onDelete, onRefre
     }
   };
 
-  const handleLogs = () => {
-    setShowLogs(true);
-  };
-
   const handleDescribe = () => {
     setShowDescribe(true);
   };
@@ -48,7 +42,7 @@ const BackupActions: React.FC<BackupActionsProps> = ({ backup, onDelete, onRefre
 
   const handleRestoreSubmit = async (restoreConfig: any) => {
     try {
-      const result = await apiService.createRestore(restoreConfig);
+      await apiService.createRestore(restoreConfig);
       alert(
         `✅ Restore "${restoreConfig.name}" created successfully!\n\n🔄 Velero is now restoring from backup "${backup.name}"\n\nCheck the Velero logs to monitor progress.`
       );
@@ -63,12 +57,6 @@ const BackupActions: React.FC<BackupActionsProps> = ({ backup, onDelete, onRefre
   return (
     <>
       <Box sx={{ display: 'flex', gap: 0.5 }}>
-        <Tooltip title="View Logs">
-          <IconButton size="small" onClick={handleLogs} sx={{ color: 'info.main' }}>
-            <Article fontSize="small" />
-          </IconButton>
-        </Tooltip>
-
         <Tooltip title="Describe Backup">
           <IconButton size="small" onClick={handleDescribe} sx={{ color: 'info.main' }}>
             <Description fontSize="small" />
@@ -93,7 +81,6 @@ const BackupActions: React.FC<BackupActionsProps> = ({ backup, onDelete, onRefre
         </Tooltip>
       </Box>
 
-      {showLogs && <LogsModal backup={backup} onClose={() => setShowLogs(false)} />}
       {showDescribe && <DescribeModal backup={backup} onClose={() => setShowDescribe(false)} />}
       {showRestore && (
         <RestoreModal

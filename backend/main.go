@@ -123,6 +123,10 @@ func main() {
 			protected.GET("/backups", veleroHandler.ListBackups)
 			protected.POST("/backups", veleroHandler.CreateBackup)
 			protected.DELETE("/backups/:name", veleroHandler.DeleteBackup)
+			protected.GET("/backups/:name/details", veleroHandler.GetBackupDetails)
+			protected.GET("/backups/:name/logs", veleroHandler.GetBackupLogs)
+			protected.GET("/backups/:name/download", veleroHandler.DownloadBackup)
+			protected.GET("/backups/:name/describe", veleroHandler.DescribeBackup)
 
 			// Restore operations (authenticated users)
 			protected.GET("/restores", veleroHandler.ListRestores)
@@ -147,6 +151,7 @@ func main() {
 
 			// Cluster operations (read operations for all authenticated users)
 			protected.GET("/clusters", veleroHandler.ListClusters)
+			protected.PUT("/clusters/:cluster/description", veleroHandler.UpdateClusterDescription)
 			protected.GET("/clusters/:cluster/backups", veleroHandler.ListBackupsByCluster)
 			protected.GET("/clusters/:cluster/health", veleroHandler.GetClusterHealth)
 			protected.GET("/clusters/:cluster/details", veleroHandler.GetClusterDetails)
@@ -163,9 +168,9 @@ func main() {
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Serve static files from frontend build
-	router.Static("/static", "./frontend/build/static")
-	router.StaticFile("/favicon.ico", "./frontend/build/favicon.ico")
-	router.StaticFile("/manifest.json", "./frontend/build/manifest.json")
+	router.Static("/static", "../frontend/build/static")
+	router.StaticFile("/favicon.ico", "../frontend/build/favicon.ico")
+	router.StaticFile("/manifest.json", "../frontend/build/manifest.json")
 
 	// Serve React app for all non-API routes
 	router.NoRoute(func(c *gin.Context) {
@@ -174,7 +179,7 @@ func main() {
 			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
 			return
 		}
-		c.File("./frontend/build/index.html")
+		c.File("../frontend/build/index.html")
 	})
 
 	log.Println("🚀 Velero Manager starting on :8080")

@@ -3,11 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
-import Toolbar from '@mui/material/Toolbar';
 import AppBar from './components/Layout/AppBar.tsx';
 import Navigator from './components/Layout/Navigator.tsx';
 import BackupList from './components/Backups/BackupList.tsx';
-import Dashboard from './components/Dashboard/Dashboard.tsx';
+import Dashboard from './components/Dashboard/SimplifiedDashboard.tsx';
 import Clusters from './components/Clusters/Clusters.tsx';
 import ScheduleList from './components/Schedules/ScheduleList.tsx';
 import RestoreList from './components/Restores/RestoreList.tsx';
@@ -272,7 +271,7 @@ function App() {
         <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
           {/* Mobile drawer */}
           <Navigator
-            PaperProps={{ style: { width: drawerWidth } }}
+            PaperProps={{ style: { width: drawerWidth, zIndex: 1300 } }}
             variant="temporary"
             open={mobileOpen}
             onClose={handleDrawerToggle}
@@ -282,11 +281,12 @@ function App() {
             user={user.username}
             sx={{
               display: { xs: 'block', sm: 'none' },
+              zIndex: 1300,
             }}
           />
           {/* Desktop drawer */}
           <Navigator
-            PaperProps={{ style: { width: drawerWidth } }}
+            PaperProps={{ style: { width: drawerWidth, zIndex: 1200 } }}
             variant="permanent"
             activeRoute={activeRoute}
             onRouteChange={handleRouteChange}
@@ -294,18 +294,20 @@ function App() {
             user={user.username}
             sx={{
               display: { xs: 'none', sm: 'block' },
+              zIndex: 1200,
             }}
           />
         </Box>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <AppBar
-            position="fixed"
-            sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
+            position="static"
+            sx={{
+              zIndex: 1,
+            }}
             onDrawerToggle={handleDrawerToggle}
             title={activeRoute.charAt(0).toUpperCase() + activeRoute.slice(1)}
           />
           <Box component="main" sx={{ flex: 1, py: 6, px: 4, bgcolor: '#0a1929' }}>
-            <Toolbar />
             {renderContent()}
           </Box>
         </Box>

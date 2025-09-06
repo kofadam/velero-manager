@@ -105,4 +105,10 @@ var (
 		Version:  "v1",
 		Resource: "secrets",
 	}
+
+	DownloadRequestGVR = schema.GroupVersionResource{
+		Group:    "velero.io",
+		Version:  "v1",
+		Resource: "downloadrequests",
+	}
 )

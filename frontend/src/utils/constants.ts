@@ -3,7 +3,7 @@ export const API_BASE_URL =
   process.env.NODE_ENV === 'development' ? 'http://localhost:8080/api/v1' : '/api/v1';
 
 // Version will be injected at build time
-export const APP_VERSION = process.env.REACT_APP_VERSION || 'v2.3.0-dev';
+export const APP_VERSION = process.env.REACT_APP_VERSION || 'v0.9.0-beta.1';
 
 export const BACKUP_PHASES = {
   COMPLETED: 'Completed',
