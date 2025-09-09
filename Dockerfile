@@ -1,5 +1,5 @@
 FROM node:18-alpine AS frontend-builder
-ARG REACT_APP_VERSION=v1.2.0-dev
+ARG REACT_APP_VERSION=v0.9.0-beta.6
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci --only=production
@@ -17,7 +17,7 @@ COPY backend/ ./
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o velero-manager .
 
 # Final air-gap image
-FROM alpine:3.18
+FROM alpine:3.20
 
 # Install ca-certificates for TLS (required for Kubernetes API)
 RUN apk --no-cache add ca-certificates tzdata

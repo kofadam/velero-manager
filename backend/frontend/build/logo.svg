@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Background Circle -->
+  <circle cx="100" cy="100" r="90" fill="#4c51bf" opacity="0.1"/>
+
+  <!-- Shield Shape (representing protection/backup) -->
+  <path d="M100 30 L140 50 L140 110 Q140 140 100 160 Q60 140 60 110 L60 50 Z"
+        fill="#667eea" stroke="#4c51bf" stroke-width="2"/>
+
+  <!-- Server/Cluster Icons -->
+  <rect x="75" y="60" width="20" height="25" fill="#ffffff" rx="2"/>
+  <rect x="105" y="60" width="20" height="25" fill="#ffffff" rx="2"/>
+  <rect x="90" y="95" width="20" height="25" fill="#ffffff" rx="2"/>
+
+  <!-- Connection Lines -->
+  <line x1="85" y1="85" x2="95" y2="95" stroke="#ffffff" stroke-width="2"/>
+  <line x1="115" y1="85" x2="105" y2="95" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- Circular Arrow (representing backup/restore) -->
+  <path d="M 65 130 Q 65 145 80 145 L95 145"
+        fill="none" stroke="#4c51bf" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 135 130 Q 135 145 120 145 L105 145"
+        fill="none" stroke="#4c51bf" stroke-width="3" stroke-linecap="round"/>
+  <polygon points="95,142 95,148 101,145" fill="#4c51bf"/>
+  <polygon points="105,142 105,148 99,145" fill="#4c51bf"/>
+
+  <!-- Velero 'V' accent -->
+  <path d="M85 75 L87 70 L89 75" stroke="#4c51bf" stroke-width="2" fill="none"/>
+  <path d="M111 75 L113 70 L115 75" stroke="#4c51bf" stroke-width="2" fill="none"/>
+</svg>

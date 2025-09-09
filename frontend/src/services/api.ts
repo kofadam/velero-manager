@@ -136,7 +136,7 @@ export const apiService = {
   },
 
   async getSchedules(): Promise<any> {
-    const response = await api.get('/cronjobs');
+    const response = await api.get('/schedules');
     return response.data;
   },
 
@@ -146,10 +146,10 @@ export const apiService = {
   },
 
   async deleteSchedule(name: string): Promise<void> {
-    await api.delete(`/cronjobs/${name}`);
+    await api.delete(`/schedules/${name}`);
   },
   async updateSchedule(name: string, updates: any): Promise<any> {
-    const response = await api.put(`/cronjobs/${name}`, updates);
+    const response = await api.put(`/schedules/${name}`, updates);
     return response.data;
   },
   async createBackupFromSchedule(scheduleName: string): Promise<any> {

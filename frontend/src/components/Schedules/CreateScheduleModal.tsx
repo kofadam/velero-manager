@@ -22,13 +22,13 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
   const isEditing = !!schedule;
 
   const [formData, setFormData] = useState({
-    name: schedule?.metadata?.name || '',
+    name: schedule?.name || schedule?.metadata?.name || '',
     schedule: schedule?.spec?.schedule || '',
     includedNamespaces: schedule?.spec?.template?.includedNamespaces?.join(', ') || '',
     excludedNamespaces: schedule?.spec?.template?.excludedNamespaces?.join(', ') || '',
     storageLocation: schedule?.spec?.template?.storageLocation || 'default',
     ttl: schedule?.spec?.template?.ttl || '720h0m0s',
-    paused: schedule?.spec?.suspend || false,
+    paused: schedule?.spec?.paused || schedule?.spec?.suspend || false,
   });
   const [cronTranslation, setCronTranslation] = useState('');
   const [cronError, setCronError] = useState('');
@@ -98,7 +98,7 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
       };
 
       if (isEditing) {
-        await apiService.updateSchedule(schedule.metadata.name, scheduleData);
+        await apiService.updateSchedule(schedule.name || schedule.metadata.name, scheduleData);
       } else {
         await apiService.createSchedule(scheduleData);
       }

@@ -16,6 +16,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { DrawerProps } from '@mui/material/Drawer';
 import Typography from '@mui/material/Typography';
+import { APP_VERSION } from '../../utils/constants.ts';
 
 const categories = [
   {
@@ -196,6 +197,17 @@ export default function Navigator(props: NavigatorProps) {
           </Box>
         ))}
         <Box sx={{ flexGrow: 1 }} />
+        <ListItem sx={{ px: 3, py: 1 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: 'rgba(255, 255, 255, 0.5)',
+              fontSize: '0.75rem',
+            }}
+          >
+            Version: {APP_VERSION}
+          </Typography>
+        </ListItem>
         <ListItem disablePadding>
           <ListItemButton sx={item} onClick={onLogout}>
             <ListItemIcon>

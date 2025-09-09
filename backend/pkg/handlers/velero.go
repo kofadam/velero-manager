@@ -810,7 +810,13 @@ func (h *VeleroHandler) UpdateSchedule(c *gin.Context) {
 	}
 
 	var request struct {
-		Paused *bool `json:"paused,omitempty"`
+		Name               string   `json:"name,omitempty"`
+		Schedule           string   `json:"schedule,omitempty"`
+		IncludedNamespaces []string `json:"includedNamespaces,omitempty"`
+		ExcludedNamespaces []string `json:"excludedNamespaces,omitempty"`
+		StorageLocation    string   `json:"storageLocation,omitempty"`
+		TTL                string   `json:"ttl,omitempty"`
+		Paused             *bool    `json:"paused,omitempty"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -836,12 +842,62 @@ func (h *VeleroHandler) UpdateSchedule(c *gin.Context) {
 		return
 	}
 
-	// Update the paused status
+	// Get the spec object
+	spec, ok := existing.Object["spec"].(map[string]interface{})
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":    "Invalid schedule specification",
+			"schedule": scheduleName,
+		})
+		return
+	}
+
+	// Update schedule cron expression
+	if request.Schedule != "" {
+		spec["schedule"] = request.Schedule
+	}
+
+	// Update paused status
 	if request.Paused != nil {
 		if *request.Paused {
-			existing.Object["spec"].(map[string]interface{})["paused"] = true
+			spec["paused"] = true
 		} else {
-			delete(existing.Object["spec"].(map[string]interface{}), "paused")
+			delete(spec, "paused")
+		}
+	}
+
+	// Get or create template object
+	template, ok := spec["template"].(map[string]interface{})
+	if !ok {
+		template = make(map[string]interface{})
+		spec["template"] = template
+	}
+
+	// Update storage location
+	if request.StorageLocation != "" {
+		template["storageLocation"] = request.StorageLocation
+	}
+
+	// Update TTL
+	if request.TTL != "" {
+		template["ttl"] = request.TTL
+	}
+
+	// Update included namespaces
+	if request.IncludedNamespaces != nil {
+		if len(request.IncludedNamespaces) > 0 {
+			template["includedNamespaces"] = request.IncludedNamespaces
+		} else {
+			delete(template, "includedNamespaces")
+		}
+	}
+
+	// Update excluded namespaces
+	if request.ExcludedNamespaces != nil {
+		if len(request.ExcludedNamespaces) > 0 {
+			template["excludedNamespaces"] = request.ExcludedNamespaces
+		} else {
+			delete(template, "excludedNamespaces")
 		}
 	}
 
