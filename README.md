@@ -1,145 +1,268 @@
 # Velero Manager
 
-A modern web interface for managing Velero backup and restore operations across multiple Kubernetes clusters. Provides a user-friendly dashboard for monitoring backup health, creating scheduled backups, and performing disaster recovery operations.
+Enterprise-grade backup orchestration and management platform for Kubernetes clusters. Provides centralized control, monitoring, and automation of Velero backup operations across multiple clusters with a modern web interface and GitOps integration.
 
-## What is Velero Manager?
+## Overview
 
-Velero Manager simplifies Kubernetes backup management by providing:
+Velero Manager is a comprehensive solution that combines:
+- **Web Management Interface** - React-based dashboard for backup operations
+- **Multi-Cluster Orchestration** - Centralized backup management across clusters
+- **Security-First Architecture** - Minimal RBAC permissions, no cluster-admin required
+- **GitOps Automation** - ArgoCD integration for declarative configuration
+- **Enterprise Authentication** - OIDC/SSO with role-based access control
 
-- **Multi-cluster backup management** - Centralized control of Velero operations across multiple clusters
-- **Web-based interface** - Modern React dashboard for managing backups, restores, and schedules
-- **Real-time monitoring** - Live backup status, cluster health, and success rate tracking
-- **Enterprise authentication** - OIDC/SSO integration alongside traditional login
-- **Comprehensive observability** - Integrated Grafana dashboards and Prometheus metrics
+## Key Features
 
-## Features
+### 🎯 Backup Management
+- Create, monitor, and manage backups across multiple clusters
+- Cross-cluster restore capabilities with target selection
+- Automated scheduling with CronJob orchestration
+- Real-time backup status and progress tracking
+- Storage location management for S3-compatible backends
 
-- **Backup Operations** - Create, monitor, and manage backups with real-time status
-- **Restore Management** - Cross-cluster restore capabilities with target selection
-- **Schedule Automation** - CronJob-based backup scheduling and management
-- **Cluster Health Monitoring** - Real-time cluster status and backup success rates
-- **Storage Location Management** - Configure and manage backup storage locations
-- **User Authentication** - OIDC/SSO integration with role-based access control
+### 🔒 Security & Compliance
+- **Minimal RBAC** - Least-privilege access model (no cluster-admin)
+- **Token Rotation** - Automated credential rotation
+- **Audit Logging** - Comprehensive backup operation audit trail
+- **OIDC/SSO Integration** - Enterprise authentication support
+
+### 📊 Monitoring & Observability
+- Real-time cluster health monitoring
+- Backup success rate tracking
+- Prometheus metrics and alerts
+- Grafana dashboards for operational visibility
+- Centralized logging with audit trails
+
+### 🚀 GitOps & Automation
+- ArgoCD application management
+- Declarative backup schedules
+- Version-controlled configurations
+- Automated deployment pipelines
 
 ## Architecture
 
-- **Frontend**: React 18 + TypeScript with Material-UI design system
-- **Backend**: Go with Gin framework and Velero CRD integration
-- **Authentication**: OpenID Connect (OIDC) + JWT token fallback
-- **Storage**: S3-compatible storage backends (MinIO, AWS S3, etc.)
-- **Deployment**: Docker containers with Kubernetes manifests
+```
+┌─────────────────────┐
+│   Web Interface     │ - React 18 + TypeScript + Material-UI
+│  (Velero Manager)   │ - Real-time backup monitoring
+└──────────┬──────────┘
+           │
+┌──────────▼──────────┐
+│  Management Cluster │ - Orchestration engine
+│  - CronJobs         │ - ArgoCD for GitOps
+│  - Velero           │ - Prometheus metrics
+└──────────┬──────────┘
+           │ Triggers backups
+┌──────────▼──────────┐
+│   Guest Clusters    │ - Velero agents
+│  - Production       │ - Minimal RBAC
+│  - Staging          │ - Workload namespaces
+└──────────┬──────────┘
+           │ Stores backups
+┌──────────▼──────────┐
+│   Object Storage    │ - S3-compatible
+│  - MinIO/AWS S3     │ - Multi-region support
+└─────────────────────┘
+```
 
 ## Quick Start
 
-### Prerequisites
+### Option 1: Complete Multi-Cluster Setup
 
-- Kubernetes cluster with Velero installed
-- kubectl access to your clusters
-- Docker for building images
-- Node.js and npm for frontend development
-
-### Local Development
+Deploy the full orchestration platform:
 
 ```bash
-# Clone the repository
+# Clone repository
 git clone https://github.com/kofadam/velero-manager.git
 cd velero-manager
 
-# Build frontend
-cd frontend && npm install && npm run build
+# Deploy management components
+cd orchestration
+./scripts/deploy-secure-backup-system.sh deploy-all
 
-# Start backend
-cd ../backend && go run main.go
+# Add a guest cluster
+./scripts/deploy-minimal-rbac.sh <cluster-name> <context>
 
-# Access the application
-http://localhost:8080
+# Access web interface
+kubectl port-forward -n velero-manager svc/velero-manager 8080:8080
 ```
 
-### Kubernetes Deployment
+See the [Complete Deployment Guide](orchestration/VELERO_DEPLOYMENT_GUIDE.md) for detailed instructions.
+
+### Option 2: Web UI Only
+
+Deploy just the web interface:
 
 ```bash
-# Build and deploy to Kubernetes
-./build.sh        # Build Docker image
-./deploy-local.sh # Deploy to cluster
+# Deploy to Kubernetes
+kubectl apply -f deployments/
 
-# Or use kubectl directly
-kubectl apply -f k8s/
+# Or run locally
+cd backend && go run main.go &
+cd frontend && npm start
 ```
 
-### Docker Deployment
+### Option 3: Docker
 
 ```bash
-# Build image
-docker build -t velero-manager:latest .
-
-# Run container
-docker run -p 8080:8080 velero-manager:latest
+docker run -p 8080:8080 \
+  -v ~/.kube/config:/app/kubeconfig \
+  ghcr.io/kofadam/velero-manager:latest
 ```
+
+## Documentation
+
+### 📚 Deployment & Operations
+- **[Complete Deployment Guide](orchestration/VELERO_DEPLOYMENT_GUIDE.md)** - Step-by-step multi-cluster setup
+- **[Quick Reference](orchestration/QUICK_REFERENCE.md)** - Commands and troubleshooting
+- **[Cluster Management](orchestration/CLUSTER_MANAGEMENT.md)** - Adding and managing clusters
+
+### 🔧 Configuration
+- **[OIDC Setup Guide](docs/OIDC_SETUP.md)** - Authentication configuration
+- **[Observability Guide](docs/OBSERVABILITY.md)** - Monitoring and dashboards
+- **[Grafana Dashboard Guide](docs/GRAFANA_DASHBOARD.md)** - Metrics visualization
+
+### 🔒 Security
+- **[Security Architecture](orchestration/security/README.md)** - RBAC implementation
+- **[GitOps Workflow](orchestration/gitops/README.md)** - ArgoCD integration
 
 ## Configuration
 
-### Basic Configuration
-
-The application can be configured through environment variables or Kubernetes ConfigMaps:
+### Environment Variables
 
 ```bash
 # Authentication
 OIDC_ENABLED=true
-OIDC_ISSUER_URL=https://your-keycloak.com/auth/realms/company
+OIDC_ISSUER_URL=https://your-idp.com/auth/realms/company
 OIDC_CLIENT_ID=velero-manager
+OIDC_CLIENT_SECRET=your-secret
 
-# Server settings
+# Server
 GIN_MODE=release
 PORT=8080
+
+# Monitoring
+METRICS_ENABLED=true
+METRICS_PORT=9090
 ```
 
-### Storage Configuration
+### Storage Backends
 
-Configure backup storage locations through the web interface or API:
+Supports all S3-compatible storage:
+- AWS S3
+- MinIO
+- Google Cloud Storage (S3 API)
+- Azure Blob (with S3 compatibility)
+- NetApp StorageGRID
 
-- S3-compatible storage (AWS S3, MinIO, etc.)
-- Self-signed certificate support
-- Credential management
+## API Reference
 
-## Documentation
+REST API endpoints for programmatic access:
 
-- **[Velero Deployment Guide](docs/velero-deployment-readme.md)** - Complete Velero setup and configuration
-- **[OIDC Setup Guide](docs/OIDC_SETUP.md)** - Authentication configuration
-- **[Observability Guide](docs/OBSERVABILITY.md)** - Monitoring and dashboard setup
-- **[Grafana Dashboard Guide](docs/GRAFANA_DASHBOARD.md)** - Dashboard configuration
+| Endpoint | Description |
+|----------|-------------|
+| `/api/v1/auth/*` | Authentication and user management |
+| `/api/v1/clusters/*` | Cluster management and health |
+| `/api/v1/backups/*` | Backup operations |
+| `/api/v1/restores/*` | Restore operations |
+| `/api/v1/schedules/*` | Schedule management |
+| `/api/v1/storage-locations/*` | Storage configuration |
+| `/api/v1/dashboard/*` | Metrics and monitoring |
 
-## Monitoring & Observability
+## Development
 
-Velero Manager includes integrated monitoring capabilities:
+### Prerequisites
+- Go 1.21+
+- Node.js 18+
+- Docker
+- Kubernetes cluster with Velero
 
-- **Prometheus metrics** - Cluster health and backup success rates
-- **Grafana dashboards** - Pre-configured operational dashboards
-- **Real-time alerts** - Backup failure notifications
-- **Log aggregation** - Centralized logging with Loki
+### Local Development
 
-For detailed setup instructions, see the [Observability Guide](docs/OBSERVABILITY.md).
+```bash
+# Backend
+cd backend
+go mod download
+go run main.go
 
-## Helm Chart (Coming Soon)
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm start
 
-Helm chart deployment will be available in future releases for simplified Kubernetes installation.
+# Access at http://localhost:3000
+```
 
-## API Documentation
+### Building
 
-The application provides REST APIs for programmatic access:
+```bash
+# Build all components
+./build.sh
 
-- **Authentication**: `/api/v1/auth/*` - Login, OIDC, user management
-- **Clusters**: `/api/v1/clusters/*` - Cluster management and health
-- **Backups**: `/api/v1/backups/*` - Backup operations and status
-- **Restores**: `/api/v1/restores/*` - Restore operations
-- **Monitoring**: `/api/v1/dashboard/*` - Metrics and dashboard data
+# Build specific component
+cd frontend && npm run build
+cd backend && go build -o velero-manager
+
+# Docker image
+docker build -t velero-manager:latest .
+```
+
+### Testing
+
+```bash
+# Backend tests
+cd backend && go test ./...
+
+# Frontend tests
+cd frontend && npm test
+
+# E2E tests
+npm run test:e2e
+```
+
+## Project Structure
+
+```
+velero-manager/
+├── backend/           # Go backend with Gin framework
+├── frontend/          # React TypeScript frontend
+├── deployments/       # Kubernetes manifests
+├── orchestration/     # Multi-cluster orchestration
+│   ├── security/      # RBAC and security configs
+│   ├── gitops/        # ArgoCD applications
+│   ├── scripts/       # Deployment automation
+│   └── examples/      # Example configurations
+├── docs/              # Additional documentation
+└── build/             # Build scripts and Docker
+```
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Make your changes
+4. Run tests (`go test ./...` and `npm test`)
+5. Commit using conventional commits (`git commit -m 'feat: add amazing feature'`)
+6. Push to your fork (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+## Roadmap
+
+- [ ] Helm chart for simplified deployment
+- [ ] Multi-tenancy support
+- [ ] Backup policies and compliance rules
+- [ ] Cost optimization analytics
+- [ ] Disaster recovery automation
+- [ ] Backup verification and testing
+- [ ] Mobile app for monitoring
+
+## Support
+
+- **Documentation**: See `/docs` and `/orchestration` directories
+- **Issues**: [GitHub Issues](https://github.com/kofadam/velero-manager/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/kofadam/velero-manager/discussions)
 
 ## License
 
@@ -149,4 +272,10 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 - [Velero](https://velero.io/) - Kubernetes backup and disaster recovery
 - [Material-UI](https://mui.com/) - React component library
+- [ArgoCD](https://argoproj.github.io/cd/) - GitOps continuous delivery
 - [Prometheus](https://prometheus.io/) & [Grafana](https://grafana.com/) - Monitoring stack
+
+---
+
+**Velero Manager** - Enterprise backup orchestration for Kubernetes
+*Secure • Scalable • Simple*
