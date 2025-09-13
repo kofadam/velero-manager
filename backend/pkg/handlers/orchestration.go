@@ -381,8 +381,9 @@ func (h *VeleroHandler) buildScheduleInfo(cronJob *batchv1.CronJob) ScheduleInfo
 	var lastExecution, nextExecution time.Time
 	if cronJob.Status.LastScheduleTime != nil {
 		lastExecution = cronJob.Status.LastScheduleTime.Time
-		nextExecution = calculateNextCronExecution(cronJob.Spec.Schedule, lastExecution)
 	}
+	// Always calculate next execution from current time, not from last execution
+	nextExecution = calculateNextCronExecution(cronJob.Spec.Schedule, time.Now())
 
 	return ScheduleInfo{
 		Name:          cronJob.Name,
@@ -550,16 +551,49 @@ func calculateNextCronExecution(schedule string, from time.Time) time.Time {
 	minute := parts[0]
 	hour := parts[1]
 
-	// Handle simple cases
-	if hour == "*" || strings.Contains(hour, "*/") {
-		// Every N hours pattern
-		if strings.Contains(hour, "*/") {
-			hoursStr := strings.TrimPrefix(hour, "*/")
-			if hours, err := strconv.Atoi(hoursStr); err == nil {
-				return from.Add(time.Duration(hours) * time.Hour)
+	// Handle "every N hours" pattern like "0 */6 * * *"
+	if strings.Contains(hour, "*/") {
+		hoursStr := strings.TrimPrefix(hour, "*/")
+		if hours, err := strconv.Atoi(hoursStr); err == nil {
+			minuteNum := 0
+			if min, err := strconv.Atoi(minute); err == nil {
+				minuteNum = min
 			}
+
+			// Find the next occurrence
+			currentHour := from.Hour()
+
+			// Calculate next valid hour that's divisible by the interval
+			nextHour := ((currentHour / hours) + 1) * hours
+			if nextHour >= 24 {
+				// Move to next day
+				nextHour = nextHour % 24
+				next := from.Truncate(24 * time.Hour).Add(24 * time.Hour) // Next day
+				return next.Add(time.Duration(nextHour)*time.Hour + time.Duration(minuteNum)*time.Minute)
+			}
+
+			// Same day
+			next := from.Truncate(24 * time.Hour) // Start of today
+			next = next.Add(time.Duration(nextHour)*time.Hour + time.Duration(minuteNum)*time.Minute)
+
+			// If the calculated time is before or equal to current time, find next interval
+			if next.Before(from) || next.Equal(from) {
+				nextHour += hours
+				if nextHour >= 24 {
+					next = from.Truncate(24 * time.Hour).Add(24 * time.Hour) // Next day
+					nextHour = nextHour % 24
+				} else {
+					next = from.Truncate(24 * time.Hour) // Start of today
+				}
+				next = next.Add(time.Duration(nextHour)*time.Hour + time.Duration(minuteNum)*time.Minute)
+			}
+
+			return next
 		}
-		// Every hour
+	}
+
+	// Handle simple every hour case
+	if hour == "*" {
 		return from.Add(1 * time.Hour)
 	}
 
