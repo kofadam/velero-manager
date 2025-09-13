@@ -252,10 +252,18 @@ func (h *VeleroHandler) TriggerBackupSchedule(c *gin.Context) {
 		return
 	}
 
+	// First, get the CronJob to base the Job on
+	cronJob, err := h.k8sClient.Clientset.BatchV1().CronJobs("velero").Get(context.TODO(), scheduleName, metav1.GetOptions{})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("CronJob %s not found: %v", scheduleName, err)})
+		return
+	}
+
 	// Create a one-time job from the CronJob
 	jobName := fmt.Sprintf("%s-manual-%d", scheduleName, time.Now().Unix())
 
-	_, err := h.k8sClient.Clientset.BatchV1().Jobs("velero").Create(context.TODO(), &batchv1.Job{
+	// Create Job spec based on CronJob spec
+	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: scheduleName + "-manual-",
 			Namespace:    "velero",
@@ -265,7 +273,12 @@ func (h *VeleroHandler) TriggerBackupSchedule(c *gin.Context) {
 				"manual":       "true",
 			},
 		},
-	}, metav1.CreateOptions{})
+		Spec: batchv1.JobSpec{
+			Template: cronJob.Spec.JobTemplate.Spec.Template,
+		},
+	}
+
+	_, err = h.k8sClient.Clientset.BatchV1().Jobs("velero").Create(context.TODO(), job, metav1.CreateOptions{})
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to trigger backup: %v", err)})
