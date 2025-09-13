@@ -67,3 +67,5 @@ Tested with:
 - [Multi-Cluster Setup Guide](examples/multi-cluster-setup.md)
 - [Security Best Practices](security/README.md)
 - [GitOps Workflow](gitops/README.md)
+- [Complete Deployment Guide](orchestration/VELERO_DEPLOYMENT_GUIDE.md)
+- [Quick Reference](orchestration/QUICK_REFERENCE.md)
