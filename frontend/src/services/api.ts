@@ -183,19 +183,6 @@ export const apiService = {
     return response.data;
   },
 
-  async getStorageLocations(): Promise<any> {
-    const response = await api.get('/storage-locations');
-    return response.data;
-  },
-
-  async createStorageLocation(location: any): Promise<any> {
-    const response = await api.post('/storage-locations', location);
-    return response.data;
-  },
-
-  async deleteStorageLocation(name: string): Promise<void> {
-    await api.delete(`/storage-locations/${name}`);
-  },
   async getCronJobs(): Promise<any> {
     const response = await api.get('/cronjobs');
     return response.data;

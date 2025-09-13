@@ -1,15 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { apiService } from '../../services/api.ts';
 import UserManagement from './UserManagement.tsx';
 import OIDCSettings from './OIDCSettings.tsx';
-import StorageLocationDetailsModal from './StorageLocationDetailsModal.tsx';
 import {
   Box,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Button,
   CircularProgress,
   Alert,
@@ -23,160 +16,66 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  IconButton,
   Chip,
-  Link,
-  FormControlLabel,
-  Checkbox,
-  Divider,
+  Grid,
+  Card,
+  CardContent,
 } from '@mui/material';
-import {
-  Refresh,
-  Add,
-  Close,
-  Delete,
-  Settings as SettingsIcon,
-  People,
-  Storage,
-  Security,
-} from '@mui/icons-material';
+import { Refresh, Settings as SettingsIcon, People, Computer, Security } from '@mui/icons-material';
 
-interface StorageLocation {
-  name: string;
-  namespace: string;
-  spec: {
-    provider: string;
-    default?: boolean;
-    objectStorage: {
-      bucket: string;
-      region?: string;
-      prefix?: string;
-    };
-    config?: Record<string, string>;
-    credential?: {
-      name: string;
-      key: string;
-    };
+interface MultiClusterStatus {
+  discovered_clusters: Array<{
+    name: string;
+    display_name: string;
+    api_endpoint: string;
+    token_secret_name: string;
+    status: string;
+    last_seen: string;
+  }>;
+  connected_clusters: Array<{
+    name: string;
+    status: string;
+    lastSeen: string;
+  }>;
+  cache_stats: {
+    total_entries: number;
+    expired_entries: number;
+    active_entries: number;
+    cluster_counts: Record<string, number>;
+    cache_ttl: string;
   };
-  status?: {
-    phase: string;
-    message?: string;
-    lastSyncedTime?: string;
-  };
+  total_discovered: number;
+  total_connected: number;
 }
 
 const Settings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('storage');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedStorageLocation, setSelectedStorageLocation] = useState<StorageLocation | null>(
-    null
-  );
-  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    provider: 'aws',
-    bucket: '',
-    prefix: '',
-    s3Url: '',
-    region: 'minio',
-    s3ForcePathStyle: 'true',
-    caCertificate: '',
-    accessKeyId: '',
-    secretAccessKey: '',
-    useCredentials: false,
-  });
+  const [activeTab, setActiveTab] = useState('clusters');
+  const [multiClusterStatus, setMultiClusterStatus] = useState<MultiClusterStatus | null>(null);
+  const [loading] = useState(false);
+  const [error] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchStorageLocations();
+    fetchClusters();
+    fetchMultiClusterStatus();
   }, []);
 
-  const fetchStorageLocations = async () => {
-    setLoading(true);
-    setError(null);
+  const fetchClusters = async () => {
+    // This function is kept for potential future use
+    // Currently we get cluster info from multi-cluster status
+  };
+
+  const fetchMultiClusterStatus = async () => {
     try {
-      const response = await apiService.getStorageLocations();
-      setStorageLocations(response.locations || []);
+      const response = await fetch('/api/v1/clusters/status');
+      if (response.ok) {
+        const data = await response.json();
+        setMultiClusterStatus(data);
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch storage locations');
-    } finally {
-      setLoading(false);
+      console.log('Multi-cluster status not available:', err.message);
     }
   };
 
-  const handleCreateLocation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const config: Record<string, string> = {
-        region: formData.region,
-        s3ForcePathStyle: formData.s3ForcePathStyle,
-      };
-
-      if (formData.s3Url) {
-        config.s3Url = formData.s3Url;
-      }
-
-      if (formData.caCertificate) {
-        config.caCertificate = formData.caCertificate;
-      }
-
-      const credentials = formData.useCredentials
-        ? {
-            accessKeyId: formData.accessKeyId,
-            secretAccessKey: formData.secretAccessKey,
-          }
-        : undefined;
-
-      await apiService.createStorageLocation({
-        name: formData.name,
-        provider: formData.provider,
-        bucket: formData.bucket,
-        prefix: formData.prefix,
-        config,
-        credentials,
-      });
-
-      setShowCreateModal(false);
-      setFormData({
-        name: '',
-        provider: 'aws',
-        bucket: '',
-        prefix: '',
-        s3Url: '',
-        region: 'minio',
-        s3ForcePathStyle: 'true',
-        caCertificate: '',
-        accessKeyId: '',
-        secretAccessKey: '',
-        useCredentials: false,
-      });
-      fetchStorageLocations();
-    } catch (err: any) {
-      alert(`Failed to create storage location: ${err.message}`);
-    }
-  };
-
-  const handleDeleteLocation = async (name: string) => {
-    if (window.confirm(`Delete storage location "${name}"?`)) {
-      try {
-        await apiService.deleteStorageLocation(name);
-        fetchStorageLocations();
-      } catch (err: any) {
-        alert(`Failed to delete: ${err.message}`);
-      }
-    }
-  };
-
-  const handleViewDetails = (location: StorageLocation) => {
-    setSelectedStorageLocation(location);
-    setShowDetailsModal(true);
-  };
   return (
     <Box sx={{ p: 3 }}>
       <Paper sx={{ p: 3 }}>
@@ -189,41 +88,31 @@ const Settings: React.FC = () => {
             onChange={(e, newValue) => setActiveTab(newValue)}
             aria-label="settings tabs"
           >
-            <Tab
-              icon={<Storage />}
-              iconPosition="start"
-              label="Storage Locations"
-              value="storage"
-            />
+            <Tab icon={<Computer />} iconPosition="start" label="Clusters" value="clusters" />
             <Tab icon={<People />} iconPosition="start" label="Users" value="users" />
             <Tab icon={<Security />} iconPosition="start" label="OIDC / SSO" value="oidc" />
           </Tabs>
         </Box>
 
-        {activeTab === 'storage' && (
+        {activeTab === 'clusters' && (
           <Box>
             <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <Storage /> Backup Storage Locations
+              <Computer /> Multi-Cluster Overview
             </Typography>
             <Typography color="text.secondary" sx={{ mb: 3 }}>
-              Manage backup storage locations for your Velero backups.
+              View and monitor clusters connected to this Velero Manager instance.
             </Typography>
 
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mb: 3 }}>
               <Button
                 variant="outlined"
-                onClick={fetchStorageLocations}
-                disabled={loading}
-                startIcon={loading ? <CircularProgress size={16} /> : <Refresh />}
+                onClick={() => {
+                  fetchClusters();
+                  fetchMultiClusterStatus();
+                }}
+                startIcon={<Refresh />}
               >
-                {loading ? 'Refreshing...' : 'Refresh'}
-              </Button>
-              <Button
-                variant="contained"
-                onClick={() => setShowCreateModal(true)}
-                startIcon={<Add />}
-              >
-                Create Storage Location
+                Refresh
               </Button>
             </Box>
 
@@ -237,7 +126,7 @@ const Settings: React.FC = () => {
                 }}
               >
                 <CircularProgress />
-                <Typography sx={{ ml: 2 }}>Loading storage locations...</Typography>
+                <Typography sx={{ ml: 2 }}>Loading clusters...</Typography>
               </Box>
             )}
 
@@ -247,65 +136,113 @@ const Settings: React.FC = () => {
               </Alert>
             )}
 
+            {/* Multi-Cluster Status Cards */}
+            {multiClusterStatus && (
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card>
+                    <CardContent>
+                      <Typography color="textSecondary" gutterBottom>
+                        Discovered Clusters
+                      </Typography>
+                      <Typography variant="h4">{multiClusterStatus.total_discovered}</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card>
+                    <CardContent>
+                      <Typography color="textSecondary" gutterBottom>
+                        Connected Clusters
+                      </Typography>
+                      <Typography variant="h4">{multiClusterStatus.total_connected}</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card>
+                    <CardContent>
+                      <Typography color="textSecondary" gutterBottom>
+                        Cached Backups
+                      </Typography>
+                      <Typography variant="h4">
+                        {multiClusterStatus.cache_stats.active_entries}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card>
+                    <CardContent>
+                      <Typography color="textSecondary" gutterBottom>
+                        Cache TTL
+                      </Typography>
+                      <Typography variant="h6">
+                        {multiClusterStatus.cache_stats.cache_ttl}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+            )}
+
             {!loading && !error && (
               <TableContainer>
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Name</TableCell>
-                      <TableCell>Provider</TableCell>
-                      <TableCell>Bucket</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Default</TableCell>
-                      <TableCell>Actions</TableCell>
+                      <TableCell>Cluster Name</TableCell>
+                      <TableCell>Connection Status</TableCell>
+                      <TableCell>Backup Count</TableCell>
+                      <TableCell>Last Backup</TableCell>
+                      <TableCell>API Endpoint</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {storageLocations.map((location) => (
-                      <TableRow key={location.name}>
-                        <TableCell>
-                          <Link
-                            component="button"
-                            variant="body2"
-                            onClick={() => handleViewDetails(location)}
-                            sx={{
-                              fontWeight: 600,
-                              color: 'primary.main',
-                              textDecoration: 'none',
-                              '&:hover': {
-                                textDecoration: 'underline',
-                                color: 'primary.dark',
-                              },
-                            }}
-                          >
-                            {location.name}
-                          </Link>
-                        </TableCell>
-                        <TableCell>{location.spec.provider}</TableCell>
-                        <TableCell>{location.spec.objectStorage.bucket}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={location.status?.phase || 'Unknown'}
-                            color={location.status?.phase === 'Available' ? 'success' : 'error'}
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell>{location.spec.default ? '✓' : '-'}</TableCell>
-                        <TableCell>
-                          {location.name !== 'default' && (
-                            <Button
-                              variant="outlined"
-                              color="error"
-                              size="small"
-                              onClick={() => handleDeleteLocation(location.name)}
-                              startIcon={<Delete />}
-                            >
-                              Delete
-                            </Button>
-                          )}
+                    {multiClusterStatus && multiClusterStatus.discovered_clusters.length > 0 ? (
+                      multiClusterStatus.discovered_clusters.map((cluster) => {
+                        const connectedCluster = multiClusterStatus.connected_clusters.find(
+                          (c) => c.name === cluster.name
+                        );
+                        const backupCount =
+                          multiClusterStatus.cache_stats.cluster_counts[cluster.name] || 0;
+                        return (
+                          <TableRow key={cluster.name}>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={600}>
+                                {cluster.display_name || cluster.name}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={connectedCluster ? connectedCluster.status : 'Disconnected'}
+                                color={connectedCluster?.status === 'healthy' ? 'success' : 'error'}
+                                size="small"
+                              />
+                            </TableCell>
+                            <TableCell>{backupCount}</TableCell>
+                            <TableCell>
+                              {connectedCluster?.lastSeen ? (
+                                new Date(connectedCluster.lastSeen).toLocaleString()
+                              ) : (
+                                <Typography color="text.secondary">Never</Typography>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" color="text.secondary">
+                                {cluster.api_endpoint || 'Not configured'}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center">
+                          <Typography color="text.secondary">No clusters discovered</Typography>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -316,143 +253,6 @@ const Settings: React.FC = () => {
         {activeTab === 'users' && <UserManagement />}
 
         {activeTab === 'oidc' && <OIDCSettings />}
-
-        <Dialog
-          open={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle
-            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            Create Backup Location
-            <IconButton onClick={() => setShowCreateModal(false)}>
-              <Close />
-            </IconButton>
-          </DialogTitle>
-          <DialogContent>
-            <Box component="form" onSubmit={handleCreateLocation} sx={{ pt: 2 }}>
-              <TextField
-                fullWidth
-                label="Location Name *"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., dept3-storage"
-                required
-                sx={{ mb: 2 }}
-              />
-
-              <FormControl fullWidth required sx={{ mb: 2 }}>
-                <InputLabel>Provider *</InputLabel>
-                <Select
-                  value={formData.provider}
-                  onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
-                  label="Provider *"
-                >
-                  <MenuItem value="aws">AWS S3 / MinIO</MenuItem>
-                  <MenuItem value="gcp">Google Cloud Storage</MenuItem>
-                  <MenuItem value="azure">Azure Blob Storage</MenuItem>
-                </Select>
-              </FormControl>
-
-              <TextField
-                fullWidth
-                label="Bucket Name *"
-                value={formData.bucket}
-                onChange={(e) => setFormData({ ...formData, bucket: e.target.value })}
-                placeholder="e.g., dept3-backups"
-                required
-                sx={{ mb: 2 }}
-              />
-
-              <TextField
-                fullWidth
-                label="S3 URL (for MinIO)"
-                value={formData.s3Url}
-                onChange={(e) => setFormData({ ...formData, s3Url: e.target.value })}
-                placeholder="http://10.100.102.110:9000"
-                sx={{ mb: 2 }}
-              />
-
-              <TextField
-                fullWidth
-                label="Prefix (optional)"
-                value={formData.prefix}
-                onChange={(e) => setFormData({ ...formData, prefix: e.target.value })}
-                placeholder="e.g., velero/"
-                sx={{ mb: 2 }}
-              />
-
-              <TextField
-                fullWidth
-                label="CA Certificate (for self-signed certificates)"
-                value={formData.caCertificate}
-                onChange={(e) => setFormData({ ...formData, caCertificate: e.target.value })}
-                placeholder="-----BEGIN CERTIFICATE-----"
-                multiline
-                rows={4}
-                sx={{ mb: 2 }}
-                helperText="Paste the CA certificate for self-signed S3 endpoints"
-              />
-
-              <Divider sx={{ my: 2 }}>
-                <Typography variant="body2" color="textSecondary">
-                  Credentials (optional)
-                </Typography>
-              </Divider>
-
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.useCredentials}
-                    onChange={(e) => setFormData({ ...formData, useCredentials: e.target.checked })}
-                  />
-                }
-                label="Use custom credentials (leave unchecked for IAM roles/service accounts)"
-                sx={{ mb: 2 }}
-              />
-
-              {formData.useCredentials && (
-                <>
-                  <TextField
-                    fullWidth
-                    label="Access Key ID"
-                    value={formData.accessKeyId}
-                    onChange={(e) => setFormData({ ...formData, accessKeyId: e.target.value })}
-                    placeholder="AKIAIOSFODNN7EXAMPLE"
-                    sx={{ mb: 2 }}
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Secret Access Key"
-                    type="password"
-                    value={formData.secretAccessKey}
-                    onChange={(e) => setFormData({ ...formData, secretAccessKey: e.target.value })}
-                    placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-                    sx={{ mb: 2 }}
-                  />
-                </>
-              )}
-            </Box>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setShowCreateModal(false)}>Cancel</Button>
-            <Button onClick={handleCreateLocation} variant="contained">
-              Create Location
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        <StorageLocationDetailsModal
-          open={showDetailsModal}
-          storageLocation={selectedStorageLocation}
-          onClose={() => {
-            setShowDetailsModal(false);
-            setSelectedStorageLocation(null);
-          }}
-        />
       </Paper>
     </Box>
   );
