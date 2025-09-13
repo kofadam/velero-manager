@@ -30,15 +30,15 @@ spec:
                 - |
                   set -euo pipefail
                   echo "🎯 Starting backup for minikube cluster..."
-                  
+
                   # Load credentials from secret
                   TOKEN=$(cat /secrets/token)
                   CA_CERT=$(cat /secrets/ca.crt | base64 -d)
                   SERVER=$(cat /secrets/server)
                   CLUSTER_NAME=$(cat /secrets/cluster-name)
-                  
+
                   echo "📍 Connecting to cluster: $CLUSTER_NAME at $SERVER"
-                  
+
                   # Create kubeconfig
                   cat > /tmp/kubeconfig <<KUBECONFIG
                   apiVersion: v1
@@ -59,22 +59,22 @@ spec:
                     user:
                       token: $TOKEN
                   KUBECONFIG
-                  
+
                   export KUBECONFIG=/tmp/kubeconfig
-                  
+
                   # Verify connection
                   echo "🔍 Verifying cluster connection..."
                   if ! kubectl get ns velero &>/dev/null; then
                     echo "❌ Failed to connect to cluster!"
                     exit 1
                   fi
-                  
+
                   echo "✅ Connected successfully"
-                  
+
                   # Create backup
                   BACKUP_NAME="${CLUSTER_NAME}-$(date +%Y%m%d-%H%M%S)"
                   echo "📦 Creating backup: $BACKUP_NAME"
-                  
+
                   cat <<BACKUP | kubectl apply -f -
                   apiVersion: velero.io/v1
                   kind: Backup
@@ -97,21 +97,21 @@ spec:
                     hooks:
                       resources: []
                   BACKUP
-                  
+
                   # Wait for backup to start
                   echo "⏳ Waiting for backup to start..."
                   sleep 10
-                  
+
                   # Check backup status
                   STATUS=$(kubectl get backup $BACKUP_NAME -n velero -o jsonpath='{.status.phase}')
                   echo "📊 Backup status: $STATUS"
-                  
+
                   if [[ "$STATUS" == "Failed" ]]; then
                     echo "❌ Backup failed!"
                     kubectl describe backup $BACKUP_NAME -n velero
                     exit 1
                   fi
-                  
+
                   echo "✅ Backup $BACKUP_NAME initiated successfully"
               volumeMounts:
                 - name: cluster-secrets
@@ -151,11 +151,11 @@ spec:
             - /bin/bash
             - -c
             - |
-              echo "🧪 Testing connection to minikube..."
-              
+              echo "Testing connection to minikube..."
+
               TOKEN=$(cat /secrets/token)
               SERVER=$(cat /secrets/server)
-              
+
               # Simple connection test
               cat > /tmp/kubeconfig <<EOF
               apiVersion: v1
@@ -176,19 +176,19 @@ spec:
                 user:
                   token: $TOKEN
               EOF
-              
+
               export KUBECONFIG=/tmp/kubeconfig
-              
+
               echo "Namespaces on remote cluster:"
               kubectl get ns
-              
+
               echo "Velero resources:"
               kubectl get all -n velero
           volumeMounts:
             - name: cluster-secrets
               mountPath: /secrets
-          volumes:
-            - name: cluster-secrets
-              secret:
-                secretName: minikube-sa-token
+      volumes: # ← THIS IS THE FIX - moved under spec
+        - name: cluster-secrets
+          secret:
+            secretName: minikube-sa-token
       restartPolicy: Never
