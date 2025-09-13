@@ -70,16 +70,9 @@ const SimplifiedDashboard: React.FC = () => {
     }
 
     try {
-      // Fetch all data in parallel
-      const [backupsRes, restoresRes, schedulesRes] = await Promise.all([
-        apiService.getBackups(),
-        apiService.getRestores(),
-        apiService.getSchedules(),
-      ]);
-
+      // Fetch backup data
+      const backupsRes = await apiService.getBackups();
       const backups = backupsRes.backups || [];
-      const restores = restoresRes.restores || [];
-      const schedules = schedulesRes.schedules || schedulesRes.cronjobs || [];
 
       // Get backups from last 24 hours
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -92,7 +85,10 @@ const SimplifiedDashboard: React.FC = () => {
 
       // Calculate metrics
       const failedBackups = backups.filter(
-        (b: Backup) => b.status?.phase === 'Failed' || b.status?.phase === 'FailedValidation'
+        (b: Backup) =>
+          b.status?.phase === 'Failed' ||
+          b.status?.phase === 'FailedValidation' ||
+          b.status?.phase === 'PartiallyFailed'
       ).length;
 
       const successfulBackups = backups.filter(
@@ -101,8 +97,8 @@ const SimplifiedDashboard: React.FC = () => {
 
       setMetrics({
         totalBackups: backups.length,
-        totalRestores: restores.length,
-        totalSchedules: schedules.length,
+        totalRestores: 0, // Removed restore functionality
+        totalSchedules: 0, // Using orchestration instead
         failedBackups,
         successfulBackups,
         last24hBackups,

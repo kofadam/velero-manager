@@ -7,54 +7,49 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import HomeIcon from '@mui/icons-material/Home';
-import BackupIcon from '@mui/icons-material/Backup';
-import RestoreIcon from '@mui/icons-material/Restore';
-import ScheduleIcon from '@mui/icons-material/Schedule';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import CloudSyncIcon from '@mui/icons-material/CloudSync';
+import InventoryIcon from '@mui/icons-material/Inventory';
 import DnsRoundedIcon from '@mui/icons-material/DnsRounded';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
+import HomeIcon from '@mui/icons-material/Home';
 import { DrawerProps } from '@mui/material/Drawer';
 import Typography from '@mui/material/Typography';
 import { APP_VERSION } from '../../utils/constants.ts';
 
 const categories = [
   {
-    id: 'Backup Management',
+    id: 'Overview',
     children: [
       {
         id: 'dashboard',
         name: 'Dashboard',
-        icon: <HomeIcon />,
+        icon: <DashboardIcon />,
       },
       {
-        id: 'backups',
-        name: 'Backups',
-        icon: <BackupIcon />,
-      },
-      {
-        id: 'restore',
-        name: 'Restores',
-        icon: <RestoreIcon />,
-      },
-      {
-        id: 'schedules',
-        name: 'Schedules',
-        icon: <ScheduleIcon />,
-      },
-      {
-        id: 'clusters',
-        name: 'Clusters',
-        icon: <DnsRoundedIcon />,
+        id: 'orchestration',
+        name: 'Multi-Cluster',
+        icon: <CloudSyncIcon />,
       },
     ],
   },
   {
-    id: 'Orchestration',
+    id: 'Backup Operations',
     children: [
       {
-        id: 'orchestration',
-        name: 'Multi-Cluster',
+        id: 'backups',
+        name: 'Backup Catalog',
+        icon: <InventoryIcon />,
+      },
+    ],
+  },
+  {
+    id: 'Infrastructure',
+    children: [
+      {
+        id: 'clusters',
+        name: 'Clusters',
         icon: <DnsRoundedIcon />,
       },
     ],

@@ -2,28 +2,22 @@ import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
-import Button from '@mui/material/Button';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
-import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import DeleteIcon from '@mui/icons-material/Delete';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
+import Typography from '@mui/material/Typography';
 import BackupTable from './BackupTable.tsx';
-import CreateBackupModal from './CreateBackupModal.tsx';
 import BackupDetailsModal from './BackupDetailsModal.tsx';
 import { useBackups } from '../../hooks/useBackups.ts';
 import { Backup } from '../../services/types.ts';
-import { apiService } from '../../services/api.ts';
 
 const BackupList: React.FC = () => {
-  const { backups, loading, error, refreshBackups, deleteBackup } = useBackups();
-  const [selectedBackups, setSelectedBackups] = useState<string[]>([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const { backups, loading, error, refreshBackups } = useBackups();
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState<Backup | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
@@ -34,55 +28,9 @@ const BackupList: React.FC = () => {
     return clusters.sort();
   }, [backups]);
 
-  const handleSelectBackup = (backupName: string, selected: boolean) => {
-    if (selected) {
-      setSelectedBackups([...selectedBackups, backupName]);
-    } else {
-      setSelectedBackups(selectedBackups.filter((name) => name !== backupName));
-    }
-  };
-
-  const handleSelectAll = (selected: boolean) => {
-    if (selected) {
-      setSelectedBackups(backups.map((b) => b.name));
-    } else {
-      setSelectedBackups([]);
-    }
-  };
-
-  const handleDeleteSelected = async () => {
-    if (window.confirm(`Delete ${selectedBackups.length} selected backups?`)) {
-      for (const backupName of selectedBackups) {
-        try {
-          await deleteBackup(backupName);
-        } catch (err) {
-          console.error(`Failed to delete backup ${backupName}:`, err);
-        }
-      }
-      setSelectedBackups([]);
-      refreshBackups();
-    }
-  };
-
   const handleViewDetails = (backup: Backup) => {
     setSelectedBackup(backup);
     setShowDetailsModal(true);
-  };
-
-  const handleDownload = async (backup: Backup) => {
-    try {
-      const result = await apiService.downloadBackup(backup.cluster, backup.name);
-      if (result.success) {
-        // Download will start automatically, just show success message
-        alert(
-          `Download started for backup "${backup.name}". The file will be saved to your downloads folder.`
-        );
-      }
-    } catch (error: any) {
-      console.error('Failed to download backup:', error);
-      const errorMessage = error.message || 'Failed to download backup file.';
-      alert(`Download failed: ${errorMessage}`);
-    }
   };
 
   const filteredBackups = backups.filter((backup) => {
@@ -117,6 +65,13 @@ const BackupList: React.FC = () => {
 
   return (
     <Box>
+      <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 3, color: '#fff' }}>
+        Backup Catalog
+      </Typography>
+      <Typography variant="body1" sx={{ mb: 3, color: 'rgba(255, 255, 255, 0.7)' }}>
+        Browse and manage your backup inventory across all clusters. Use the search and filter tools
+        to find specific backups.
+      </Typography>
       <Paper sx={{ p: 2, mb: 2 }}>
         <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
           <TextField
@@ -142,47 +97,16 @@ const BackupList: React.FC = () => {
             </Select>
           </FormControl>
           <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setShowCreateModal(true)}
-            >
-              Create Backup
-            </Button>
             <IconButton onClick={refreshBackups} color="primary">
               <RefreshIcon />
             </IconButton>
-            {selectedBackups.length > 0 && (
-              <IconButton onClick={handleDeleteSelected} color="error">
-                <DeleteIcon />
-              </IconButton>
-            )}
           </Box>
         </Box>
       </Paper>
 
       <Paper>
-        <BackupTable
-          backups={filteredBackups}
-          selectedBackups={selectedBackups}
-          onSelectBackup={handleSelectBackup}
-          onSelectAll={handleSelectAll}
-          onDeleteBackup={deleteBackup}
-          onRefresh={refreshBackups}
-          onViewDetails={handleViewDetails}
-          onDownload={handleDownload}
-        />
+        <BackupTable backups={filteredBackups} onViewDetails={handleViewDetails} />
       </Paper>
-
-      {showCreateModal && (
-        <CreateBackupModal
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={() => {
-            setShowCreateModal(false);
-            refreshBackups();
-          }}
-        />
-      )}
 
       <BackupDetailsModal
         open={showDetailsModal}
@@ -191,7 +115,6 @@ const BackupList: React.FC = () => {
           setShowDetailsModal(false);
           setSelectedBackup(null);
         }}
-        onDownload={handleDownload}
       />
     </Box>
   );

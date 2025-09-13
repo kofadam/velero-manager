@@ -8,8 +8,6 @@ import Navigator from './components/Layout/Navigator.tsx';
 import BackupList from './components/Backups/BackupList.tsx';
 import Dashboard from './components/Dashboard/SimplifiedDashboard.tsx';
 import Clusters from './components/Clusters/Clusters.tsx';
-import ScheduleList from './components/Schedules/ScheduleList.tsx';
-import RestoreList from './components/Restores/RestoreList.tsx';
 import Settings from './components/Settings/Settings.tsx';
 import Login from './components/Auth/Login.tsx';
 import OrchestrationDashboard from './components/Orchestration/OrchestrationDashboard.tsx';
@@ -245,16 +243,12 @@ function App() {
         return <Dashboard />;
       case 'clusters':
         return <Clusters />;
-      case 'restore':
-        return <RestoreList />;
-      case 'schedules':
-        return <ScheduleList />;
       case 'orchestration':
         return <OrchestrationDashboard />;
       case 'settings':
         return <Settings />;
       default:
-        return <BackupList />;
+        return <Dashboard />;
     }
   };
 

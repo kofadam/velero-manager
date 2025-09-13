@@ -105,8 +105,6 @@ func main() {
 				admin.POST("/users", userHandler.CreateUser)
 				admin.DELETE("/users/:username", userHandler.DeleteUser)
 				admin.POST("/clusters", veleroHandler.AddCluster)
-				admin.POST("/storage-locations", veleroHandler.CreateStorageLocation)
-				admin.DELETE("/storage-locations/:name", veleroHandler.DeleteStorageLocation)
 
 				// OIDC configuration management - admin only for modify operations
 				admin.PUT("/oidc/config", oidcConfigHandler.UpdateOIDCConfig)
@@ -130,19 +128,9 @@ func main() {
 			// Backup download - admin only due to DownloadRequest CRD requirements
 			admin.GET("/backups/:name/download", veleroHandler.DownloadBackup)
 
-			// Restore operations (authenticated users)
-			protected.GET("/restores", veleroHandler.ListRestores)
-			protected.POST("/restores", veleroHandler.CreateRestore)
-			protected.DELETE("/restores/:name", veleroHandler.DeleteRestore)
-			protected.GET("/restores/:name/logs", veleroHandler.GetRestoreLogs)
-			protected.GET("/restores/:name/describe", veleroHandler.DescribeRestore)
+			// Restore operations removed - cluster admins use velero CLI directly
 
-			// Schedule operations (authenticated users)
-			protected.GET("/schedules", veleroHandler.ListSchedules)
-			protected.POST("/schedules", veleroHandler.CreateSchedule)
-			protected.DELETE("/schedules/:name", veleroHandler.DeleteSchedule)
-			protected.PUT("/schedules/:name", veleroHandler.UpdateSchedule)
-			protected.POST("/schedules/:name/backup", veleroHandler.CreateBackupFromSchedule)
+			// Schedule operations removed - use orchestration for schedule management
 
 			// CronJob operations (authenticated users)
 			protected.GET("/cronjobs", veleroHandler.ListCronJobs)
@@ -153,13 +141,11 @@ func main() {
 
 			// Cluster operations (read operations for all authenticated users)
 			protected.GET("/clusters", veleroHandler.ListClusters)
+			protected.GET("/clusters/status", veleroHandler.GetMultiClusterStatus)
 			protected.PUT("/clusters/:cluster/description", veleroHandler.UpdateClusterDescription)
 			protected.GET("/clusters/:cluster/backups", veleroHandler.ListBackupsByCluster)
 			protected.GET("/clusters/:cluster/health", veleroHandler.GetClusterHealth)
 			protected.GET("/clusters/:cluster/details", veleroHandler.GetClusterDetails)
-
-			// Storage locations (read operations for all authenticated users)
-			protected.GET("/storage-locations", veleroHandler.ListStorageLocations)
 
 			// Dashboard metrics
 			protected.GET("/dashboard/metrics", veleroHandler.GetDashboardMetrics)

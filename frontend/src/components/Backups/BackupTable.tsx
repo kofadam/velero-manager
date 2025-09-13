@@ -1,6 +1,5 @@
 import React from 'react';
 import { Backup } from '../../services/types.ts';
-import BackupActions from './BackupActions.tsx';
 import { formatDateShort } from '../../utils/dateUtils.ts';
 import { BACKUP_PHASES } from '../../utils/constants.ts';
 import {
@@ -11,46 +10,24 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Checkbox,
   Chip,
   Typography,
   Box,
   TableSortLabel,
-  IconButton,
-  Tooltip,
   Link,
 } from '@mui/material';
-import DownloadIcon from '@mui/icons-material/Download';
 
 interface BackupTableProps {
   backups: Backup[];
-  selectedBackups: string[];
-  onSelectBackup: (backupName: string, selected: boolean) => void;
-  onSelectAll: (selected: boolean) => void;
-  onDeleteBackup: (backupName: string) => Promise<void>;
-  onRefresh: () => void;
   onViewDetails: (backup: Backup) => void;
-  onDownload: (backup: Backup) => void;
 }
 
 type SortField = 'name' | 'cluster' | 'status' | 'created';
 type SortDirection = 'asc' | 'desc';
 
-const BackupTable: React.FC<BackupTableProps> = ({
-  backups,
-  selectedBackups,
-  onSelectBackup,
-  onSelectAll,
-  onDeleteBackup,
-  onRefresh,
-  onViewDetails,
-  onDownload,
-}) => {
+const BackupTable: React.FC<BackupTableProps> = ({ backups, onViewDetails }) => {
   const [sortField, setSortField] = React.useState<SortField>('created');
   const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
-
-  const allSelected = backups.length > 0 && selectedBackups.length === backups.length;
-  const someSelected = selectedBackups.length > 0 && selectedBackups.length < backups.length;
 
   const getStatusColor = (phase: string): 'success' | 'info' | 'error' | 'warning' | 'default' => {
     switch (phase) {
@@ -109,14 +86,6 @@ const BackupTable: React.FC<BackupTableProps> = ({
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell padding="checkbox">
-              <Checkbox
-                checked={allSelected}
-                indeterminate={someSelected}
-                onChange={(e) => onSelectAll(e.target.checked)}
-                sx={{ color: 'primary.main' }}
-              />
-            </TableCell>
             <TableCell>
               <TableSortLabel
                 active={sortField === 'name'}
@@ -157,7 +126,6 @@ const BackupTable: React.FC<BackupTableProps> = ({
             </TableCell>
             <TableCell>Expires</TableCell>
             <TableCell>Selector</TableCell>
-            <TableCell>Actions</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -171,13 +139,6 @@ const BackupTable: React.FC<BackupTableProps> = ({
                 },
               }}
             >
-              <TableCell padding="checkbox">
-                <Checkbox
-                  checked={selectedBackups.includes(backup.name)}
-                  onChange={(e) => onSelectBackup(backup.name, e.target.checked)}
-                  sx={{ color: 'primary.main' }}
-                />
-              </TableCell>
               <TableCell>
                 <Box display="flex" alignItems="center" gap={1}>
                   <Link
@@ -199,20 +160,6 @@ const BackupTable: React.FC<BackupTableProps> = ({
                   >
                     {backup.name}
                   </Link>
-                  {backup.status.phase === BACKUP_PHASES.COMPLETED && (
-                    <Tooltip title="Download backup">
-                      <IconButton
-                        size="small"
-                        onClick={() => onDownload(backup)}
-                        sx={{
-                          opacity: 0.7,
-                          '&:hover': { opacity: 1, color: 'success.main' },
-                        }}
-                      >
-                        <DownloadIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  )}
                 </Box>
               </TableCell>
               <TableCell>
@@ -304,9 +251,6 @@ const BackupTable: React.FC<BackupTableProps> = ({
                 >
                   {getNamespaceDisplay(backup.spec.includedNamespaces)}
                 </Typography>
-              </TableCell>
-              <TableCell>
-                <BackupActions backup={backup} onDelete={onDeleteBackup} onRefresh={onRefresh} />
               </TableCell>
             </TableRow>
           ))}

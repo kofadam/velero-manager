@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/base64"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ import (
 
 type VeleroHandler struct {
 	k8sClient           *k8s.Client
+	multiClusterClient  *k8s.MultiClusterClient
 	metrics             *metrics.VeleroMetrics
 	clusterDescriptions map[string]string
 	mutex               sync.RWMutex
@@ -25,81 +27,90 @@ type VeleroHandler struct {
 func NewVeleroHandler(k8sClient *k8s.Client, veleroMetrics *metrics.VeleroMetrics) *VeleroHandler {
 	return &VeleroHandler{
 		k8sClient:           k8sClient,
+		multiClusterClient:  k8s.NewMultiClusterClient(k8sClient),
 		metrics:             veleroMetrics,
 		clusterDescriptions: make(map[string]string),
 	}
 }
 
 func (h *VeleroHandler) ListBackups(c *gin.Context) {
-	// Check if Velero CRDs exist first
-	_, err := h.k8sClient.Clientset.Discovery().ServerResourcesForGroupVersion("velero.io/v1")
+	// Try to get aggregated backups from all clusters
+	allBackups, err := h.multiClusterClient.GetAllBackups()
 	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"error":   "Velero not installed or CRDs not found",
-			"details": err.Error(),
-			"help":    "Install Velero: https://velero.io/docs/v1.12/basic-install/",
-		})
-		return
-	}
+		// Fallback to local cluster if multi-cluster fails
+		log.Printf("Multi-cluster backup aggregation failed, falling back to local: %v", err)
 
-	// Get backups from Velero namespace
-	backupList, err := h.k8sClient.DynamicClient.
-		Resource(k8s.BackupGVR).
-		Namespace("velero").
-		List(h.k8sClient.Context, metav1.ListOptions{})
+		// Check if local Velero CRDs exist
+		_, err := h.k8sClient.Clientset.Discovery().ServerResourcesForGroupVersion("velero.io/v1")
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error":   "Velero not installed locally and multi-cluster failed",
+				"details": err.Error(),
+				"help":    "Install Velero or check cluster connections",
+			})
+			return
+		}
 
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":     "Failed to list backups",
-			"details":   err.Error(),
-			"namespace": "velero",
-		})
-		return
-	}
+		// Get backups from local Velero namespace
+		backupList, err := h.k8sClient.DynamicClient.
+			Resource(k8s.BackupGVR).
+			Namespace("velero").
+			List(h.k8sClient.Context, metav1.ListOptions{})
 
-	// Convert to simpler format
-	var backups []map[string]interface{}
-	for _, backup := range backupList.Items {
-		backupName := backup.GetName()
-		labels := backup.GetLabels()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":     "Failed to list backups from any cluster",
+				"details":   err.Error(),
+				"namespace": "velero",
+			})
+			return
+		}
 
-		// Try to get cluster from labels first (more reliable)
-		clusterName := ""
-		if labels != nil {
-			if cluster, ok := labels["cluster"]; ok {
-				clusterName = cluster
+		// Convert local backups to standard format
+		allBackups = make([]map[string]interface{}, 0, len(backupList.Items))
+		for _, backup := range backupList.Items {
+			backupName := backup.GetName()
+			labels := backup.GetLabels()
+
+			// Try to get cluster from labels first (more reliable)
+			clusterName := ""
+			if labels != nil {
+				if cluster, ok := labels["cluster"]; ok {
+					clusterName = cluster
+				}
 			}
-		}
 
-		// Fallback to name parsing if no label
-		if clusterName == "" {
-			clusterName = extractClusterFromBackupName(backupName)
-		}
+			// Fallback to name parsing if no label
+			if clusterName == "" {
+				clusterName = extractClusterFromBackupName(backupName)
+			}
 
-		backupData := map[string]interface{}{
-			"name":              backupName,
-			"cluster":           clusterName,
-			"namespace":         backup.GetNamespace(),
-			"creationTimestamp": backup.GetCreationTimestamp(),
-			"labels":            labels,
-		}
+			backupData := map[string]interface{}{
+				"name":              backupName,
+				"cluster":           clusterName,
+				"namespace":         backup.GetNamespace(),
+				"creationTimestamp": backup.GetCreationTimestamp(),
+				"labels":            labels,
+			}
 
-		// Extract status if available
-		if status, found := backup.Object["status"]; found {
-			backupData["status"] = status
-		}
+			// Extract status if available
+			if status, found := backup.Object["status"]; found {
+				backupData["status"] = status
+			}
 
-		// Extract spec if available
-		if spec, found := backup.Object["spec"]; found {
-			backupData["spec"] = spec
-		}
+			// Extract spec if available
+			if spec, found := backup.Object["spec"]; found {
+				backupData["spec"] = spec
+			}
 
-		backups = append(backups, backupData)
+			allBackups = append(allBackups, backupData)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"backups": backups,
-		"count":   len(backups),
+		"backups": allBackups,
+		"count":   len(allBackups),
+		"source":  "multi-cluster", // Indicator that this is aggregated data
 	})
 }
 
@@ -1672,134 +1683,6 @@ func (h *VeleroHandler) ListBackupsByCluster(c *gin.Context) {
 	})
 }
 
-func (h *VeleroHandler) ListStorageLocations(c *gin.Context) {
-	// Get storage locations from Velero namespace
-	storageList, err := h.k8sClient.DynamicClient.
-		Resource(k8s.BackupStorageLocationGVR).
-		Namespace("velero").
-		List(h.k8sClient.Context, metav1.ListOptions{})
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to list storage locations",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	var locations []map[string]interface{}
-	for _, location := range storageList.Items {
-		locationData := map[string]interface{}{
-			"name":      location.GetName(),
-			"namespace": location.GetNamespace(),
-			"spec":      location.Object["spec"],
-			"status":    location.Object["status"],
-		}
-		locations = append(locations, locationData)
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"locations": locations,
-		"count":     len(locations),
-	})
-}
-
-func (h *VeleroHandler) CreateStorageLocation(c *gin.Context) {
-	var request struct {
-		Name     string            `json:"name" binding:"required"`
-		Provider string            `json:"provider" binding:"required"`
-		Bucket   string            `json:"bucket" binding:"required"`
-		Region   string            `json:"region,omitempty"`
-		Prefix   string            `json:"prefix,omitempty"`
-		Config   map[string]string `json:"config,omitempty"`
-	}
-
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request body",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	// Create BackupStorageLocation object
-	storageLocation := map[string]interface{}{
-		"apiVersion": "velero.io/v1",
-		"kind":       "BackupStorageLocation",
-		"metadata": map[string]interface{}{
-			"name":      request.Name,
-			"namespace": "velero",
-		},
-		"spec": map[string]interface{}{
-			"provider": request.Provider,
-			"objectStorage": map[string]interface{}{
-				"bucket": request.Bucket,
-				"prefix": request.Prefix,
-			},
-		},
-	}
-
-	// Add config if provided
-	if len(request.Config) > 0 {
-		storageLocation["spec"].(map[string]interface{})["config"] = request.Config
-	}
-
-	// Create the storage location in Kubernetes
-	result, err := h.k8sClient.DynamicClient.
-		Resource(k8s.BackupStorageLocationGVR).
-		Namespace("velero").
-		Create(h.k8sClient.Context, &unstructured.Unstructured{Object: storageLocation}, metav1.CreateOptions{})
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to create storage location",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"message":  "Storage location created successfully",
-		"location": result.GetName(),
-	})
-}
-
-func (h *VeleroHandler) DeleteStorageLocation(c *gin.Context) {
-	locationName := c.Param("name")
-	if locationName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Storage location name is required",
-		})
-		return
-	}
-
-	// Prevent deletion of default location
-	if locationName == "default" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Cannot delete default storage location",
-		})
-		return
-	}
-
-	err := h.k8sClient.DynamicClient.
-		Resource(k8s.BackupStorageLocationGVR).
-		Namespace("velero").
-		Delete(h.k8sClient.Context, locationName, metav1.DeleteOptions{})
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to delete storage location",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":  "Storage location deleted successfully",
-		"location": locationName,
-	})
-}
-
 func (h *VeleroHandler) AddCluster(c *gin.Context) {
 	var request struct {
 		Name            string `json:"name" binding:"required"`
@@ -2390,6 +2273,29 @@ func (h *VeleroHandler) GenerateTestData(c *gin.Context) {
 			"backup_schedules",
 			"api_request_metrics",
 		},
+	})
+}
+
+// GetMultiClusterStatus returns status of multi-cluster connections and cache
+func (h *VeleroHandler) GetMultiClusterStatus(c *gin.Context) {
+	connections, err := h.multiClusterClient.DiscoverClusters()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to discover clusters",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	connectedClusters := h.multiClusterClient.GetConnectedClusters()
+	cacheStats := h.multiClusterClient.GetCacheStats()
+
+	c.JSON(http.StatusOK, gin.H{
+		"discovered_clusters": connections,
+		"connected_clusters":  connectedClusters,
+		"cache_stats":         cacheStats,
+		"total_discovered":    len(connections),
+		"total_connected":     len(connectedClusters),
 	})
 }
 
