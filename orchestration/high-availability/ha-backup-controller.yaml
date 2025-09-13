@@ -1,0 +1,192 @@
+---
+# High Availability Backup Controller using leader election
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup-controller
+  namespace: velero
+
+---
+---; 28i---; 43i---; 128i---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-controller-leader-election
+  namespace: velero
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-controller-leader-election
+  namespace: velero
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: backup-controller-leader-election
+subjects:
+  - kind: ServiceAccount
+    name: backup-controller
+    namespace: velero
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backup-controller
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: backup-controller
+    app.kubernetes.io/component: orchestration
+spec:
+  replicas: 3 # Multiple replicas for HA
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backup-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backup-controller
+        app.kubernetes.io/component: orchestration
+    spec:
+      serviceAccountName: backup-controller
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - backup-controller
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: controller
+          image: harbor.mydomain.local/library/backup-controller:v1.0.0
+          command:
+            - /manager
+          args:
+            - --leader-elect
+            - --leader-election-id=backup-controller
+            - --leader-election-namespace=velero
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - containerPort: 8080
+              name: metrics
+            - containerPort: 8081
+              name: health
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: backup-schedules
+              mountPath: /config/schedules
+              readOnly: true
+      volumes:
+        - name: backup-schedules
+          configMap:
+            name: backup-schedules
+
+---
+# ConfigMap containing backup schedules
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-schedules
+  namespace: velero
+data:
+  schedules.yaml: |
+    schedules:
+      - name: dept1-cl1-daily
+        cluster: dept1-cl1
+        schedule: "0 2 * * *"
+        storageLocation: dept1-storage
+        ttl: 720h
+        includedNamespaces: ["*"]
+        excludedNamespaces: ["kube-system", "kube-public"]
+
+      - name: dept1-cl2-daily
+        cluster: dept1-cl2
+        schedule: "0 3 * * *"
+        storageLocation: dept1-storage
+        ttl: 720h
+        includedNamespaces: ["*"]
+        excludedNamespaces: ["kube-system", "kube-public"]
+
+      - name: dept2-cl1-daily
+        cluster: dept2-cl1
+        schedule: "0 4 * * *"
+        storageLocation: dept2-storage
+        ttl: 720h
+        includedNamespaces: ["*"]
+        excludedNamespaces: ["kube-system", "kube-public"]
+
+---
+# Service for metrics exposure
+apiVersion: v1
+kind: Service
+metadata:
+  name: backup-controller-metrics
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: backup-controller
+spec:
+  selector:
+    app.kubernetes.io/name: backup-controller
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: metrics
+      protocol: TCP
+
+---
+# ServiceMonitor for Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backup-controller
+  namespace: velero
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backup-controller
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics

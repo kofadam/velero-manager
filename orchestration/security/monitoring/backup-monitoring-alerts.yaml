@@ -1,0 +1,219 @@
+---
+# PrometheusRule for backup monitoring
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: velero-backup-alerts
+  namespace: velero
+  labels:
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+    - name: velero-backup.rules
+      interval: 30s
+      rules:
+        # Alert if backup hasn't run in 36 hours
+        - alert: VeleroBackupMissing
+          expr: |
+            time() - velero_backup_last_successful_timestamp{schedule!=""} > 129600
+          for: 5m
+          labels:
+            severity: warning
+            component: velero
+            alert_type: backup_missing
+          annotations:
+            summary: "Velero backup missing for {{ $labels.schedule }}"
+            description: "Backup schedule {{ $labels.schedule }} on cluster {{ $labels.cluster }} hasn't completed successfully in over 36 hours."
+            runbook_url: "https://wiki.internal/velero/backup-missing"
+
+        # Alert on backup failures
+        - alert: VeleroBackupFailed
+          expr: |
+            increase(velero_backup_failure_total[1h]) > 0
+          for: 5m
+          labels:
+            severity: critical
+            component: velero
+            alert_type: backup_failed
+          annotations:
+            summary: "Velero backup failed on {{ $labels.cluster }}"
+            description: "{{ $value }} backup failures detected in the last hour for cluster {{ $labels.cluster }}."
+            runbook_url: "https://wiki.internal/velero/backup-failed"
+
+        # Alert on token age
+        - alert: ServiceAccountTokenExpiring
+          expr: |
+            (time() - backup_token_rotation_timestamp) > 604800
+          for: 5m
+          labels:
+            severity: warning
+            component: velero
+            alert_type: token_expiring
+          annotations:
+            summary: "Service account token expiring for {{ $labels.cluster }}"
+            description: "Token for cluster {{ $labels.cluster }} is {{ $value | humanizeDuration }} old and needs rotation."
+
+        # Alert on storage location issues
+        - alert: BackupStorageLocationUnavailable
+          expr: |
+            velero_backup_storage_location_available == 0
+          for: 10m
+          labels:
+            severity: critical
+            component: velero
+            alert_type: storage_unavailable
+          annotations:
+            summary: "Backup storage location {{ $labels.name }} is unavailable"
+            description: "Storage location {{ $labels.name }} has been unavailable for more than 10 minutes."
+
+        # Alert on excessive backup duration
+        - alert: VeleroBackupDurationHigh
+          expr: |
+            velero_backup_duration_seconds > 7200
+          for: 5m
+          labels:
+            severity: warning
+            component: velero
+            alert_type: backup_slow
+          annotations:
+            summary: "Backup taking too long on {{ $labels.cluster }}"
+            description: "Backup on cluster {{ $labels.cluster }} is taking {{ $value | humanizeDuration }}, which exceeds the 2-hour threshold."
+
+        # Alert on unauthorized access attempts
+        - alert: UnauthorizedBackupAccess
+          expr: |
+            increase(backup_unauthorized_access_total[5m]) > 0
+          labels:
+            severity: critical
+            component: velero
+            alert_type: security
+          annotations:
+            summary: "Unauthorized backup access attempt detected"
+            description: "{{ $value }} unauthorized access attempts to backup resources in the last 5 minutes."
+            runbook_url: "https://wiki.internal/velero/security-incident"
+
+---
+# Grafana Dashboard ConfigMap
+---; 174i---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: velero-dashboard
+  namespace: velero
+  labels:
+    grafana_dashboard: "1"
+data:
+  velero-dashboard.json: |
+    {
+      "dashboard": {
+        "title": "Velero Multi-Cluster Backup Management",
+        "panels": [
+          {
+            "title": "Backup Success Rate",
+            "targets": [
+              {
+                "expr": "sum(rate(velero_backup_success_total[1h])) by (cluster) / sum(rate(velero_backup_attempt_total[1h])) by (cluster) * 100"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "Time Since Last Backup",
+            "targets": [
+              {
+                "expr": "(time() - velero_backup_last_successful_timestamp) / 3600"
+              }
+            ],
+            "type": "table"
+          },
+          {
+            "title": "Token Rotation Status",
+            "targets": [
+              {
+                "expr": "(time() - backup_token_rotation_timestamp) / 86400"
+              }
+            ],
+            "type": "stat"
+          },
+          {
+            "title": "Storage Usage by Department",
+            "targets": [
+              {
+                "expr": "sum(velero_backup_size_bytes) by (department, storage_location)"
+              }
+            ],
+            "type": "piechart"
+          },
+          {
+            "title": "Backup Duration Trend",
+            "targets": [
+              {
+                "expr": "velero_backup_duration_seconds"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "Audit Events",
+            "datasource": "Elasticsearch",
+            "targets": [
+              {
+                "query": "event:backup_* AND level:ERROR",
+                "timeField": "timestamp"
+              }
+            ],
+            "type": "logs"
+          }
+        ]
+      }
+    }
+
+---
+# AlertmanagerConfig for routing
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: velero-alerting
+  namespace: velero
+spec:
+  route:
+    groupBy: ["alertname", "cluster", "severity"]
+    groupWait: 10s
+    groupInterval: 10s
+    repeatInterval: 12h
+    receiver: "velero-team"
+    routes:
+      - match:
+          severity: critical
+        receiver: "velero-oncall"
+        continueWith: true
+      - match:
+          alert_type: security
+        receiver: "security-team"
+
+  receivers:
+    - name: "velero-team"
+      slackConfigs:
+        - apiURL:
+            key: slack-webhook
+            name: notification-webhooks
+          channel: "#velero-alerts"
+          title: "Velero Backup Alert"
+          text: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+
+    - name: "velero-oncall"
+      pagerdutyConfigs:
+        - serviceKey:
+            key: pagerduty-key
+            name: notification-webhooks
+          description: "{{ .GroupLabels.alertname }} on {{ .GroupLabels.cluster }}"
+
+    - name: "security-team"
+      emailConfigs:
+        - to: "security@mydomain.local"
+          from: "alerts@mydomain.local"
+          smarthost: "smtp.mydomain.local:25"
+          requireTLS: false
+          headers:
+            Subject: "SECURITY ALERT: Velero Backup System"

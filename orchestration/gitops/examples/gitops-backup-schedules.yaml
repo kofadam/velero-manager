@@ -1,0 +1,132 @@
+---
+# ArgoCD Application for backup schedule management
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: velero-backup-schedules
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://git.mydomain.local/infrastructure/velero-config
+    targetRevision: main
+    path: schedules
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: velero
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=false
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+---
+# Example GitOps-managed Schedule CRD
+---; 98i---; 124i---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: dept1-cl1-daily
+  namespace: velero
+  labels:
+    cluster: dept1-cl1
+    department: dept1
+    schedule-type: daily
+    managed-by: gitops
+  annotations:
+    backup.velero.io/audit: "enabled"
+    backup.velero.io/notification-webhook: "https://webhook.internal/backup-status"
+spec:
+  schedule: "0 2 * * *"
+  template:
+    ttl: 720h0m0s
+    storageLocation: dept1-storage
+    includedNamespaces:
+      - "*"
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+    includeClusterResources: true
+    snapshotVolumes: true
+    defaultVolumesToFsBackup: false
+    hooks:
+      resources:
+        - name: database-freeze
+          includedNamespaces:
+            - production
+          labelSelector:
+            matchLabels:
+              app: postgresql
+          pre:
+            - exec:
+                container: postgres
+                command:
+                  - /bin/bash
+                  - -c
+                  - "pg_ctl stop -D /var/lib/postgresql/data -m fast"
+                onError: Fail
+                timeout: 30s
+          post:
+            - exec:
+                container: postgres
+                command:
+                  - /bin/bash
+                  - -c
+                  - "pg_ctl start -D /var/lib/postgresql/data"
+                onError: Continue
+                timeout: 30s
+    metadata:
+      labels:
+        backup-policy: standard
+        department: dept1
+        cluster: dept1-cl1
+
+---
+# Kustomization for environment-specific overrides
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: velero
+
+resources:
+  - base/schedules.yaml
+  - base/storage-locations.yaml
+
+patchesStrategicMerge:
+  - overlays/production/schedule-patches.yaml
+
+configMapGenerator:
+  - name: backup-config
+    files:
+      - config/backup-policy.yaml
+      - config/retention-policy.yaml
+
+secretGenerator:
+  - name: notification-webhooks
+    literals:
+      - slack-webhook=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+      - teams-webhook=https://outlook.office.com/webhook/YOUR/WEBHOOK/URL
+
+---
+# Schedule patch for production environment
+# overlays/production/schedule-patches.yaml
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: dept1-cl1-daily
+  namespace: velero
+spec:
+  schedule: "0 22 * * *" # Production runs at 10 PM instead of 2 AM
+  template:
+    ttl: 2160h0m0s # 90 days retention for production

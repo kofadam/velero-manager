@@ -1,0 +1,106 @@
+# Location: orchestration/security/rbac/minimal-rbac.yaml
+# Minimal RBAC for remote backup triggering
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: velero-remote-trigger
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: remote-backup
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: velero-remote-backup-operator
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: remote-backup
+rules:
+# Core Velero backup operations
+- apiGroups: ["velero.io"]
+  resources: 
+  - backups
+  - schedules
+  - backupstoragelocations
+  verbs: ["create", "get", "list", "watch"]
+
+# Read backup status and logs
+- apiGroups: ["velero.io"]
+  resources: 
+  - backups/status
+  - backups/logs
+  verbs: ["get", "list"]
+
+# List namespaces for backup selection
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list"]
+
+# Read pods for backup status monitoring
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list"]
+  # Restrict to velero namespace only
+  resourceNames: []
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: velero-remote-backup-operator
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: remote-backup
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: velero-remote-backup-operator
+subjects:
+- kind: ServiceAccount
+  name: velero-remote-trigger
+  namespace: velero
+---
+# Additional Role for velero namespace operations only
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: velero-remote-namespace-access
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: remote-backup
+rules:
+# Access to velero pods and logs in velero namespace
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch"]
+
+# Read configmaps for velero configuration
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+
+# Read secrets (but NOT modify) - only for backup status
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+  resourceNames: 
+  - "velero-repo-credentials"
+  - "cloud-credentials"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: velero-remote-namespace-access
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: remote-backup
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: velero-remote-namespace-access
+subjects:
+- kind: ServiceAccount
+  name: velero-remote-trigger
+  namespace: velero

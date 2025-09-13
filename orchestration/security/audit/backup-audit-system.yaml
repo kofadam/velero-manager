@@ -1,0 +1,276 @@
+---
+# Audit logging sidecar for backup operations
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-config
+  namespace: velero
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush         5
+        Log_Level     info
+        Daemon        off
+
+    [INPUT]
+        Name              tail
+        Path              /var/log/backup-audit/*.log
+        Parser            json
+        Tag               backup.audit
+        Refresh_Interval  5
+        Mem_Buf_Limit     10MB
+        Skip_Long_Lines   On
+
+    [FILTER]
+        Name              kubernetes
+        Match             backup.*
+        Kube_URL          https://kubernetes.default.svc:443
+        Kube_CA_File      /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        Kube_Token_File   /var/run/secrets/kubernetes.io/serviceaccount/token
+        Kube_Tag_Prefix   backup.
+        Merge_Log         On
+
+    [FILTER]
+        Name              record_modifier
+        Match             backup.*
+        Record hostname ${HOSTNAME}
+        Record cluster_name ${CLUSTER_NAME}
+        Record audit_version v1
+
+    [OUTPUT]
+        Name              es
+        Match             backup.*
+        Host              elasticsearch.monitoring.svc.cluster.local
+        Port              9200
+        Index             backup-audit
+        Type              _doc
+        Logstash_Format   On
+        Logstash_Prefix   backup-audit
+        Retry_Limit       5
+        Buffer_Size       False
+
+    [OUTPUT]
+        Name              stdout
+        Match             backup.*
+        Format            json_lines
+
+  parsers.conf: |
+    [PARSER]
+        Name        json
+        Format      json
+        Time_Key    timestamp
+        Time_Format %Y-%m-%dT%H:%M:%S.%LZ
+
+---
+# Enhanced CronJob with audit logging
+---; 242i---; 250i---; 264i---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-cluster-with-audit
+  namespace: velero
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          annotations:
+            backup.velero.io/audit: "enabled"
+        spec:
+          serviceAccountName: backup-executor
+          containers:
+            - name: backup-trigger
+              image: harbor.mydomain.local/tanzu/velero/velero:v1.15.2_vmware.1
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  #!/bin/bash
+                  set -euo pipefail
+
+                  # Audit logging function
+                  audit_log() {
+                    local level=$1
+                    local event=$2
+                    local details=$3
+
+                    cat >> /var/log/backup-audit/audit.log <<EOF
+                  {
+                    "timestamp": "$(date -Iseconds)",
+                    "level": "$level",
+                    "event": "$event",
+                    "details": $details,
+                    "job_name": "$JOB_NAME",
+                    "pod_name": "$POD_NAME",
+                    "cluster_target": "$CLUSTER_NAME",
+                    "triggered_by": "cronjob",
+                    "namespace": "velero"
+                  }
+                  EOF
+                  }
+
+                  # Environment setup
+                  export JOB_NAME="${JOB_NAME:-unknown}"
+                  export POD_NAME="${HOSTNAME:-unknown}"
+                  export CLUSTER_NAME="dept1-cl1"
+
+                  # Start audit trail
+                  audit_log "INFO" "backup_initiated" '{"reason": "scheduled", "schedule": "daily"}'
+
+                  # Load credentials
+                  TOKEN=$(cat /secrets/token)
+                  CA_CERT=$(cat /secrets/ca.crt)
+                  SERVER=$(cat /secrets/server)
+
+                  # Validate credentials
+                  if [[ -z "$TOKEN" ]] || [[ -z "$CA_CERT" ]] || [[ -z "$SERVER" ]]; then
+                    audit_log "ERROR" "credential_validation_failed" '{"error": "missing credentials"}'
+                    exit 1
+                  fi
+
+                  audit_log "INFO" "credentials_loaded" '{"server": "'$SERVER'"}'
+
+                  # Setup kubeconfig
+                  echo "$CA_CERT" | base64 -d > /tmp/ca.crt
+                  cat > /tmp/kubeconfig <<KUBECONFIG_EOF
+                  apiVersion: v1
+                  kind: Config
+                  clusters:
+                  - cluster:
+                      certificate-authority: /tmp/ca.crt
+                      server: $SERVER
+                    name: target-cluster
+                  contexts:
+                  - context:
+                      cluster: target-cluster
+                      user: backup-sa
+                    name: target-cluster
+                  current-context: target-cluster
+                  users:
+                  - name: backup-sa
+                    user:
+                      token: $TOKEN
+                  KUBECONFIG_EOF
+
+                  export KUBECONFIG=/tmp/kubeconfig
+
+                  # Test connection
+                  if ! kubectl get ns >/dev/null 2>&1; then
+                    audit_log "ERROR" "cluster_connection_failed" '{"server": "'$SERVER'"}'
+                    exit 1
+                  fi
+
+                  audit_log "INFO" "cluster_connected" '{"server": "'$SERVER'"}'
+
+                  # Create backup
+                  BACKUP_NAME="${CLUSTER_NAME}-$(date +%Y%m%d-%H%M%S)"
+                  audit_log "INFO" "backup_creating" '{"backup_name": "'$BACKUP_NAME'"}'
+
+                  # Capture backup output
+                  BACKUP_OUTPUT=$(velero backup create $BACKUP_NAME \
+                    --storage-location dept1-storage \
+                    --include-namespaces "*" \
+                    --exclude-namespaces "kube-system,kube-public,kube-node-lease" \
+                    --include-cluster-resources \
+                    --snapshot-volumes \
+                    --ttl 720h \
+                    --wait 2>&1)
+
+                  BACKUP_EXIT_CODE=$?
+
+                  if [[ $BACKUP_EXIT_CODE -eq 0 ]]; then
+                    # Get backup details
+                    BACKUP_INFO=$(velero backup describe $BACKUP_NAME --output json 2>/dev/null || echo '{}')
+                    audit_log "INFO" "backup_completed" "{\"backup_name\": \"$BACKUP_NAME\", \"status\": \"success\", \"info\": $BACKUP_INFO}"
+                  else
+                    audit_log "ERROR" "backup_failed" "{\"backup_name\": \"$BACKUP_NAME\", \"exit_code\": $BACKUP_EXIT_CODE, \"error\": \"$BACKUP_OUTPUT\"}"
+                    exit $BACKUP_EXIT_CODE
+                  fi
+
+                  # Final audit entry
+                  audit_log "INFO" "job_completed" '{"status": "success", "backup_name": "'$BACKUP_NAME'"}'
+              env:
+                - name: JOB_NAME
+                  value: "backup-dept1-cl1-daily"
+                - name: CLUSTER_NAME
+                  value: "dept1-cl1"
+              volumeMounts:
+                - name: cluster-secrets
+                  mountPath: /secrets
+                  readOnly: true
+                - name: audit-logs
+                  mountPath: /var/log/backup-audit
+
+            # Fluent Bit sidecar for log shipping
+            - name: fluent-bit
+              image: harbor.mydomain.local/library/fluent-bit:2.1
+              env:
+                - name: CLUSTER_NAME
+                  value: "management-cluster"
+                - name: HOSTNAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
+              volumeMounts:
+                - name: fluent-bit-config
+                  mountPath: /fluent-bit/etc/
+                - name: audit-logs
+                  mountPath: /var/log/backup-audit
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+
+          volumes:
+            - name: cluster-secrets
+              secret:
+                secretName: dept1-cl1-sa-token
+            - name: audit-logs
+              emptyDir: {}
+            - name: fluent-bit-config
+              configMap:
+                name: fluent-bit-config
+
+          restartPolicy: OnFailure
+
+---
+# ServiceAccount for backup execution
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup-executor
+  namespace: velero
+
+---
+# RBAC for backup executor
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-executor
+  namespace: velero
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-executor
+  namespace: velero
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: backup-executor
+subjects:
+  - kind: ServiceAccount
+    name: backup-executor
+    namespace: velero

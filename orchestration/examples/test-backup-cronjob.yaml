@@ -1,0 +1,194 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-minikube-test
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: velero-backup
+    app.kubernetes.io/component: cronjob
+    cluster: minikube
+spec:
+  schedule: "0 2 * * *" # Daily at 2 AM
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: velero-backup
+            app.kubernetes.io/component: job
+            cluster: minikube
+        spec:
+          serviceAccountName: default
+          containers:
+            - name: backup-trigger
+              image: bitnami/kubectl:latest
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  echo "🎯 Starting backup for minikube cluster..."
+                  
+                  # Load credentials from secret
+                  TOKEN=$(cat /secrets/token)
+                  CA_CERT=$(cat /secrets/ca.crt | base64 -d)
+                  SERVER=$(cat /secrets/server)
+                  CLUSTER_NAME=$(cat /secrets/cluster-name)
+                  
+                  echo "📍 Connecting to cluster: $CLUSTER_NAME at $SERVER"
+                  
+                  # Create kubeconfig
+                  cat > /tmp/kubeconfig <<KUBECONFIG
+                  apiVersion: v1
+                  kind: Config
+                  clusters:
+                  - cluster:
+                      certificate-authority-data: $(cat /secrets/ca.crt)
+                      server: $SERVER
+                    name: $CLUSTER_NAME
+                  contexts:
+                  - context:
+                      cluster: $CLUSTER_NAME
+                      user: velero-sa
+                    name: $CLUSTER_NAME
+                  current-context: $CLUSTER_NAME
+                  users:
+                  - name: velero-sa
+                    user:
+                      token: $TOKEN
+                  KUBECONFIG
+                  
+                  export KUBECONFIG=/tmp/kubeconfig
+                  
+                  # Verify connection
+                  echo "🔍 Verifying cluster connection..."
+                  if ! kubectl get ns velero &>/dev/null; then
+                    echo "❌ Failed to connect to cluster!"
+                    exit 1
+                  fi
+                  
+                  echo "✅ Connected successfully"
+                  
+                  # Create backup
+                  BACKUP_NAME="${CLUSTER_NAME}-$(date +%Y%m%d-%H%M%S)"
+                  echo "📦 Creating backup: $BACKUP_NAME"
+                  
+                  cat <<BACKUP | kubectl apply -f -
+                  apiVersion: velero.io/v1
+                  kind: Backup
+                  metadata:
+                    name: $BACKUP_NAME
+                    namespace: velero
+                    labels:
+                      cluster: $CLUSTER_NAME
+                      created-by: cronjob
+                  spec:
+                    includedNamespaces:
+                    - default
+                    - workloads
+                    excludedNamespaces:
+                    - kube-system
+                    - kube-public
+                    - kube-node-lease
+                    storageLocation: default
+                    ttl: 720h0m0s  # 30 days
+                    hooks:
+                      resources: []
+                  BACKUP
+                  
+                  # Wait for backup to start
+                  echo "⏳ Waiting for backup to start..."
+                  sleep 10
+                  
+                  # Check backup status
+                  STATUS=$(kubectl get backup $BACKUP_NAME -n velero -o jsonpath='{.status.phase}')
+                  echo "📊 Backup status: $STATUS"
+                  
+                  if [[ "$STATUS" == "Failed" ]]; then
+                    echo "❌ Backup failed!"
+                    kubectl describe backup $BACKUP_NAME -n velero
+                    exit 1
+                  fi
+                  
+                  echo "✅ Backup $BACKUP_NAME initiated successfully"
+              volumeMounts:
+                - name: cluster-secrets
+                  mountPath: /secrets
+                  readOnly: true
+              resources:
+                requests:
+                  memory: "64Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "128Mi"
+                  cpu: "200m"
+          volumes:
+            - name: cluster-secrets
+              secret:
+                secretName: minikube-sa-token
+          restartPolicy: OnFailure
+---
+# Manual test job template
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: backup-minikube-manual
+  namespace: velero
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: velero-backup
+        app.kubernetes.io/component: manual-job
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: test-connection
+          image: bitnami/kubectl:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo "🧪 Testing connection to minikube..."
+              
+              TOKEN=$(cat /secrets/token)
+              SERVER=$(cat /secrets/server)
+              
+              # Simple connection test
+              cat > /tmp/kubeconfig <<EOF
+              apiVersion: v1
+              kind: Config
+              clusters:
+              - cluster:
+                  certificate-authority-data: $(cat /secrets/ca.crt)
+                  server: $SERVER
+                name: test
+              contexts:
+              - context:
+                  cluster: test
+                  user: test
+                name: test
+              current-context: test
+              users:
+              - name: test
+                user:
+                  token: $TOKEN
+              EOF
+              
+              export KUBECONFIG=/tmp/kubeconfig
+              
+              echo "Namespaces on remote cluster:"
+              kubectl get ns
+              
+              echo "Velero resources:"
+              kubectl get all -n velero
+          volumeMounts:
+            - name: cluster-secrets
+              mountPath: /secrets
+          volumes:
+            - name: cluster-secrets
+              secret:
+                secretName: minikube-sa-token
+      restartPolicy: Never
