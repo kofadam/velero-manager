@@ -61,14 +61,27 @@ func (h *VeleroHandler) ListBackups(c *gin.Context) {
 	var backups []map[string]interface{}
 	for _, backup := range backupList.Items {
 		backupName := backup.GetName()
-		clusterName := extractClusterFromBackupName(backupName)
+		labels := backup.GetLabels()
+
+		// Try to get cluster from labels first (more reliable)
+		clusterName := ""
+		if labels != nil {
+			if cluster, ok := labels["cluster"]; ok {
+				clusterName = cluster
+			}
+		}
+
+		// Fallback to name parsing if no label
+		if clusterName == "" {
+			clusterName = extractClusterFromBackupName(backupName)
+		}
 
 		backupData := map[string]interface{}{
 			"name":              backupName,
 			"cluster":           clusterName,
 			"namespace":         backup.GetNamespace(),
 			"creationTimestamp": backup.GetCreationTimestamp(),
-			"labels":            backup.GetLabels(),
+			"labels":            labels,
 		}
 
 		// Extract status if available
@@ -1385,6 +1398,23 @@ func extractResourceCounts(status map[string]interface{}) map[string]interface{}
 }
 
 func extractClusterFromBackupName(backupName string) string {
+	// Check for minikube pattern first: minikube-YYYYMMDD-HHMMSS
+	if strings.HasPrefix(backupName, "minikube-") {
+		return "minikube"
+	}
+
+	// Check for microk8s pattern: microk8s-YYYYMMDD-HHMMSS
+	if strings.HasPrefix(backupName, "microk8s-") {
+		return "microk8s"
+	}
+
+	// Check for smart backup pattern: smart-YYYYMMDD-HHMMSS
+	if strings.HasPrefix(backupName, "smart-") {
+		// Smart backups are from minikube based on the CronJob we saw
+		return "minikube"
+	}
+
+	// Original patterns for backward compatibility
 	parts := strings.Split(backupName, "-daily-backup-")
 	if len(parts) >= 2 {
 		return parts[0]

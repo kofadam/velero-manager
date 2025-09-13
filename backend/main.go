@@ -125,8 +125,10 @@ func main() {
 			protected.DELETE("/backups/:name", veleroHandler.DeleteBackup)
 			protected.GET("/backups/:name/details", veleroHandler.GetBackupDetails)
 			protected.GET("/backups/:name/logs", veleroHandler.GetBackupLogs)
-			protected.GET("/backups/:name/download", veleroHandler.DownloadBackup)
 			protected.GET("/backups/:name/describe", veleroHandler.DescribeBackup)
+
+			// Backup download - admin only due to DownloadRequest CRD requirements
+			admin.GET("/backups/:name/download", veleroHandler.DownloadBackup)
 
 			// Restore operations (authenticated users)
 			protected.GET("/restores", veleroHandler.ListRestores)

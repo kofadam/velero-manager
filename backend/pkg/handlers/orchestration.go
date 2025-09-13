@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -538,8 +539,49 @@ func (h *VeleroHandler) getArgocdApplicationStatus(appName string) (ArgocdApplic
 
 // calculateNextCronExecution calculates the next execution time for a cron schedule
 func calculateNextCronExecution(schedule string, from time.Time) time.Time {
-	// Simplified calculation - in production, use a proper cron parser
-	// For now, assume daily at 2 AM
-	next := from.Truncate(24 * time.Hour).Add(24 * time.Hour).Add(2 * time.Hour)
-	return next
+	// Parse the cron schedule string
+	// Common patterns: "0 2 * * *" (daily at 2 AM), "0 */6 * * *" (every 6 hours)
+	parts := strings.Fields(schedule)
+	if len(parts) < 5 {
+		// Invalid cron format, return a default
+		return from.Add(24 * time.Hour)
+	}
+
+	minute := parts[0]
+	hour := parts[1]
+
+	// Handle simple cases
+	if hour == "*" || strings.Contains(hour, "*/") {
+		// Every N hours pattern
+		if strings.Contains(hour, "*/") {
+			hoursStr := strings.TrimPrefix(hour, "*/")
+			if hours, err := strconv.Atoi(hoursStr); err == nil {
+				return from.Add(time.Duration(hours) * time.Hour)
+			}
+		}
+		// Every hour
+		return from.Add(1 * time.Hour)
+	}
+
+	// Specific hour pattern (e.g., "0 2 * * *" means daily at 2:00)
+	if hourNum, err := strconv.Atoi(hour); err == nil {
+		minuteNum := 0
+		if min, err := strconv.Atoi(minute); err == nil {
+			minuteNum = min
+		}
+
+		// Calculate next occurrence
+		next := from.Truncate(24 * time.Hour) // Start of today
+		next = next.Add(time.Duration(hourNum)*time.Hour + time.Duration(minuteNum)*time.Minute)
+
+		// If the time has already passed today, move to tomorrow
+		if next.Before(from) || next.Equal(from) {
+			next = next.Add(24 * time.Hour)
+		}
+
+		return next
+	}
+
+	// Default fallback
+	return from.Add(24 * time.Hour)
 }
