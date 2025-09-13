@@ -64,13 +64,28 @@ const Clusters: React.FC = () => {
   }, []);
 
   const getHealthStatus = (cluster: Cluster) => {
-    // Check if cluster has connection details configured
+    // Use backend-provided status if available
+    if (cluster.status) {
+      switch (cluster.status) {
+        case 'healthy':
+          return { label: 'Healthy', color: 'success' as const };
+        case 'unhealthy':
+          return { label: 'Unhealthy', color: 'error' as const };
+        case 'unreachable':
+          return { label: 'Unreachable', color: 'error' as const };
+        case 'not configured':
+          return { label: 'Not Configured', color: 'error' as const };
+        default:
+          return { label: cluster.status, color: 'default' as const };
+      }
+    }
+
+    // Fallback to old logic if no status provided
     if (!cluster.ip && !cluster.apiEndpoint) {
       return { label: 'Not Configured', color: 'error' as const };
     }
 
     if (!cluster.lastBackup) {
-      // Configured but no backups yet
       return { label: 'Configured', color: 'info' as const };
     }
 

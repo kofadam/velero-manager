@@ -66,7 +66,13 @@ const Settings: React.FC = () => {
 
   const fetchMultiClusterStatus = async () => {
     try {
-      const response = await fetch('/api/v1/clusters/status');
+      const token = localStorage.getItem('velero_token');
+      const response = await fetch('/api/v1/clusters/status', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
       if (response.ok) {
         const data = await response.json();
         setMultiClusterStatus(data);

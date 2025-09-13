@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -118,9 +119,28 @@ func (mc *MultiClusterClient) DiscoverClusters() ([]ClusterConnection, error) {
 		}
 	}
 
-	// Convert map to slice
+	// Convert map to slice and perform health checks
 	connections := make([]ClusterConnection, 0, len(clusterMap))
-	for _, cluster := range clusterMap {
+	for clusterName, cluster := range clusterMap {
+		// Try to perform a quick health check if we have the API endpoint
+		if cluster.APIEndpoint != "" {
+			// Attempt to connect to the cluster for health status
+			err := mc.ConnectToCluster(clusterName)
+			if err == nil {
+				// Check if we have a healthy connection
+				mc.mutex.RLock()
+				if clusterClient, exists := mc.clusters[clusterName]; exists {
+					cluster.Status = clusterClient.Status
+					cluster.LastSeen = clusterClient.LastSeen
+				}
+				mc.mutex.RUnlock()
+			} else {
+				cluster.Status = "unreachable"
+				log.Printf("Cluster %s health check failed: %v", clusterName, err)
+			}
+		} else {
+			cluster.Status = "not configured"
+		}
 		connections = append(connections, cluster)
 	}
 
@@ -202,6 +222,15 @@ func (mc *MultiClusterClient) ConnectToCluster(clusterName string) error {
 	caCert, err := base64.StdEncoding.DecodeString(caCertB64.(string))
 	if err != nil {
 		return fmt.Errorf("failed to decode CA certificate: %w", err)
+	}
+
+	// Check if the decoded certificate is still base64 encoded (double encoding)
+	if !strings.Contains(string(caCert), "-----BEGIN CERTIFICATE-----") {
+		// Try to decode again for double-encoded certificates
+		caCert, err = base64.StdEncoding.DecodeString(string(caCert))
+		if err != nil {
+			return fmt.Errorf("failed to decode double-encoded CA certificate: %w", err)
+		}
 	}
 
 	// Create rest config for remote cluster
@@ -418,11 +447,22 @@ func (mc *MultiClusterClient) GetCacheStats() map[string]interface{} {
 // Helper function to extract cluster name from cronjob name
 // This should match the logic in velero.go
 func extractClusterFromCronJobName(cronJobName string) string {
-	// Implementation matches the existing function in velero.go
-	if len(cronJobName) > 7 && cronJobName[:7] == "backup-" && len(cronJobName) > 13 && cronJobName[len(cronJobName)-6:] == "-daily" {
-		// Remove "backup-" prefix and "-daily" suffix
-		clusterPart := cronJobName[7 : len(cronJobName)-6]
+	// First try exact match with "-daily" suffix
+	if strings.HasPrefix(cronJobName, "backup-") && strings.HasSuffix(cronJobName, "-daily") {
+		clusterPart := strings.TrimPrefix(cronJobName, "backup-")
+		clusterPart = strings.TrimSuffix(clusterPart, "-daily")
 		return clusterPart
 	}
+
+	// Fallback for other patterns like "backup-minikube-smart", "backup-minikube-test"
+	if strings.HasPrefix(cronJobName, "backup-") {
+		clusterPart := strings.TrimPrefix(cronJobName, "backup-")
+		// Extract the first part (cluster name) before any additional suffix
+		parts := strings.Split(clusterPart, "-")
+		if len(parts) > 0 {
+			return parts[0]
+		}
+	}
+
 	return "unknown"
 }

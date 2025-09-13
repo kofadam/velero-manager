@@ -1355,11 +1355,21 @@ func (h *VeleroHandler) TriggerCronJob(c *gin.Context) {
 // extractClusterFromCronJobName parses cluster name from cronjob naming convention
 // Example: "backup-core-cl1-daily" -> "core-cl1"
 func extractClusterFromCronJobName(cronJobName string) string {
+	// First try exact match with "-daily" suffix
 	if strings.HasPrefix(cronJobName, "backup-") && strings.HasSuffix(cronJobName, "-daily") {
-		// Remove "backup-" prefix and "-daily" suffix
 		clusterPart := strings.TrimPrefix(cronJobName, "backup-")
 		clusterPart = strings.TrimSuffix(clusterPart, "-daily")
 		return clusterPart
+	}
+
+	// Fallback for other patterns like "backup-minikube-smart", "backup-minikube-test"
+	if strings.HasPrefix(cronJobName, "backup-") {
+		clusterPart := strings.TrimPrefix(cronJobName, "backup-")
+		// Extract the first part (cluster name) before any additional suffix
+		parts := strings.Split(clusterPart, "-")
+		if len(parts) > 0 {
+			return parts[0]
+		}
 	}
 
 	return "unknown"
@@ -1562,48 +1572,44 @@ func (h *VeleroHandler) GetClusterDetails(c *gin.Context) {
 }
 
 func (h *VeleroHandler) ListClusters(c *gin.Context) {
-	// Get all CronJobs to identify clusters
-	cronJobList, err := h.k8sClient.DynamicClient.
-		Resource(k8s.CronJobGVR).
-		Namespace("velero").
-		List(h.k8sClient.Context, metav1.ListOptions{})
-
+	// Get multi-cluster discovery information
+	connections, err := h.multiClusterClient.DiscoverClusters()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to list cronjobs",
+			"error":   "Failed to discover clusters",
 			"details": err.Error(),
 		})
 		return
 	}
 
-	// Build cluster map from CronJobs first
+	// Build cluster map from multi-cluster connections first
 	clusterMap := make(map[string]map[string]interface{})
 
-	for _, cronJob := range cronJobList.Items {
-		clusterName := extractClusterFromCronJobName(cronJob.GetName())
-		if clusterName != "unknown" && clusterName != "" {
-			// Get description from our in-memory store
-			h.mutex.RLock()
-			description := h.clusterDescriptions[clusterName]
-			h.mutex.RUnlock()
+	// Initialize from discovered connections
+	for _, connection := range connections {
+		// Get description from our in-memory store
+		h.mutex.RLock()
+		description := h.clusterDescriptions[connection.Name]
+		h.mutex.RUnlock()
 
-			clusterMap[clusterName] = map[string]interface{}{
-				"name":        clusterName,
-				"backupCount": 0,
-				"lastBackup":  nil,
-				"description": description,
-			}
+		clusterMap[connection.Name] = map[string]interface{}{
+			"name":        connection.Name,
+			"backupCount": 0,
+			"lastBackup":  nil,
+			"description": description,
+			"apiEndpoint": connection.APIEndpoint,
+			"status":      connection.Status,
+			"lastSeen":    connection.LastSeen,
 		}
 	}
 
-	// Try to get backups (but don't fail if they don't exist)
+	// Try to get backups to enhance cluster data
 	backupList, err := h.k8sClient.DynamicClient.
 		Resource(k8s.BackupGVR).
 		Namespace("velero").
 		List(h.k8sClient.Context, metav1.ListOptions{})
 
 	if err == nil {
-
 		// Add backup counts and last backup times
 		for _, backup := range backupList.Items {
 			clusterName := extractClusterFromBackupName(backup.GetName())

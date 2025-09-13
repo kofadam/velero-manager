@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: velero
+
+resources:
+  - cronjobs/backup-minikube-daily.yaml
+  - cronjobs/backup-microk8s-daily.yaml
+
+commonLabels:
+  managed-by: velero-manager
+  environment: production
+  app.kubernetes.io/part-of: velero-orchestration
+
+patches:
+  - target:
+      kind: CronJob
+    patch: |-
+      - op: add
+        path: /metadata/labels/velero.io~1managed-by
+        value: velero-manager

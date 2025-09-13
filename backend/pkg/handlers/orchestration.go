@@ -8,10 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"velero-manager/pkg/k8s"
+
 	"github.com/gin-gonic/gin"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // OrchestrationStatus represents the overall orchestration health
@@ -347,9 +350,23 @@ func (h *VeleroHandler) buildClusterInfo(secret *corev1.Secret) ClusterOrchestra
 }
 
 func (h *VeleroHandler) getBackupSchedules() ([]ScheduleInfo, error) {
-	cronJobs, err := h.k8sClient.Clientset.BatchV1().CronJobs("velero").List(context.TODO(), metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/component=cronjob",
-	})
+	// Get all cronjobs in velero namespace that are backup-related
+	cronJobs, err := h.k8sClient.Clientset.BatchV1().CronJobs("velero").List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter to only backup-related cronjobs by name pattern
+	var backupCronJobs []batchv1.CronJob
+	for _, cronJob := range cronJobs.Items {
+		if strings.HasPrefix(cronJob.Name, "backup-") {
+			backupCronJobs = append(backupCronJobs, cronJob)
+		}
+	}
+
+	// Create a fake cronJobs response with filtered items
+	filteredCronJobs := &batchv1.CronJobList{Items: backupCronJobs}
+	cronJobs = filteredCronJobs
 	if err != nil {
 		return nil, err
 	}
@@ -399,16 +416,21 @@ func (h *VeleroHandler) buildScheduleInfo(cronJob *batchv1.CronJob) ScheduleInfo
 }
 
 func (h *VeleroHandler) getArgocdStatus() (ArgocdApplicationStatus, error) {
-	// Try to get the ArgoCD application status via kubectl
-	// For now, return mock data - in production, you'd use ArgoCD API
-	return ArgocdApplicationStatus{
-		AppName:      "velero-examples",
-		SyncStatus:   "Synced",
-		HealthStatus: "Healthy",
-		LastSync:     time.Now().Add(-10 * time.Minute),
-		SyncRevision: "master@HEAD",
-		SyncPath:     "orchestration/examples",
-	}, nil
+	// Get the first ArgoCD application (velero-examples)
+	apps, err := h.getArgocdApplications()
+	if err != nil {
+		return ArgocdApplicationStatus{}, fmt.Errorf("failed to get ArgoCD applications: %w", err)
+	}
+
+	if len(apps) == 0 {
+		return ArgocdApplicationStatus{
+			AppName:      "No applications found",
+			SyncStatus:   "Unknown",
+			HealthStatus: "Unknown",
+		}, nil
+	}
+
+	return apps[0], nil
 }
 
 // GitOps/ArgoCD Integration Functions
@@ -505,17 +527,56 @@ func (h *VeleroHandler) GetGitopsSyncStatus(c *gin.Context) {
 
 // Helper function to get ArgoCD applications
 func (h *VeleroHandler) getArgocdApplications() ([]ArgocdApplicationStatus, error) {
-	// In a real implementation, this would query ArgoCD CRDs or API
-	// For now, return the current application we know exists
-	apps := []ArgocdApplicationStatus{
-		{
-			AppName:      "velero-examples",
-			SyncStatus:   "Synced",
-			HealthStatus: "Healthy", // We know it's degraded, but let's show what healthy looks like
-			LastSync:     time.Now().Add(-10 * time.Minute),
-			SyncRevision: "master@HEAD",
-			SyncPath:     "orchestration/examples",
-		},
+	ctx := context.Background()
+
+	// Get ArgoCD applications from the argocd namespace
+	appList, err := h.k8sClient.DynamicClient.
+		Resource(k8s.ApplicationGVR).
+		Namespace("argocd").
+		List(ctx, metav1.ListOptions{})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to list ArgoCD applications: %w", err)
+	}
+
+	var apps []ArgocdApplicationStatus
+	for _, app := range appList.Items {
+		appStatus := ArgocdApplicationStatus{
+			AppName: app.GetName(),
+		}
+
+		// Extract sync status
+		if syncStatus, found, _ := unstructured.NestedString(app.Object, "status", "sync", "status"); found {
+			appStatus.SyncStatus = syncStatus
+		} else {
+			appStatus.SyncStatus = "Unknown"
+		}
+
+		// Extract health status
+		if healthStatus, found, _ := unstructured.NestedString(app.Object, "status", "health", "status"); found {
+			appStatus.HealthStatus = healthStatus
+		} else {
+			appStatus.HealthStatus = "Unknown"
+		}
+
+		// Extract last sync time from operation state
+		if finishedAt, found, _ := unstructured.NestedString(app.Object, "status", "operationState", "finishedAt"); found {
+			if lastSync, err := time.Parse(time.RFC3339, finishedAt); err == nil {
+				appStatus.LastSync = lastSync
+			}
+		}
+
+		// Extract revision from sync status
+		if revision, found, _ := unstructured.NestedString(app.Object, "status", "sync", "revision"); found {
+			appStatus.SyncRevision = revision[:8] // Short commit hash
+		}
+
+		// Extract source path from spec
+		if path, found, _ := unstructured.NestedString(app.Object, "spec", "source", "path"); found {
+			appStatus.SyncPath = path
+		}
+
+		apps = append(apps, appStatus)
 	}
 
 	return apps, nil
@@ -523,19 +584,58 @@ func (h *VeleroHandler) getArgocdApplications() ([]ArgocdApplicationStatus, erro
 
 // Helper function to get specific ArgoCD application status
 func (h *VeleroHandler) getArgocdApplicationStatus(appName string) (ArgocdApplicationStatus, error) {
-	// For the velero-examples app we know about
-	if appName == "velero-examples" {
-		return ArgocdApplicationStatus{
-			AppName:      "velero-examples",
-			SyncStatus:   "Synced",
-			HealthStatus: "Degraded", // This matches what we saw in kubectl
-			LastSync:     time.Now().Add(-10 * time.Minute),
-			SyncRevision: "master@HEAD",
-			SyncPath:     "orchestration/examples",
-		}, nil
+	ctx := context.Background()
+
+	// Get specific ArgoCD application from the argocd namespace
+	app, err := h.k8sClient.DynamicClient.
+		Resource(k8s.ApplicationGVR).
+		Namespace("argocd").
+		Get(ctx, appName, metav1.GetOptions{})
+
+	if err != nil {
+		return ArgocdApplicationStatus{}, fmt.Errorf("failed to get ArgoCD application %s: %w", appName, err)
 	}
 
-	return ArgocdApplicationStatus{}, fmt.Errorf("application %s not found", appName)
+	appStatus := ArgocdApplicationStatus{
+		AppName: app.GetName(),
+	}
+
+	// Extract sync status
+	if syncStatus, found, _ := unstructured.NestedString(app.Object, "status", "sync", "status"); found {
+		appStatus.SyncStatus = syncStatus
+	} else {
+		appStatus.SyncStatus = "Unknown"
+	}
+
+	// Extract health status
+	if healthStatus, found, _ := unstructured.NestedString(app.Object, "status", "health", "status"); found {
+		appStatus.HealthStatus = healthStatus
+	} else {
+		appStatus.HealthStatus = "Unknown"
+	}
+
+	// Extract last sync time from operation state
+	if finishedAt, found, _ := unstructured.NestedString(app.Object, "status", "operationState", "finishedAt"); found {
+		if lastSync, err := time.Parse(time.RFC3339, finishedAt); err == nil {
+			appStatus.LastSync = lastSync
+		}
+	}
+
+	// Extract revision from sync status
+	if revision, found, _ := unstructured.NestedString(app.Object, "status", "sync", "revision"); found {
+		if len(revision) > 8 {
+			appStatus.SyncRevision = revision[:8] // Short commit hash
+		} else {
+			appStatus.SyncRevision = revision
+		}
+	}
+
+	// Extract source path from spec
+	if path, found, _ := unstructured.NestedString(app.Object, "spec", "source", "path"); found {
+		appStatus.SyncPath = path
+	}
+
+	return appStatus, nil
 }
 
 // calculateNextCronExecution calculates the next execution time for a cron schedule

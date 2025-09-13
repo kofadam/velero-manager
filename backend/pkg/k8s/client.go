@@ -111,4 +111,10 @@ var (
 		Version:  "v1",
 		Resource: "downloadrequests",
 	}
+
+	ApplicationGVR = schema.GroupVersionResource{
+		Group:    "argoproj.io",
+		Version:  "v1alpha1",
+		Resource: "applications",
+	}
 )

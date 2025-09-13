@@ -1,0 +1,89 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-microk8s-daily
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: velero-backup
+    app.kubernetes.io/component: cronjob
+    cluster: microk8s
+    managed-by: velero-manager
+    environment: production
+spec:
+  schedule: "0 3 * * *" # Daily at 3 AM (1 hour after minikube backup)
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: velero-backup
+            app.kubernetes.io/component: job
+            cluster: microk8s
+            managed-by: velero-manager
+        spec:
+          serviceAccountName: default
+          containers:
+            - name: backup-trigger
+              image: bitnami/kubectl:latest
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  echo "🎯 Starting local backup for microk8s cluster..."
+
+                  # For local cluster, we can use in-cluster config or service account
+                  BACKUP_NAME="microk8s-daily-$(date +%Y%m%d-%H%M%S)"
+                  echo "📦 Creating local backup: $BACKUP_NAME"
+
+                  cat <<BACKUP | kubectl apply -f -
+                  apiVersion: velero.io/v1
+                  kind: Backup
+                  metadata:
+                    name: $BACKUP_NAME
+                    namespace: velero
+                    labels:
+                      cluster: microk8s
+                      created-by: cronjob-production
+                      managed-by: velero-manager
+                  spec:
+                    includedNamespaces:
+                    - default
+                    - velero-manager
+                    - argocd
+                    excludedNamespaces:
+                    - kube-system
+                    - kube-public
+                    - kube-node-lease
+                    - velero
+                    storageLocation: default
+                    ttl: 720h0m0s  # 30 days
+                    hooks:
+                      resources: []
+                  BACKUP
+
+                  # Wait for backup to start
+                  echo "⏳ Waiting for backup to start..."
+                  sleep 10
+
+                  # Check backup status
+                  STATUS=$(kubectl get backup $BACKUP_NAME -n velero -o jsonpath='{.status.phase}' || echo "Unknown")
+                  echo "📊 Backup status: $STATUS"
+
+                  if [[ "$STATUS" == "Failed" ]]; then
+                    echo "❌ Backup failed!"
+                    kubectl describe backup $BACKUP_NAME -n velero
+                    exit 1
+                  fi
+
+                  echo "✅ Local backup $BACKUP_NAME created successfully"
+              resources:
+                requests:
+                  memory: "64Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "128Mi"
+                  cpu: "200m"
+          restartPolicy: OnFailure

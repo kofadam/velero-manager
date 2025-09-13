@@ -1,6 +1,6 @@
 import React from 'react';
 import { Backup } from '../../services/types.ts';
-import { formatDateShort } from '../../utils/dateUtils.ts';
+import { formatDate } from '../../utils/dateUtils.ts';
 import { BACKUP_PHASES } from '../../utils/constants.ts';
 import {
   Table,
@@ -224,7 +224,7 @@ const BackupTable: React.FC<BackupTableProps> = ({ backups, onViewDetails }) => 
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {formatDateShort(backup.creationTimestamp)}
+                  {formatDate(backup.creationTimestamp)}
                 </Typography>
               </TableCell>
               <TableCell>
@@ -236,7 +236,7 @@ const BackupTable: React.FC<BackupTableProps> = ({ backups, onViewDetails }) => 
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {backup.status.expiration ? formatDateShort(backup.status.expiration) : '-'}
+                  {backup.status.expiration ? formatDate(backup.status.expiration) : '-'}
                 </Typography>
               </TableCell>
               <TableCell>
