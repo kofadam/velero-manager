@@ -87,11 +87,11 @@ spec:
                   spec:
                     includedNamespaces:
                     - default
-                    - workloads
                     excludedNamespaces:
                     - kube-system
                     - kube-public
                     - kube-node-lease
+                    - velero
                     storageLocation: default
                     ttl: 720h0m0s  # 30 days
                     hooks:
