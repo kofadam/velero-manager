@@ -148,3 +148,85 @@ export interface CronJobsResponse {
   cronjobs: CronJob[];
   count: number;
 }
+
+export interface ClusterMetrics {
+  name: string;
+  backups_total: number;
+  backups_successful: number;
+  backups_failed: number;
+  last_backup_time?: string;
+  status: 'healthy' | 'warning' | 'error';
+}
+
+export interface DashboardMetrics {
+  clusters: ClusterMetrics[];
+  total_backups: number;
+  total_restores: number;
+  total_schedules: number;
+  recent_backups: number;
+  recent_failures: number;
+}
+
+// Orchestration Types
+export interface OrchestrationStatus {
+  overall_status: string;
+  total_clusters: number;
+  healthy_clusters: number;
+  active_schedules: number;
+  recent_backups: number;
+  last_update: string;
+  clusters: ClusterOrchestrationInfo[];
+  schedules: ScheduleInfo[];
+  argocd_status: ArgocdApplicationStatus;
+}
+
+export interface ClusterOrchestrationInfo {
+  name: string;
+  status: string; // "healthy", "degraded", "unknown"
+  last_backup?: string;
+  next_scheduled?: string;
+  token_status: string; // "valid", "expiring", "expired"
+  token_expiry?: string;
+  backup_count_24h: number;
+  error_count_24h: number;
+}
+
+export interface ScheduleInfo {
+  name: string;
+  cluster_name: string;
+  schedule: string;
+  status: string; // "active", "suspended", "failed"
+  last_execution?: string;
+  next_execution?: string;
+  success_count: number;
+  failure_count: number;
+  last_job_status: string;
+}
+
+export interface ArgocdApplicationStatus {
+  app_name: string;
+  sync_status: string; // "Synced", "OutOfSync", "Unknown"
+  health_status: string; // "Healthy", "Degraded", "Suspended"
+  last_sync?: string;
+  sync_revision?: string;
+  sync_path?: string;
+}
+
+export interface TokenRotationStatus {
+  enabled: boolean;
+  last_rotation?: string;
+  next_rotation?: string;
+  rotation_status: string; // "healthy", "overdue", "failed"
+  clusters_rotated: number;
+  failed_rotations?: string[];
+}
+
+export interface GitopsSyncStatus {
+  overall_status: string;
+  total_applications: number;
+  synced: number;
+  out_of_sync: number;
+  healthy: number;
+  last_sync: string;
+  applications: ArgocdApplicationStatus[];
+}

@@ -161,6 +161,33 @@ func main() {
 
 			// Dashboard metrics
 			protected.GET("/dashboard/metrics", veleroHandler.GetDashboardMetrics)
+
+			// Orchestration operations (multi-cluster backup management)
+			orchestration := protected.Group("/orchestration")
+			{
+				orchestration.GET("/status", veleroHandler.GetOrchestrationStatus)
+				orchestration.GET("/clusters/:name", veleroHandler.GetClusterOrchestrationInfo)
+
+				// Token rotation management - admin only
+				tokens := orchestration.Group("/tokens")
+				tokens.Use(middleware.RequireAdmin())
+				{
+					tokens.GET("/status", veleroHandler.GetTokenRotationStatus)
+					tokens.POST("/rotate", veleroHandler.TriggerTokenRotation)
+				}
+
+				// Schedule triggering - authenticated users
+				orchestration.POST("/schedules/:name/trigger", veleroHandler.TriggerBackupSchedule)
+			}
+
+			// GitOps operations (ArgoCD integration)
+			gitops := protected.Group("/gitops")
+			{
+				gitops.GET("/applications", veleroHandler.ListArgocdApplications)
+				gitops.GET("/applications/:name/status", veleroHandler.GetArgocdApplicationStatus)
+				gitops.POST("/applications/:name/sync", veleroHandler.SyncArgocdApplication)
+				gitops.GET("/sync-status", veleroHandler.GetGitopsSyncStatus)
+			}
 		}
 	}
 

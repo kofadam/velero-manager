@@ -210,4 +210,51 @@ export const apiService = {
     const response = await api.put(`/clusters/${clusterName}/description`, { description });
     return response.data;
   },
+
+  // Orchestration Management APIs
+  async getOrchestrationStatus(): Promise<any> {
+    const response = await api.get('/orchestration/status');
+    return response.data;
+  },
+
+  async getClusterOrchestrationInfo(clusterName: string): Promise<any> {
+    const response = await api.get(`/orchestration/clusters/${clusterName}`);
+    return response.data;
+  },
+
+  async getTokenRotationStatus(): Promise<any> {
+    const response = await api.get('/orchestration/tokens/status');
+    return response.data;
+  },
+
+  async triggerTokenRotation(): Promise<any> {
+    const response = await api.post('/orchestration/tokens/rotate');
+    return response.data;
+  },
+
+  async triggerBackupSchedule(scheduleName: string): Promise<any> {
+    const response = await api.post(`/orchestration/schedules/${scheduleName}/trigger`);
+    return response.data;
+  },
+
+  // GitOps Management APIs
+  async getGitopsApplications(): Promise<any> {
+    const response = await api.get('/gitops/applications');
+    return response.data;
+  },
+
+  async getGitopsApplicationStatus(appName: string): Promise<any> {
+    const response = await api.get(`/gitops/applications/${appName}/status`);
+    return response.data;
+  },
+
+  async syncGitopsApplication(appName: string): Promise<any> {
+    const response = await api.post(`/gitops/applications/${appName}/sync`);
+    return response.data;
+  },
+
+  async getGitopsSyncStatus(): Promise<any> {
+    const response = await api.get('/gitops/sync-status');
+    return response.data;
+  },
 };

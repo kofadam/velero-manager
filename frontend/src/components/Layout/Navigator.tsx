@@ -50,6 +50,16 @@ const categories = [
     ],
   },
   {
+    id: 'Orchestration',
+    children: [
+      {
+        id: 'orchestration',
+        name: 'Multi-Cluster',
+        icon: <DnsRoundedIcon />,
+      },
+    ],
+  },
+  {
     id: 'Administration',
     children: [
       {

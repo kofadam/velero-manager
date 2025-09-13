@@ -12,6 +12,7 @@ import ScheduleList from './components/Schedules/ScheduleList.tsx';
 import RestoreList from './components/Restores/RestoreList.tsx';
 import Settings from './components/Settings/Settings.tsx';
 import Login from './components/Auth/Login.tsx';
+import OrchestrationDashboard from './components/Orchestration/OrchestrationDashboard.tsx';
 import { authService } from './services/auth.ts';
 import { User } from './services/types.ts';
 
@@ -248,6 +249,8 @@ function App() {
         return <RestoreList />;
       case 'schedules':
         return <ScheduleList />;
+      case 'orchestration':
+        return <OrchestrationDashboard />;
       case 'settings':
         return <Settings />;
       default:
